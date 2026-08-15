@@ -5,7 +5,12 @@ import { TopBar } from "@/components/Nav"
 import { Btn, FilterChip, Input, Select } from "@/components/primitives"
 import { createRecipe } from "@/services/recipes"
 
-const NON_VOLUME_UNITS = ["dash", "barspoon", "piece", "slice", "wedge", "top-up"]
+// "part" isn't in the spec's explicit semantic-unit list (§9: dash, barspoon,
+// piece, slice, wedge, top-up) but is a very common real cocktail unit for
+// ratio-based recipes ("1 part gin, 1 part vermouth") - added per user
+// request. Same mechanism as the others: a plain label shown verbatim,
+// amount=0, no ml conversion.
+const NON_VOLUME_UNITS = ["part", "dash", "barspoon", "piece", "slice", "wedge", "top-up"]
 
 export default function EditorScreen() {
   const navigate = useNavigate()
