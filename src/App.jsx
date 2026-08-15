@@ -4,6 +4,7 @@ import { BottomNav, SideNav } from "@/components/Nav"
 import { computeAvail, resolveOwnedIngredientTypes } from "@/domain/availability"
 import { useCatalog } from "@/hooks/useCatalog"
 import { useInventory } from "@/hooks/useInventory"
+import { useLists } from "@/hooks/useLists"
 import { useMembership } from "@/hooks/useMembership"
 import { useRecipes } from "@/hooks/useRecipes"
 import { useSupabaseSession } from "@/hooks/useSupabaseSession"
@@ -21,16 +22,6 @@ import SignInScreen from "@/screens/SignInScreen"
 import WelcomeScreen from "@/screens/WelcomeScreen"
 import { signOut } from "@/services/auth"
 import { updateProfile } from "@/services/membership"
-
-function toggleInSet(setter) {
-  return (id) =>
-    setter((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-}
 
 function LoadingScreen() {
   return (
@@ -58,8 +49,9 @@ function LoadingScreen() {
 // domain/availability.js) - generic ownership, owned products' mapped
 // types, and parent/child hierarchy, all expanded once up front so
 // computeAvail() itself only ever needs a plain Set membership check.
-// Favorites/Want to Make are still local-only mock state - Supabase in
-// step 9.
+// Favorites/Want to Make are real too as of step 9 (src/hooks/useLists.js),
+// same optimistic-update + "call once, share via context" discipline as
+// catalog/inventory/recipes above.
 function AppShell({ profile, session }) {
   const userId = session?.user?.id
   // profiles.theme_preference defaults to 'system' for new signups, but there's
@@ -68,8 +60,6 @@ function AppShell({ profile, session }) {
   // selected state instead of showing neither button active.
   const [theme, setThemeState] = useState(() => (profile?.theme_preference === "light" ? "light" : "dark"))
   const [unit, setUnitState] = useState(() => profile?.unit_preference ?? "ml")
-  const [favorites, setFavorites] = useState(() => new Set())
-  const [wantToMake, setWantToMake] = useState(() => new Set())
 
   useEffect(() => {
     document.documentElement.classList.toggle("light", theme === "light")
@@ -89,6 +79,7 @@ function AppShell({ profile, session }) {
 
   const catalog = useCatalog()
   const inventory = useInventory(userId)
+  const lists = useLists(userId)
   const recipesQuery = useRecipes()
   const { recipes, loading: recipesLoading, refetch: refetchRecipes } = recipesQuery
 
@@ -110,7 +101,7 @@ function AppShell({ profile, session }) {
   )
 
   const isAdmin = profile?.role === "admin"
-  const isLoading = catalog.loading || inventory.loading || recipesLoading
+  const isLoading = catalog.loading || inventory.loading || recipesLoading || lists.loading
 
   const outletContext = {
     computed,
@@ -119,8 +110,8 @@ function AppShell({ profile, session }) {
     ingredientTypesById,
     catalog,
     inventory,
-    favorites, toggleFav: toggleInSet(setFavorites),
-    wantToMake, toggleWtm: toggleInSet(setWantToMake),
+    favorites: lists.favoriteIds, toggleFav: lists.toggleFavorite,
+    wantToMake: lists.wantToMakeIds, toggleWtm: lists.toggleWantToMake,
     unit, setUnit,
     theme, setTheme,
     isAdmin,

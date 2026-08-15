@@ -12,8 +12,8 @@ Agreed phase plan (revised by user on 2026-08-15 — private recipe CRUD moved i
 6. ~~Recipes, private recipe CRUD, components, substitutions, families, relationships (Phase 3)~~ — **done and verified, 2026-08-16**
 7. ~~Unit preference + conversion (Phase 3)~~ — **done, 2026-08-16 — not yet browser-verified**
 8. ~~Availability engine, tested (Phase 3)~~ — **done, 2026-08-16 — not yet browser-verified**
-9. Library browsing, filters, Favorites, Want to Make (Phase 4) — **next**
-10. Purchase recommendations, tested (Phase 4)
+9. ~~Library browsing, filters, Favorites, Want to Make (Phase 4)~~ — **done, 2026-08-16 — not yet browser-verified**
+10. Purchase recommendations, tested (Phase 4) — **next**
 11. Recipe publishing + admin unpublishing (Phase 5)
 12. Admin catalog tools + JSON import preview/validation (Phase 5)
 13. Responsive/accessibility/security/deployment QA (Phase 6)
@@ -22,36 +22,23 @@ Each numbered step is a development chunk boundary for this file.
 
 ## Last completed chunk
 
-Step 8 — the availability engine now implements all four of the spec's component-satisfaction rules (§10.1), and has real test coverage for the first time in the project.
+Step 9 — real Favorites and Want to Make, replacing the last piece of local-only mock state in `AppShell`. Library browsing/filters needed no work — already real since step 6 (`LibraryScreen` already filters real recipes by availability/source/taste).
 
-**What was actually missing before this chunk**: `computeAvail` only ever checked flat `owned.has(id)` membership. "Product satisfies its mapped type" was already handled, but only because `AppShell` happened to pre-expand the owned set that way — it wasn't a named, tested domain rule. Two rules were entirely unimplemented: parent/child hierarchy ("a compatible explicit child type") and substitution groups ("one allowed item from its substitution group", deferred from step 6).
+**Database**: `20260815223400_user_lists.sql` — `user_favorites`/`user_want_to_make`, each just `(user_id, recipe_id)` as a composite primary key (does double duty as the natural key and the "can't favorite twice" constraint — simpler than `user_inventory`'s polymorphic shape since there's only one possible target, a recipe). RLS: read/insert/delete own only, no admin override, matching `user_inventory`'s "strictly private" precedent. Clean on `db advisors`.
 
-**Database**: `20260815222739_recipe_component_alternatives.sql` — a `recipe_component_alternatives` table (not a separate `substitution_groups` entity; each `recipe_components` row already *is* the slot, so a companion table of additional acceptable `ingredient_type_id`s per component is the whole mechanism). `recipe_id` denormalized onto it for RLS simplicity, matching `recipe_components`/`recipe_taste_tags`. RLS: read/insert/delete via `recipe_is_visible()`/`recipe_is_editable()`, same pattern as every other recipe child table — clean on `db advisors` with no follow-up fix needed.
-
-**Domain (`src/domain/availability.js`)**:
-- `computeAvail` now accepts an optional `alternativeIds` array per component; a component is satisfied if the primary id *or any* alternative is in `owned`.
-- New `resolveOwnedIngredientTypes({ ownedTypeIds, ownedProductIds, products, ingredientTypes })` — a pure function that expands raw ownership into everything it satisfies: direct ownership, owned-product mapping, and full ancestor-chain walk for hierarchy (owning a child type satisfies every ancestor type, transitively). This used to be inline logic in `AppShell`; moved into the domain layer specifically so it's unit-testable without React/Supabase, per `AGENTS.md`'s own rule for `src/domain/`.
-- `AppShell` now calls `resolveOwnedIngredientTypes()` instead of its own inline product-mapping code — same result for existing data, but hierarchy satisfaction now actually works too.
-
-**Testing**: Vitest introduced (`vitest.config.js`, deliberately separate from `vite.config.ts` — that file carries Figma Make's dev-server plugins, irrelevant overhead for a test run). `pnpm test` script added. `src/domain/availability.test.js` — 19 tests covering all four availability states, required-vs-optional/garnish behavior, substitution-alternative satisfaction, name resolution, `mlToOz` conversions, `formatAmount`'s non-mutation of stored data (the spec's explicit "without stored-data mutation" requirement), and `resolveOwnedIngredientTypes`'s three rules individually plus combined. All passing.
-
-**Scope boundary**: this chunk is unit-level only, `src/domain/` pure functions. The spec's RLS-flavored testing requirements (owner/non-owner recipe access, admin-only catalog mutation, invitation lifecycle, private inventory separation between two users, etc.) need a real or local Supabase instance to exercise multiple identities against — not started, not part of `pnpm test`, and not this chunk's job. Purchase-recommendation suppression/priority tests are step 10's job (the logic doesn't exist yet either).
+**Client**: `src/services/lists.js` (fetch/add/remove for both lists), `src/hooks/useLists.js` — same optimistic-update shape as `useInventory.js` from step 5 (flip local state instantly, write in background, roll back via reload only on failure). Wired into `AppShell` replacing the old `useState(() => new Set())` pair; `favorites`/`wantToMake`/`toggleFav`/`toggleWtm` keep the exact same names and shapes in Outlet context, so **zero screen changes were needed** — `ListsScreen`/`HomeScreen`/`DetailScreen` all just called `.has()`/`.size`/`toggleFav(id)` already, confirmed by grep before considering this done. The now-unused `toggleInSet` helper was removed from `App.jsx` along with the old state.
 
 ## Implemented & verified
 
-- `pnpm test` — 19/19 passing.
-- `pnpm build` succeeds — 98 modules, no errors.
-- New migration verified clean on `db advisors --type all` (no new findings).
-- The extended `recipes` PostgREST select (added a third level of embedding: `recipe_components(...recipe_component_alternatives(ingredient_type_id))`) verified valid via the same direct-REST-call technique as step 6 (200, not 400).
-- **Not yet browser-verified**: nothing in this chunk has an immediately-visible UI surface (no seeded recipe currently uses substitution alternatives or ingredient hierarchy, so there's nothing new to click through yet) — verification here *is* the test suite. Worth confirming existing recipes/availability still display correctly after the `resolveOwnedIngredientTypes` swap in `AppShell`, though the logic is equivalent for data that doesn't use the new rules.
+- `pnpm test` — 19/19 passing (unchanged, this chunk didn't touch `src/domain/`).
+- `pnpm build` succeeds — 100 modules, no errors.
+- New migration verified clean on `db advisors --type all`.
+- Confirmed via `grep` that every screen consuming `favorites`/`wantToMake`/`toggleFav`/`toggleWtm` only used the Set/function interface the new hook already provides — no screen edits required, reducing regression risk for this chunk.
+- **Not yet browser-verified**: favoriting/want-to-make toggling on Detail, and that the Lists screen shows the right items after a refresh (the actual persistence test, same as My Bar's in step 5).
 
 ## Remaining / not started
 
-Steps 9–13. Plus, carried over:
-- No editor UI for authoring substitution alternatives or setting `parent_type_id` on an ingredient type — the engine supports both, but nothing currently produces that data except direct SQL/tests. Real authoring UI is a separable follow-up (editor UI, not engine).
-- No seed data demonstrates hierarchy or substitution in the real app yet (deliberately not fabricated — see Decisions).
-- RLS/integration test coverage (see Scope boundary above) — still a gap, needs a dedicated future effort with a way to run tests against multiple identities.
-- Real recipe editing (step 6 gap), `<datalist>` theming (step 6 gap, user-accepted) — unchanged, still open.
+Steps 10–13. Plus, carried over: no editor UI for substitution alternatives/hierarchy (step 8 gap), no RLS/integration test harness (step 8 gap), real recipe editing (step 6 gap), `<datalist>` theming (step 6 gap, user-accepted).
 
 ## Blockers / open questions
 
@@ -59,26 +46,24 @@ None blocking further work.
 
 ## Decisions made & why
 
-- **Substitution modeled as a companion table per component slot, not a separate `substitution_groups` entity** — see "Database" above. The spec's suggested entity list names `substitution_groups`, but explicitly allows table names to differ as long as the concept holds ("exact table names may change, but the conceptual separation must be preserved"). One row per component already represents a slot; a group table would just be an extra layer of indirection with nothing to normalize (each slot only ever needs its own alternatives, never shared across slots).
-- **Hierarchy and product-mapping expansion moved from `AppShell` into `src/domain/availability.js`** as `resolveOwnedIngredientTypes()`, rather than adding hierarchy-walking logic directly inside the React component. This is what actually made it possible to unit-test — `AppShell` can't be pure-function-tested the way a `src/domain/` module can.
-- **Didn't fabricate seed data to demonstrate substitution/hierarchy in the running app.** Same reasoning as step 6's "no fabricated large catalog": real substitution/hierarchy data has genuine bartending logic behind it (what actually substitutes for what, which gins are subtypes of which) that shouldn't be invented just to have something to click. Verified via tests with deliberately clear, labeled mock data instead. Real data enters via admin catalog tools (step 12) or ad hoc SQL later.
-- **`vitest.config.js` kept separate from `vite.config.ts`**, matching the existing precedent of keeping Figma Make's platform-specific tooling isolated from things that don't need it.
-- **Test scope is `src/domain/` only, not RLS/integration** — named explicitly as a boundary rather than left ambiguous, since the spec's testing requirements list mixes pure-logic tests with identity-dependent RLS tests that need fundamentally different infrastructure. Recorded so it doesn't read as an oversight later.
+- **Composite primary key `(user_id, recipe_id)`, no separate `id` column** — unlike `user_inventory` (which needs to represent "generic type OR product," a real either/or with two possible FK targets), a favorite/want-to-make row only ever points at one thing: a recipe. The natural key already prevents duplicates, so a surrogate id would be pure overhead.
+- **Reused `useInventory.js`'s optimistic-update pattern exactly** rather than inventing a new one — same shape of problem (private per-user toggle state), same solution.
+- **Verified screen compatibility by grep before writing any screen code**, rather than assuming the old local-state shape and the new hook's shape matched. They did, so no screens changed — but this is exactly the kind of assumption that caused step 6's staleness bug, so checking first rather than after felt worth doing explicitly this time.
 
-Earlier decisions (still standing, trimmed here — see git history for step 2-7 notes): JS-only in `src/**` with `vite.config.ts` exempted; hosted Supabase; repo at `github.com/maxsoulfly/cocktail-library`; RLS policy shape (one policy per command, `to authenticated` explicit, `(select auth.uid())` wrapped); every `SECURITY DEFINER` function needs `revoke ... from public, anon, authenticated` explicitly, verified via `db advisors`; `useCatalog`/`useInventory`/`useRecipes` called exactly once in `AppShell` and shared via context.
+Earlier decisions (still standing, trimmed here — see git history for step 2-8 notes): JS-only in `src/**` with `vite.config.ts` exempted; hosted Supabase; repo at `github.com/maxsoulfly/cocktail-library`; RLS policy shape (one policy per command, `to authenticated` explicit, `(select auth.uid())` wrapped); every `SECURITY DEFINER` function needs `revoke ... from public, anon, authenticated` explicitly; `useCatalog`/`useInventory`/`useRecipes`/`useLists` called exactly once in `AppShell` and shared via context, never independently per-screen.
 
 ## Migrations / environment changes
 
-One new migration this chunk (`20260815222739_recipe_component_alternatives.sql`), applied via `supabase db push`. `vitest` added as a dev dependency; `vitest.config.js` new; `pnpm test` script added. `AGENTS.md`/`CLAUDE.md` updated to point at the new test command and note the unit-vs-RLS test scope boundary.
+One new migration this chunk (`20260815223400_user_lists.sql`), applied via `supabase db push`. No new environment variables, no `AGENTS.md`/`CLAUDE.md` changes needed (existing hook-sharing and RLS conventions already covered this).
 
 ## Tests / build checks last run
 
-2026-08-16: `pnpm test` — 19/19 passing. `pnpm build` — 98 modules, no errors. `npx supabase db push` — migration applied. `npx supabase db advisors --linked --type all` — clean, no new findings. REST embed query verified via direct `curl` (200, not 400).
+2026-08-16: `pnpm test` — 19/19 passing. `pnpm build` — 100 modules, no errors. `npx supabase db push` — migration applied. `npx supabase db advisors --linked --type all` — clean, no new findings. No real-browser test of favorite/want-to-make toggling yet.
 
 ## Exact next recommended action
 
-Start step 9: library browsing/filters (mostly already real since step 6 — `LibraryScreen` already filters real recipes by availability/source/taste), and real Favorites/Want to Make (currently local-only `Set` state in `AppShell`, resetting every page load — same shape of gap as unit/theme preference was before step 7). Needs `user_favorites`/`user_want_to_make` tables (simple: `user_id` + `recipe_id`, private-only RLS matching `user_inventory`'s shape from step 5 — read/insert/delete own rows, no admin override).
+Get a real-browser pass on steps 7–9 together (unit/theme persistence, availability engine regressions, and favorites/want-to-make persistence — none of the last three chunks have been clicked through yet). Then start step 10: purchase recommendations. Per spec §11, candidates come from recipes missing exactly one required ingredient (the existing `avail === 'almost'` recipes already computed by `computeAvail`), ranked by: unlocks a Favorite/Want-to-Make first, then a classic recipe, then essential/common `bar_priority` ingredients (already a column on `ingredient_types` since step 3, unused so far), then count of recipes unlocked, then count of good-enough-to-perfect upgrades. Niche ingredients suppressed from general suggestions unless completing a Favorite/Want-to-Make or the user is viewing that specific cocktail. `HomeScreen`'s existing "Buy Next" section is a simple version of this (just counts recipes unlocked, no priority ranking) — this step properly implements the spec's ranking rules, ideally as a tested `src/domain/` function alongside `computeAvail`.
 
 ## Files/areas relevant to next action
 
-New migration for `user_favorites`/`user_want_to_make` (small, same RLS shape as `supabase/migrations/20260815212530_products_and_inventory.sql`'s `user_inventory` table — read/insert/delete own only). `src/App.jsx`'s `AppShell` (`favorites`/`wantToMake` local `Set` state and `toggleFav`/`toggleWtm` — same replace-local-state-with-real-persistence pattern as step 7, likely wanting the same "call once in AppShell, share via context" discipline from step 6's bug). `src/screens/ListsScreen.jsx`, `HomeScreen.jsx` (favorites/want-to-make counts), `DetailScreen.jsx` (toggle buttons) — none of these should need shape changes if the new hook matches `favorites`/`toggleFav`'s existing signature. `docs/Cocktail_Library_Development_Spec.md` §7.6 (personal lists).
+For browser verification: `/more` (unit/theme), `/bar` + `/home` + `/library` (My Bar → availability), `/library/:id` + `/lists` (favorite/want-to-make toggle + persistence). For step 10: a new `src/domain/recommendations.js` (pure, tested like `availability.js`), `src/screens/HomeScreen.jsx`'s existing `buyNext` `useMemo` (currently inline, simple unlock-count logic — replace with the real ranked domain function), `ingredient_types.bar_priority`/`recommend_by_default` columns (exist since step 3, first real consumer), `docs/Cocktail_Library_Development_Spec.md` §11 (purchase recommendation logic) for the exact ranking order.
