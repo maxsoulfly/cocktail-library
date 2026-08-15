@@ -10,7 +10,9 @@ export async function fetchInventory(userId) {
 }
 
 export async function addIngredientTypeOwnership(userId, ingredientTypeId) {
-  const { error } = await supabase.from("user_inventory").insert({ user_id: userId, ingredient_type_id: ingredientTypeId })
+  const { error } = await supabase
+    .from("user_inventory")
+    .insert({ user_id: userId, ingredient_type_id: ingredientTypeId })
   if (error) throw error
 }
 
@@ -24,6 +26,8 @@ export async function removeIngredientTypeOwnership(userId, ingredientTypeId) {
 }
 
 export async function addProductOwnership(userId, productId) {
-  const { error } = await supabase.from("user_inventory").insert({ user_id: userId, product_id: productId })
+  const { error } = await supabase
+    .from("user_inventory")
+    .insert({ user_id: userId, product_id: productId })
   if (error) throw error
 }

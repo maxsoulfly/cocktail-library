@@ -14,10 +14,17 @@
  *   limit?: number,
  * }} args
  */
-export function rankPurchaseRecommendations({ computed, ingredientTypesById, favoriteIds, wantToMakeIds, limit }) {
+export function rankPurchaseRecommendations({
+  computed,
+  ingredientTypesById,
+  favoriteIds,
+  wantToMakeIds,
+  limit,
+}) {
   const candidates = new Map()
   const getCandidate = (ingId) => {
-    if (!candidates.has(ingId)) candidates.set(ingId, { unlockedRecipes: [], upgradedRecipes: [] })
+    if (!candidates.has(ingId))
+      candidates.set(ingId, { unlockedRecipes: [], upgradedRecipes: [] })
     return candidates.get(ingId)
   }
 
@@ -35,53 +42,71 @@ export function rankPurchaseRecommendations({ computed, ingredientTypesById, fav
     computed.forEach((recipe) => {
       if (recipe.avail !== "good") return
       ;(recipe.missingOptionalIds ?? []).forEach((ingId) => {
-        if (candidates.has(ingId)) getCandidate(ingId).upgradedRecipes.push(recipe)
+        if (candidates.has(ingId))
+          getCandidate(ingId).upgradedRecipes.push(recipe)
       })
     })
   }
 
-  const scored = [...candidates.entries()].map(([ingredientTypeId, { unlockedRecipes, upgradedRecipes }]) => {
-    const type = ingredientTypesById.get(ingredientTypeId)
-    const priority = type?.bar_priority ?? "common"
-    const recommendByDefault = type?.recommend_by_default ?? true
-    const isNicheOrSpecialized = priority === "niche" || priority === "specialized"
-    const unlocksFavoriteOrWantToMake = unlockedRecipes.some((r) => favoriteIds.has(r.id) || wantToMakeIds.has(r.id))
-    const classicsUnlocked = unlockedRecipes.filter((r) => r.source === "classic")
-    const unlocksClassic = classicsUnlocked.length > 0
-    const isEssentialOrCommon = (priority === "essential" || priority === "common") && recommendByDefault
+  const scored = [...candidates.entries()].map(
+    ([ingredientTypeId, { unlockedRecipes, upgradedRecipes }]) => {
+      const type = ingredientTypesById.get(ingredientTypeId)
+      const priority = type?.bar_priority ?? "common"
+      const recommendByDefault = type?.recommend_by_default ?? true
+      const isNicheOrSpecialized =
+        priority === "niche" || priority === "specialized"
+      const unlocksFavoriteOrWantToMake = unlockedRecipes.some(
+        (r) => favoriteIds.has(r.id) || wantToMakeIds.has(r.id),
+      )
+      const classicsUnlocked = unlockedRecipes.filter(
+        (r) => r.source === "classic",
+      )
+      const unlocksClassic = classicsUnlocked.length > 0
+      const isEssentialOrCommon =
+        (priority === "essential" || priority === "common") &&
+        recommendByDefault
 
-    const reason = unlocksFavoriteOrWantToMake
-      ? "Unlocks a recipe you've favorited or want to make"
-      : unlocksClassic
-        ? `Unlocks ${classicsUnlocked.length} classic${classicsUnlocked.length === 1 ? "" : "s"}`
-        : `Unlocks ${unlockedRecipes.length} ${unlockedRecipes.length === 1 ? "recipe" : "recipes"}`
+      const reason = unlocksFavoriteOrWantToMake
+        ? "Unlocks a recipe you've favorited or want to make"
+        : unlocksClassic
+          ? `Unlocks ${classicsUnlocked.length} classic${
+              classicsUnlocked.length === 1 ? "" : "s"
+            }`
+          : `Unlocks ${unlockedRecipes.length} ${
+              unlockedRecipes.length === 1 ? "recipe" : "recipes"
+            }`
 
-    return {
-      ingredientTypeId,
-      name: type?.name ?? ingredientTypeId,
-      reason,
-      unlockedRecipeNames: unlockedRecipes.map((r) => r.name),
-      unlockCount: unlockedRecipes.length,
-      upgradeCount: upgradedRecipes.length,
-      unlocksFavoriteOrWantToMake,
-      unlocksClassic,
-      isEssentialOrCommon,
-      // Suppressed from *general* suggestions per spec §11, unless it
-      // completes a Favorite/Want to Make recipe. This function only ever
-      // produces the general list - a specific cocktail's own missing-item
-      // display (DetailScreen) is a separate, unfiltered path.
-      suppressed: isNicheOrSpecialized && !unlocksFavoriteOrWantToMake,
-    }
-  })
+      return {
+        ingredientTypeId,
+        name: type?.name ?? ingredientTypeId,
+        reason,
+        unlockedRecipeNames: unlockedRecipes.map((r) => r.name),
+        unlockCount: unlockedRecipes.length,
+        upgradeCount: upgradedRecipes.length,
+        unlocksFavoriteOrWantToMake,
+        unlocksClassic,
+        isEssentialOrCommon,
+        // Suppressed from *general* suggestions per spec §11, unless it
+        // completes a Favorite/Want to Make recipe. This function only ever
+        // produces the general list - a specific cocktail's own missing-item
+        // display (DetailScreen) is a separate, unfiltered path.
+        suppressed: isNicheOrSpecialized && !unlocksFavoriteOrWantToMake,
+      }
+    },
+  )
 
   const ranked = scored
     .filter((c) => !c.suppressed)
     .sort((a, b) => {
-      if (a.unlocksFavoriteOrWantToMake !== b.unlocksFavoriteOrWantToMake) return a.unlocksFavoriteOrWantToMake ? -1 : 1
-      if (a.unlocksClassic !== b.unlocksClassic) return a.unlocksClassic ? -1 : 1
-      if (a.isEssentialOrCommon !== b.isEssentialOrCommon) return a.isEssentialOrCommon ? -1 : 1
+      if (a.unlocksFavoriteOrWantToMake !== b.unlocksFavoriteOrWantToMake)
+        return a.unlocksFavoriteOrWantToMake ? -1 : 1
+      if (a.unlocksClassic !== b.unlocksClassic)
+        return a.unlocksClassic ? -1 : 1
+      if (a.isEssentialOrCommon !== b.isEssentialOrCommon)
+        return a.isEssentialOrCommon ? -1 : 1
       if (a.unlockCount !== b.unlockCount) return b.unlockCount - a.unlockCount
-      if (a.upgradeCount !== b.upgradeCount) return b.upgradeCount - a.upgradeCount
+      if (a.upgradeCount !== b.upgradeCount)
+        return b.upgradeCount - a.upgradeCount
       return a.name.localeCompare(b.name) // deterministic tiebreak
     })
 

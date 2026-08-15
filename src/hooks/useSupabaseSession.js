@@ -11,9 +11,11 @@ export function useSupabaseSession() {
       if (active) setState({ loading: false, session: data.session })
     })
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (active) setState({ loading: false, session })
-    })
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (active) setState({ loading: false, session })
+      },
+    )
 
     return () => {
       active = false

@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest"
 import { rankPurchaseRecommendations } from "./recommendations"
 
 function recipe(overrides) {
-  return { id: "r1", name: "Recipe", source: "private", avail: "almost", missingRequiredIds: [], missingOptionalIds: [], ...overrides }
+  return {
+    id: "r1",
+    name: "Recipe",
+    source: "private",
+    avail: "almost",
+    missingRequiredIds: [],
+    missingOptionalIds: [],
+    ...overrides,
+  }
 }
 
 describe("rankPurchaseRecommendations", () => {
@@ -11,63 +19,129 @@ describe("rankPurchaseRecommendations", () => {
       recipe({ id: "r1", avail: "unavail", missingRequiredIds: ["a", "b"] }),
       recipe({ id: "r2", avail: "perfect", missingRequiredIds: [] }),
     ]
-    const types = new Map([["a", { name: "A" }], ["b", { name: "B" }]])
-    const result = rankPurchaseRecommendations({ computed, ingredientTypesById: types, favoriteIds: new Set(), wantToMakeIds: new Set() })
+    const types = new Map([
+      ["a", { name: "A" }],
+      ["b", { name: "B" }],
+    ])
+    const result = rankPurchaseRecommendations({
+      computed,
+      ingredientTypesById: types,
+      favoriteIds: new Set(),
+      wantToMakeIds: new Set(),
+    })
     expect(result).toEqual([])
   })
 
   it("suppresses a niche ingredient from general recommendations by default", () => {
     const computed = [recipe({ id: "r1", missingRequiredIds: ["absinthe"] })]
-    const types = new Map([["absinthe", { name: "Absinthe", bar_priority: "niche" }]])
-    const result = rankPurchaseRecommendations({ computed, ingredientTypesById: types, favoriteIds: new Set(), wantToMakeIds: new Set() })
+    const types = new Map([
+      ["absinthe", { name: "Absinthe", bar_priority: "niche" }],
+    ])
+    const result = rankPurchaseRecommendations({
+      computed,
+      ingredientTypesById: types,
+      favoriteIds: new Set(),
+      wantToMakeIds: new Set(),
+    })
     expect(result).toEqual([])
   })
 
   it("suppresses specialized ingredients the same way as niche", () => {
     const computed = [recipe({ id: "r1", missingRequiredIds: ["chartreuse"] })]
-    const types = new Map([["chartreuse", { name: "Chartreuse", bar_priority: "specialized" }]])
-    const result = rankPurchaseRecommendations({ computed, ingredientTypesById: types, favoriteIds: new Set(), wantToMakeIds: new Set() })
+    const types = new Map([
+      ["chartreuse", { name: "Chartreuse", bar_priority: "specialized" }],
+    ])
+    const result = rankPurchaseRecommendations({
+      computed,
+      ingredientTypesById: types,
+      favoriteIds: new Set(),
+      wantToMakeIds: new Set(),
+    })
     expect(result).toEqual([])
   })
 
   it("still shows a niche ingredient if it unlocks a favorited recipe", () => {
     const computed = [recipe({ id: "r1", missingRequiredIds: ["absinthe"] })]
-    const types = new Map([["absinthe", { name: "Absinthe", bar_priority: "niche" }]])
-    const result = rankPurchaseRecommendations({ computed, ingredientTypesById: types, favoriteIds: new Set(["r1"]), wantToMakeIds: new Set() })
+    const types = new Map([
+      ["absinthe", { name: "Absinthe", bar_priority: "niche" }],
+    ])
+    const result = rankPurchaseRecommendations({
+      computed,
+      ingredientTypesById: types,
+      favoriteIds: new Set(["r1"]),
+      wantToMakeIds: new Set(),
+    })
     expect(result).toHaveLength(1)
     expect(result[0].ingredientTypeId).toBe("absinthe")
   })
 
   it("still shows a niche ingredient if it unlocks a want-to-make recipe", () => {
     const computed = [recipe({ id: "r1", missingRequiredIds: ["absinthe"] })]
-    const types = new Map([["absinthe", { name: "Absinthe", bar_priority: "niche" }]])
-    const result = rankPurchaseRecommendations({ computed, ingredientTypesById: types, favoriteIds: new Set(), wantToMakeIds: new Set(["r1"]) })
+    const types = new Map([
+      ["absinthe", { name: "Absinthe", bar_priority: "niche" }],
+    ])
+    const result = rankPurchaseRecommendations({
+      computed,
+      ingredientTypesById: types,
+      favoriteIds: new Set(),
+      wantToMakeIds: new Set(["r1"]),
+    })
     expect(result).toHaveLength(1)
   })
 
   it("ranks a favorite/want-to-make unlock above a classic unlock", () => {
     const computed = [
-      recipe({ id: "r1", name: "Fav Recipe", source: "private", missingRequiredIds: ["gin"] }),
-      recipe({ id: "r2", name: "Classic Recipe", source: "classic", missingRequiredIds: ["vodka"] }),
+      recipe({
+        id: "r1",
+        name: "Fav Recipe",
+        source: "private",
+        missingRequiredIds: ["gin"],
+      }),
+      recipe({
+        id: "r2",
+        name: "Classic Recipe",
+        source: "classic",
+        missingRequiredIds: ["vodka"],
+      }),
     ]
     const types = new Map([
       ["gin", { name: "Gin", bar_priority: "common" }],
       ["vodka", { name: "Vodka", bar_priority: "common" }],
     ])
-    const result = rankPurchaseRecommendations({ computed, ingredientTypesById: types, favoriteIds: new Set(["r1"]), wantToMakeIds: new Set() })
+    const result = rankPurchaseRecommendations({
+      computed,
+      ingredientTypesById: types,
+      favoriteIds: new Set(["r1"]),
+      wantToMakeIds: new Set(),
+    })
     expect(result.map((c) => c.ingredientTypeId)).toEqual(["gin", "vodka"])
   })
 
   it("ranks a classic unlock above a non-classic essential/common unlock", () => {
     const computed = [
-      recipe({ id: "r1", name: "Classic Recipe", source: "classic", missingRequiredIds: ["vodka"] }),
-      recipe({ id: "r2", name: "Private Recipe", source: "private", missingRequiredIds: ["rum"] }),
+      recipe({
+        id: "r1",
+        name: "Classic Recipe",
+        source: "classic",
+        missingRequiredIds: ["vodka"],
+      }),
+      recipe({
+        id: "r2",
+        name: "Private Recipe",
+        source: "private",
+        missingRequiredIds: ["rum"],
+      }),
     ]
     const types = new Map([
       ["vodka", { name: "Vodka", bar_priority: "common" }],
       ["rum", { name: "Rum", bar_priority: "essential" }],
     ])
-    const result = rankPurchaseRecommendations({ computed, ingredientTypesById: types, favoriteIds: new Set(), wantToMakeIds: new Set() })
+    const result = rankPurchaseRecommendations({
+      computed,
+      ingredientTypesById: types,
+      favoriteIds: new Set(),
+      wantToMakeIds: new Set(),
+    })
     expect(result[0].ingredientTypeId).toBe("vodka")
   })
 
@@ -77,10 +151,18 @@ describe("rankPurchaseRecommendations", () => {
       recipe({ id: "r2", name: "R2", missingRequiredIds: ["b"] }),
     ]
     const types = new Map([
-      ["a", { name: "A", bar_priority: "essential", recommend_by_default: false }],
+      [
+        "a",
+        { name: "A", bar_priority: "essential", recommend_by_default: false },
+      ],
       ["b", { name: "B", bar_priority: "common", recommend_by_default: true }],
     ])
-    const result = rankPurchaseRecommendations({ computed, ingredientTypesById: types, favoriteIds: new Set(), wantToMakeIds: new Set() })
+    const result = rankPurchaseRecommendations({
+      computed,
+      ingredientTypesById: types,
+      favoriteIds: new Set(),
+      wantToMakeIds: new Set(),
+    })
     expect(result[0].ingredientTypeId).toBe("b")
   })
 
@@ -94,7 +176,12 @@ describe("rankPurchaseRecommendations", () => {
       ["a", { name: "A", bar_priority: "common" }],
       ["b", { name: "B", bar_priority: "common" }],
     ])
-    const result = rankPurchaseRecommendations({ computed, ingredientTypesById: types, favoriteIds: new Set(), wantToMakeIds: new Set() })
+    const result = rankPurchaseRecommendations({
+      computed,
+      ingredientTypesById: types,
+      favoriteIds: new Set(),
+      wantToMakeIds: new Set(),
+    })
     expect(result[0].ingredientTypeId).toBe("a")
     expect(result[0].unlockCount).toBe(2)
   })
@@ -103,13 +190,24 @@ describe("rankPurchaseRecommendations", () => {
     const computed = [
       recipe({ id: "r1", name: "R1", missingRequiredIds: ["a"] }),
       recipe({ id: "r2", name: "R2", missingRequiredIds: ["b"] }),
-      recipe({ id: "r3", name: "R3", avail: "good", missingRequiredIds: [], missingOptionalIds: ["a"] }),
+      recipe({
+        id: "r3",
+        name: "R3",
+        avail: "good",
+        missingRequiredIds: [],
+        missingOptionalIds: ["a"],
+      }),
     ]
     const types = new Map([
       ["a", { name: "A", bar_priority: "common" }],
       ["b", { name: "B", bar_priority: "common" }],
     ])
-    const result = rankPurchaseRecommendations({ computed, ingredientTypesById: types, favoriteIds: new Set(), wantToMakeIds: new Set() })
+    const result = rankPurchaseRecommendations({
+      computed,
+      ingredientTypesById: types,
+      favoriteIds: new Set(),
+      wantToMakeIds: new Set(),
+    })
     expect(result[0].ingredientTypeId).toBe("a")
     expect(result[0].upgradeCount).toBe(1)
   })
@@ -120,15 +218,39 @@ describe("rankPurchaseRecommendations", () => {
       recipe({ id: "r2", missingRequiredIds: ["b"] }),
       recipe({ id: "r3", missingRequiredIds: ["c"] }),
     ]
-    const types = new Map([["a", { name: "A" }], ["b", { name: "B" }], ["c", { name: "C" }]])
-    const result = rankPurchaseRecommendations({ computed, ingredientTypesById: types, favoriteIds: new Set(), wantToMakeIds: new Set(), limit: 2 })
+    const types = new Map([
+      ["a", { name: "A" }],
+      ["b", { name: "B" }],
+      ["c", { name: "C" }],
+    ])
+    const result = rankPurchaseRecommendations({
+      computed,
+      ingredientTypesById: types,
+      favoriteIds: new Set(),
+      wantToMakeIds: new Set(),
+      limit: 2,
+    })
     expect(result).toHaveLength(2)
   })
 
   it("builds a plain-language reason mentioning unlocked classics", () => {
-    const computed = [recipe({ id: "r1", name: "Negroni", source: "classic", missingRequiredIds: ["campari"] })]
-    const types = new Map([["campari", { name: "Campari", bar_priority: "common" }]])
-    const result = rankPurchaseRecommendations({ computed, ingredientTypesById: types, favoriteIds: new Set(), wantToMakeIds: new Set() })
+    const computed = [
+      recipe({
+        id: "r1",
+        name: "Negroni",
+        source: "classic",
+        missingRequiredIds: ["campari"],
+      }),
+    ]
+    const types = new Map([
+      ["campari", { name: "Campari", bar_priority: "common" }],
+    ])
+    const result = rankPurchaseRecommendations({
+      computed,
+      ingredientTypesById: types,
+      favoriteIds: new Set(),
+      wantToMakeIds: new Set(),
+    })
     expect(result[0].reason).toBe("Unlocks 1 classic")
   })
 })

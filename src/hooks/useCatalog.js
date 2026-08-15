@@ -29,7 +29,15 @@ export function useCatalog() {
       fetchTasteTags(),
       fetchCocktailFamilies(),
     ]).then(([categories, types, products, glasses, tasteTags, families]) => {
-      const next = { loading: false, categories, types, products, glasses, tasteTags, families }
+      const next = {
+        loading: false,
+        categories,
+        types,
+        products,
+        glasses,
+        tasteTags,
+        families,
+      }
       setState(next)
       return next
     })

@@ -1,8 +1,20 @@
 import { describe, expect, it } from "vitest"
-import { computeAvail, formatAmount, mlToOz, resolveOwnedIngredientTypes } from "./availability"
+import {
+  computeAvail,
+  formatAmount,
+  mlToOz,
+  resolveOwnedIngredientTypes,
+} from "./availability"
 
 function component(overrides) {
-  return { ingId: "gin", alternativeIds: [], amount: 30, unitLabel: "ml", role: "required", ...overrides }
+  return {
+    ingId: "gin",
+    alternativeIds: [],
+    amount: 30,
+    unitLabel: "ml",
+    role: "required",
+    ...overrides,
+  }
 }
 
 describe("computeAvail", () => {
@@ -62,21 +74,39 @@ describe("computeAvail", () => {
   })
 
   it("satisfies a required component via a substitution alternative", () => {
-    const cocktail = { ings: [component({ ingId: "gin", alternativeIds: ["vodka"], role: "required" })] }
+    const cocktail = {
+      ings: [
+        component({
+          ingId: "gin",
+          alternativeIds: ["vodka"],
+          role: "required",
+        }),
+      ],
+    }
     const result = computeAvail(cocktail, new Set(["vodka"]))
     expect(result.avail).toBe("perfect")
     expect(result.missingRequired).toEqual([])
   })
 
   it("still reports the primary ingredient as missing when no alternative is owned either", () => {
-    const cocktail = { ings: [component({ ingId: "gin", alternativeIds: ["vodka"], role: "required" })] }
+    const cocktail = {
+      ings: [
+        component({
+          ingId: "gin",
+          alternativeIds: ["vodka"],
+          role: "required",
+        }),
+      ],
+    }
     const result = computeAvail(cocktail, new Set(["rum"]))
     expect(result.missingRequiredIds).toEqual(["gin"])
   })
 
   it("resolves missing ingredient ids to display names via the provided resolver", () => {
     const cocktail = { ings: [component({ ingId: "gin", role: "required" })] }
-    const result = computeAvail(cocktail, new Set(), (id) => (id === "gin" ? "Gin" : id))
+    const result = computeAvail(cocktail, new Set(), (id) =>
+      id === "gin" ? "Gin" : id,
+    )
     expect(result.missingRequired).toEqual(["Gin"])
   })
 
@@ -130,30 +160,55 @@ describe("resolveOwnedIngredientTypes", () => {
   ]
 
   it("includes directly owned types", () => {
-    const owned = resolveOwnedIngredientTypes({ ownedTypeIds: new Set(["gin"]), ownedProductIds: new Set(), products: [], ingredientTypes: types })
+    const owned = resolveOwnedIngredientTypes({
+      ownedTypeIds: new Set(["gin"]),
+      ownedProductIds: new Set(),
+      products: [],
+      ingredientTypes: types,
+    })
     expect(owned.has("gin")).toBe(true)
   })
 
   it("satisfies an ancestor type when a more specific child type is owned", () => {
-    const owned = resolveOwnedIngredientTypes({ ownedTypeIds: new Set(["london-dry-gin"]), ownedProductIds: new Set(), products: [], ingredientTypes: types })
+    const owned = resolveOwnedIngredientTypes({
+      ownedTypeIds: new Set(["london-dry-gin"]),
+      ownedProductIds: new Set(),
+      products: [],
+      ingredientTypes: types,
+    })
     expect(owned.has("london-dry-gin")).toBe(true)
     expect(owned.has("gin")).toBe(true)
     expect(owned.has("spirit")).toBe(true)
   })
 
   it("does not satisfy a child type just because its parent is owned", () => {
-    const owned = resolveOwnedIngredientTypes({ ownedTypeIds: new Set(["gin"]), ownedProductIds: new Set(), products: [], ingredientTypes: types })
+    const owned = resolveOwnedIngredientTypes({
+      ownedTypeIds: new Set(["gin"]),
+      ownedProductIds: new Set(),
+      products: [],
+      ingredientTypes: types,
+    })
     expect(owned.has("london-dry-gin")).toBe(false)
   })
 
   it("does not leak satisfaction across unrelated branches of the hierarchy", () => {
-    const owned = resolveOwnedIngredientTypes({ ownedTypeIds: new Set(["gin"]), ownedProductIds: new Set(), products: [], ingredientTypes: types })
+    const owned = resolveOwnedIngredientTypes({
+      ownedTypeIds: new Set(["gin"]),
+      ownedProductIds: new Set(),
+      products: [],
+      ingredientTypes: types,
+    })
     expect(owned.has("vodka")).toBe(false)
   })
 
   it("satisfies a type via an owned product mapped to it, including that type's ancestors", () => {
     const products = [{ id: "product-1", ingredient_type_id: "london-dry-gin" }]
-    const owned = resolveOwnedIngredientTypes({ ownedTypeIds: new Set(), ownedProductIds: new Set(["product-1"]), products, ingredientTypes: types })
+    const owned = resolveOwnedIngredientTypes({
+      ownedTypeIds: new Set(),
+      ownedProductIds: new Set(["product-1"]),
+      products,
+      ingredientTypes: types,
+    })
     expect(owned.has("london-dry-gin")).toBe(true)
     expect(owned.has("gin")).toBe(true)
     expect(owned.has("spirit")).toBe(true)
@@ -161,7 +216,12 @@ describe("resolveOwnedIngredientTypes", () => {
 
   it("ignores a product that isn't actually owned", () => {
     const products = [{ id: "product-1", ingredient_type_id: "gin" }]
-    const owned = resolveOwnedIngredientTypes({ ownedTypeIds: new Set(), ownedProductIds: new Set(), products, ingredientTypes: types })
+    const owned = resolveOwnedIngredientTypes({
+      ownedTypeIds: new Set(),
+      ownedProductIds: new Set(),
+      products,
+      ingredientTypes: types,
+    })
     expect(owned.has("gin")).toBe(false)
   })
 })

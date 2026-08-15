@@ -25,18 +25,26 @@ export async function signUpWithEmail(email, password) {
 }
 
 export async function signInWithEmail(email, password) {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  })
   if (error) throw error
   return data
 }
 
 export async function signInWithGoogle(redirectTo) {
-  const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo } })
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo },
+  })
   if (error) throw error
 }
 
 export async function sendPasswordReset(email, redirectTo) {
-  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo,
+  })
   if (error) throw error
 }
 
@@ -48,6 +56,8 @@ export async function signOut() {
 // Maps to the redeem_invitation(invitation_code text) SECURITY DEFINER
 // function - the only way a memberships row is ever created.
 export async function redeemInvitation(code) {
-  const { error } = await supabase.rpc("redeem_invitation", { invitation_code: code })
+  const { error } = await supabase.rpc("redeem_invitation", {
+    invitation_code: code,
+  })
   if (error) throw error
 }

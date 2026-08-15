@@ -14,7 +14,9 @@ export function computeAvail(cocktail, owned, resolveIngredientName) {
   // Satisfied directly, or via any substitution alternative ("one allowed
   // item from its substitution group" - the spec never requires *which*
   // alternative, just that one is owned).
-  const isSatisfied = (component) => owned.has(component.ingId) || (component.alternativeIds ?? []).some((id) => owned.has(id))
+  const isSatisfied = (component) =>
+    owned.has(component.ingId) ||
+    (component.alternativeIds ?? []).some((id) => owned.has(id))
 
   const missingRequiredIds = cocktail.ings
     .filter((i) => i.role === "required" && !isSatisfied(i))
@@ -26,12 +28,19 @@ export function computeAvail(cocktail, owned, resolveIngredientName) {
   const missingOptional = missingOptionalIds.map(resolveName)
 
   let avail
-  if (missingRequired.length === 0 && missingOptional.length === 0) avail = "perfect"
+  if (missingRequired.length === 0 && missingOptional.length === 0)
+    avail = "perfect"
   else if (missingRequired.length === 0) avail = "good"
   else if (missingRequired.length === 1) avail = "almost"
   else avail = "unavail"
 
-  return { avail, missingRequired, missingOptional, missingRequiredIds, missingOptionalIds }
+  return {
+    avail,
+    missingRequired,
+    missingOptional,
+    missingRequiredIds,
+    missingOptionalIds,
+  }
 }
 
 export function mlToOz(ml) {
@@ -72,7 +81,12 @@ export function formatAmount(recipeIng, unit) {
  * }} args
  * @returns {Set<string>}
  */
-export function resolveOwnedIngredientTypes({ ownedTypeIds, ownedProductIds, products, ingredientTypes }) {
+export function resolveOwnedIngredientTypes({
+  ownedTypeIds,
+  ownedProductIds,
+  products,
+  ingredientTypes,
+}) {
   const typesById = new Map(ingredientTypes.map((t) => [t.id, t]))
 
   const direct = new Set(ownedTypeIds)

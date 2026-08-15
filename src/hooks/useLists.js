@@ -24,11 +24,13 @@ export function useLists(userId) {
       return Promise.resolve()
     }
     setLoading(true)
-    return Promise.all([fetchFavorites(userId), fetchWantToMake(userId)]).then(([favs, wtm]) => {
-      setFavoriteIds(new Set(favs.map((r) => r.recipe_id)))
-      setWantToMakeIds(new Set(wtm.map((r) => r.recipe_id)))
-      setLoading(false)
-    })
+    return Promise.all([fetchFavorites(userId), fetchWantToMake(userId)]).then(
+      ([favs, wtm]) => {
+        setFavoriteIds(new Set(favs.map((r) => r.recipe_id)))
+        setWantToMakeIds(new Set(wtm.map((r) => r.recipe_id)))
+        setLoading(false)
+      },
+    )
   }, [userId])
 
   useEffect(() => {
@@ -69,5 +71,12 @@ export function useLists(userId) {
     }
   }
 
-  return { loading, favoriteIds, wantToMakeIds, toggleFavorite, toggleWantToMake, refetch: load }
+  return {
+    loading,
+    favoriteIds,
+    wantToMakeIds,
+    toggleFavorite,
+    toggleWantToMake,
+    refetch: load,
+  }
 }

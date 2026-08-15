@@ -1,7 +1,10 @@
 import { supabase } from "@/lib/supabaseClient"
 
 export async function fetchIngredientCategories() {
-  const { data, error } = await supabase.from("ingredient_categories").select("id, name").order("name")
+  const { data, error } = await supabase
+    .from("ingredient_categories")
+    .select("id, name")
+    .order("name")
   if (error) throw error
   return data
 }
@@ -9,7 +12,9 @@ export async function fetchIngredientCategories() {
 export async function fetchIngredientTypes() {
   const { data, error } = await supabase
     .from("ingredient_types")
-    .select("id, category_id, name, color, bar_priority, recommend_by_default, description")
+    .select(
+      "id, category_id, name, color, bar_priority, recommend_by_default, description",
+    )
     .order("name")
   if (error) throw error
   return data
@@ -24,10 +29,20 @@ export async function fetchProducts() {
   return data
 }
 
-export async function createProduct({ name, ingredientTypeId, brand, isHomemade }) {
+export async function createProduct({
+  name,
+  ingredientTypeId,
+  brand,
+  isHomemade,
+}) {
   const { data, error } = await supabase
     .from("products")
-    .insert({ name, ingredient_type_id: ingredientTypeId, brand: brand || null, is_homemade: isHomemade })
+    .insert({
+      name,
+      ingredient_type_id: ingredientTypeId,
+      brand: brand || null,
+      is_homemade: isHomemade,
+    })
     .select()
     .single()
   if (error) throw error
@@ -35,19 +50,28 @@ export async function createProduct({ name, ingredientTypeId, brand, isHomemade 
 }
 
 export async function fetchGlasses() {
-  const { data, error } = await supabase.from("glasses").select("id, name").order("name")
+  const { data, error } = await supabase
+    .from("glasses")
+    .select("id, name")
+    .order("name")
   if (error) throw error
   return data
 }
 
 export async function fetchTasteTags() {
-  const { data, error } = await supabase.from("taste_tags").select("id, name").order("name")
+  const { data, error } = await supabase
+    .from("taste_tags")
+    .select("id, name")
+    .order("name")
   if (error) throw error
   return data
 }
 
 export async function fetchCocktailFamilies() {
-  const { data, error } = await supabase.from("cocktail_families").select("id, name").order("name")
+  const { data, error } = await supabase
+    .from("cocktail_families")
+    .select("id, name")
+    .order("name")
   if (error) throw error
   return data
 }
