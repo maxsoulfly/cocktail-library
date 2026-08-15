@@ -9,7 +9,7 @@ Agreed phase plan (revised by user on 2026-08-15 — private recipe CRUD moved i
 3. ~~DB migrations, seed taxonomies, profiles/memberships/invitations/roles, RLS (Phase 0)~~ — **done, 2026-08-15**
 4. ~~Auth + invitation redemption (Phase 1)~~ — **done and verified, 2026-08-16**
 5. ~~Ingredient/product catalog + private My Bar (Phase 2)~~ — **done, 2026-08-16**
-6. ~~Recipes, private recipe CRUD, components, substitutions, families, relationships (Phase 3)~~ — **done, 2026-08-16 — not yet browser-verified**
+6. ~~Recipes, private recipe CRUD, components, substitutions, families, relationships (Phase 3)~~ — **done, 2026-08-16 — 2 bugs found in first browser pass, both fixed, still needs re-verification**
 7. Unit preference + conversion (Phase 3) — **next**
 8. Availability engine, tested (Phase 3)
 9. Library browsing, filters, Favorites, Want to Make (Phase 4)
@@ -44,7 +44,11 @@ Both migrations verified clean on `db advisors --type all` (only the now-familia
 - `npx supabase db advisors --linked --type all` clean, no new findings beyond the already-accepted set.
 - The PostgREST embedded-select query in `fetchRecipes()`/`fetchRecipe()` (5 embedded relations, one nested two levels deep) can't be tested via `supabase db query` — that's raw SQL, bypassing PostgREST's embed resolution. Verified instead with a real `curl` call to the REST API using the anon/publishable key: got `200 []` (empty because RLS correctly denies `anon`, but critically *not* a 400, which confirms the embed syntax itself is valid and unambiguous). Documented this technique in `AGENTS.md`.
 - Underlying joined data spot-checked via direct SQL: all 8 recipes have the expected glass/family/component/step counts.
-- **Not yet verified in a real browser**: recipe creation via the editor, recipe detail rendering, delete, and — most importantly — that My Bar ownership changes actually move recipes between availability states on screen. Everything here is code-reviewed, build-verified, and query-verified at the structural level, but the full user-facing loop needs a real pass.
+- **First real browser pass (2026-08-16) found two bugs, both fixed same day:**
+  1. **My Bar toggles didn't move availability badges until a page refresh.** Root cause: `MyBarScreen`/`AddProductScreen` each called `useCatalog()`/`useInventory()` independently instead of sharing `AppShell`'s instances — two separate copies of the same React state, so an optimistic update in one was invisible to the other. Fixed by moving both hooks (plus `useRecipes`) to be called exactly once in `AppShell` and shared via Outlet context (`catalog`, `inventory`, `refetchRecipes`); every screen that previously called these hooks itself now reads them from context instead. Documented as a standing rule in `AGENTS.md`.
+  2. **Recipe creation failed**: `new row for relation "recipes" violates check constraint "recipes_user_recipes_have_owner"`. `createRecipe()` never set `owner_id`. Fixed with a new migration giving `recipes.owner_id` a `default auth.uid()`, same pattern as `products.created_by` from step 5.
+  Also fixed while in there: `EditorScreen` now `await`s `refetchRecipes()` before navigating to the new recipe's detail page (otherwise `computed` wouldn't contain it yet and DetailScreen would show "not found"); `DetailScreen`'s delete does the same before navigating back to the library.
+- **Still not re-verified in the browser after these fixes** — see Exact next recommended action.
 
 ## Remaining / not started
 
@@ -52,11 +56,9 @@ Steps 7–13. Plus, from step 6 specifically:
 - Real recipe *editing* (reopening the editor pre-filled with an existing recipe's data) isn't built — only create/read/delete. `recipes` UPDATE policy and column grant are already in place for whenever the UI catches up.
 - `substitution_groups`/`recipe_relationships` — no schema yet at all, deliberately deferred (see Last completed chunk).
 - No automated tests yet for anything recipe-related (candidate for step 8's test setup, same as the step-5 gaps).
-- `AppShell` now calls `useCatalog()`/`useInventory()` a second time (already called independently inside `MyBarScreen`/`AddProductScreen`) — mildly redundant network-wise, accepted for now rather than introducing a shared cache/context layer this app doesn't need yet at this scale.
-
 ## Blockers / open questions
 
-None blocking further work. The real-browser verification gap above is open but not urgent — nothing about it changes what step 7 needs to do.
+None blocking further work. Needs a fresh real-browser pass to confirm the two fixes above actually resolved what the user saw (My Bar toggle → Home/Library badge update without refresh; recipe creation succeeding end to end including landing correctly on the new recipe's detail page).
 
 ## Decisions made & why
 
@@ -67,20 +69,21 @@ None blocking further work. The real-browser verification gap above is open but 
 - **`AddProductScreen`'s "must match an existing type" validation pattern (from step 5) was extended to the recipe editor's ingredient rows** — same reasoning, same UX. A member can't create a new ingredient type through either form.
 - **`numeric` columns come back from PostgREST as strings, not numbers.** `recipe_components.amount` is `numeric`; `fetchRecipes()`/`fetchRecipe()` explicitly `Number()`-convert it, since `src/domain/availability.js`'s `formatAmount()` does a strict `=== 0` check that would silently break against a string `"0"`. Worth remembering for any future `numeric`/`decimal` column.
 - **Replaced the non-functional "Edit recipe" button with a working "Delete recipe" action** rather than leaving inert UI in place now that this screen is otherwise fully real. Real edit is still deferred (see Remaining) - this was a small, cheap, clearly-scoped addition (confirm dialog + one delete call), not scope creep into building the full edit flow.
+- **`useCatalog`/`useInventory`/`useRecipes` must be called exactly once (in `AppShell`) and shared, never called independently per-screen.** This reverses the step 5/6 "mildly redundant, accepted for now" call — it wasn't just redundant, it was an actual staleness bug (see Implemented & verified). `refetch`/`load` in all three hooks now return their promise so callers can `await` a refetch before navigating (needed for `EditorScreen`/`DetailScreen`'s create/delete flows to have `computed` up to date before the next screen reads it).
 
 Earlier decisions (still standing, trimmed here — see git history for step 2-5 notes): JS-only in `src/**` with `vite.config.ts` exempted; hosted Supabase; repo at `github.com/maxsoulfly/cocktail-library`; RLS policy shape (one policy per command, `to authenticated` explicit, `(select auth.uid())` wrapped); every `SECURITY DEFINER` function needs `revoke ... from public, anon, authenticated` explicitly, verified via `db advisors`.
 
 ## Migrations / environment changes
 
-Two new migrations this chunk (`20260815214307_recipes_schema.sql`, `20260815214433_seed_classic_recipes.sql`), both applied via `supabase db push`. No new environment variables. `AGENTS.md` gained a note on verifying PostgREST embedded selects via a direct REST call.
+Three new migrations this chunk (`20260815214307_recipes_schema.sql`, `20260815214433_seed_classic_recipes.sql`, `20260815220554_fix_recipes_owner_default.sql`), all applied via `supabase db push`. No new environment variables. `AGENTS.md` gained a note on verifying PostgREST embedded selects via a direct REST call, and a standing rule about not calling `useCatalog`/`useInventory`/`useRecipes` independently per-screen.
 
 ## Tests / build checks last run
 
-2026-08-16: `pnpm build` — 98 modules, no errors. `npx supabase db push` — both migrations applied. `npx supabase db advisors --linked --type all` — clean, no new findings. Recipe/component/step/tag counts spot-checked via SQL against the live DB. REST embed query verified via direct `curl` (200, not 400). No real-browser test of recipe creation, detail view, delete, or the My Bar → availability connection yet.
+2026-08-16: `pnpm build` — 98 modules, no errors (both before and after the post-ship fixes). `npx supabase db push` — all three migrations applied. `npx supabase db advisors --linked --type all` — clean, no new findings after the owner-default fix either. Recipe/component/step/tag counts spot-checked via SQL against the live DB. REST embed query verified via direct `curl` (200, not 400). The two bugs above were caught by the user's real-browser pass; the fixes themselves have only been build-verified, not yet re-tested in the browser.
 
 ## Exact next recommended action
 
-Get a real-browser pass on this chunk before or alongside starting step 7 (unit preference + conversion): create a recipe via the editor, check it shows up correctly on Detail/Library, toggle some My Bar ingredients and confirm Home/Library availability badges actually move between states now. Step 7 itself is comparatively small — `profiles.unit_preference` already exists as a column (added in step 3) but nothing reads or writes it yet; `AppShell`'s `unit` state is still a local-only default that resets every page load.
+Get a fresh real-browser pass to confirm both fixes actually worked: toggle a My Bar ingredient and check the availability badge updates on Home/Library *without* a refresh; create a recipe via the editor and confirm it saves successfully and lands on its own detail page. Once that's confirmed, move to step 7 (unit preference + conversion) — comparatively small: `profiles.unit_preference` already exists as a column (added in step 3) but nothing reads or writes it yet; `AppShell`'s `unit` state is still a local-only default that resets every page load.
 
 ## Files/areas relevant to next action
 

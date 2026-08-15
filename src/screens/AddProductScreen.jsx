@@ -3,14 +3,12 @@ import { useNavigate, useOutletContext } from "react-router-dom"
 import { IconAlert, IconCheck, IconInfo } from "@/components/icons"
 import { TopBar } from "@/components/Nav"
 import { Btn, Card, Input, OwnedToggle } from "@/components/primitives"
-import { useCatalog } from "@/hooks/useCatalog"
 import { createProduct } from "@/services/catalog"
-import { addProductOwnership } from "@/services/inventory"
 
 export default function AddProductScreen() {
   const navigate = useNavigate()
-  const { userId } = useOutletContext()
-  const { types } = useCatalog()
+  const { catalog, inventory } = useOutletContext()
+  const { types } = catalog
   const [name, setName] = useState("")
   const [ingType, setIngType] = useState("")
   const [brand, setBrand] = useState("")
@@ -31,7 +29,8 @@ export default function AddProductScreen() {
         brand: brand || null,
         isHomemade: homemade,
       })
-      await addProductOwnership(userId, product.id)
+      await inventory.ownProduct(product.id)
+      await catalog.refetch() // pick up the new product row for MyBarScreen's productsByType map
       navigate("/bar")
     } catch (err) {
       setError(err.message)

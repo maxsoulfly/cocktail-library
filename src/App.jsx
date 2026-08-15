@@ -40,15 +40,22 @@ function LoadingScreen() {
 }
 
 // Wraps every authenticated screen: side/bottom nav plus the shared app state
-// handed down via router Outlet context. As of step 6, everything here is
-// real: catalog + inventory (step 5) feed a resolved "owned ingredient type
-// ids" set (generic ownership OR an owned product mapped to that type), fed
-// into the same computeAvail() used since the mock-data days - it only ever
-// needed a Set<string> and a name resolver, so it didn't need to change.
-// MyBarScreen/AddProductScreen fetch their own catalog/inventory copies
-// rather than sharing these instances - mildly redundant network-wise, but
-// avoids a shared cache/context layer that isn't needed at this app's scale.
-// Favorites/Want to Make are still local-only mock state - Supabase in step 9.
+// handed down via router Outlet context.
+//
+// catalog/inventory/recipes are each fetched exactly ONCE here and shared via
+// context - screens must not call useCatalog()/useInventory()/useRecipes()
+// themselves. They did originally (one call per screen), which meant e.g.
+// toggling an ingredient in My Bar updated My Bar's own copy of inventory
+// state instantly but left this component's separate copy (the one feeding
+// the availability badges) stale until a full page reload recreated
+// everything from scratch. Sharing one instance fixes that: an optimistic
+// update anywhere is immediately visible everywhere, since it's the same
+// React state.
+//
+// `computed` = real recipes run through the unchanged computeAvail(), using
+// a resolved "owned ingredient type ids" set (generic ownership OR an owned
+// product's mapped type). Favorites/Want to Make are still local-only mock
+// state - Supabase in step 9.
 function AppShell({ profile, session }) {
   const userId = session?.user?.id
   const [theme, setTheme] = useState("dark")
@@ -60,19 +67,20 @@ function AppShell({ profile, session }) {
     document.documentElement.classList.toggle("light", theme === "light")
   }, [theme])
 
-  const { types, products, loading: catalogLoading } = useCatalog()
-  const { ownedTypeIds, ownedProductIds, loading: inventoryLoading } = useInventory(userId)
-  const { recipes, loading: recipesLoading } = useRecipes()
+  const catalog = useCatalog()
+  const inventory = useInventory(userId)
+  const recipesQuery = useRecipes()
+  const { recipes, loading: recipesLoading, refetch: refetchRecipes } = recipesQuery
 
-  const ingredientTypesById = useMemo(() => new Map(types.map((t) => [t.id, t])), [types])
+  const ingredientTypesById = useMemo(() => new Map(catalog.types.map((t) => [t.id, t])), [catalog.types])
 
   const resolvedOwned = useMemo(() => {
-    const set = new Set(ownedTypeIds)
-    products.forEach((p) => {
-      if (ownedProductIds.has(p.id)) set.add(p.ingredient_type_id)
+    const set = new Set(inventory.ownedTypeIds)
+    catalog.products.forEach((p) => {
+      if (inventory.ownedProductIds.has(p.id)) set.add(p.ingredient_type_id)
     })
     return set
-  }, [ownedTypeIds, ownedProductIds, products])
+  }, [inventory.ownedTypeIds, inventory.ownedProductIds, catalog.products])
 
   const computed = useMemo(
     () => recipes.map((r) => ({ ...r, ...computeAvail(r, resolvedOwned, (id) => ingredientTypesById.get(id)?.name ?? id) })),
@@ -80,12 +88,15 @@ function AppShell({ profile, session }) {
   )
 
   const isAdmin = profile?.role === "admin"
-  const isLoading = catalogLoading || inventoryLoading || recipesLoading
+  const isLoading = catalog.loading || inventory.loading || recipesLoading
 
   const outletContext = {
     computed,
+    refetchRecipes,
     owned: resolvedOwned,
     ingredientTypesById,
+    catalog,
+    inventory,
     favorites, toggleFav: toggleInSet(setFavorites),
     wantToMake, toggleWtm: toggleInSet(setWantToMake),
     unit, setUnit,

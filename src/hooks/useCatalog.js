@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import {
   fetchCocktailFamilies,
   fetchGlasses,
@@ -18,12 +18,10 @@ export function useCatalog() {
     tasteTags: [],
     families: [],
   })
-  const [refreshToken, setRefreshToken] = useState(0)
 
-  useEffect(() => {
-    let active = true
+  const load = useCallback(() => {
     setState((prev) => ({ ...prev, loading: true }))
-    Promise.all([
+    return Promise.all([
       fetchIngredientCategories(),
       fetchIngredientTypes(),
       fetchProducts(),
@@ -31,12 +29,15 @@ export function useCatalog() {
       fetchTasteTags(),
       fetchCocktailFamilies(),
     ]).then(([categories, types, products, glasses, tasteTags, families]) => {
-      if (active) setState({ loading: false, categories, types, products, glasses, tasteTags, families })
+      const next = { loading: false, categories, types, products, glasses, tasteTags, families }
+      setState(next)
+      return next
     })
-    return () => {
-      active = false
-    }
-  }, [refreshToken])
+  }, [])
 
-  return { ...state, refetch: () => setRefreshToken((t) => t + 1) }
+  useEffect(() => {
+    load()
+  }, [load])
+
+  return { ...state, refetch: load }
 }

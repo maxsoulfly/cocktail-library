@@ -1,16 +1,16 @@
 import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useOutletContext } from "react-router-dom"
 import { IconPlus, IconX } from "@/components/icons"
 import { TopBar } from "@/components/Nav"
 import { Btn, FilterChip, Input } from "@/components/primitives"
-import { useCatalog } from "@/hooks/useCatalog"
 import { createRecipe } from "@/services/recipes"
 
 const NON_VOLUME_UNITS = ["dash", "barspoon", "piece", "slice", "wedge", "top-up"]
 
 export default function EditorScreen() {
   const navigate = useNavigate()
-  const { types, glasses, families, tasteTags, loading: catalogLoading } = useCatalog()
+  const { catalog, refetchRecipes } = useOutletContext()
+  const { types, glasses, families, tasteTags, loading: catalogLoading } = catalog
 
   const [name, setName] = useState("")
   const [desc, setDesc] = useState("")
@@ -67,6 +67,7 @@ export default function EditorScreen() {
         components,
         tasteTagIds,
       })
+      await refetchRecipes() // so the new recipe is in `computed` before DetailScreen looks for it
       navigate(`/library/${recipe.id}`)
     } catch (err) {
       setError(err.message)

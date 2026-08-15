@@ -2,14 +2,12 @@ import { useMemo, useState } from "react"
 import { useNavigate, useOutletContext } from "react-router-dom"
 import { IconBottle, IconPlus, IconSearch } from "@/components/icons"
 import { Card, FilterChip, OwnedToggle } from "@/components/primitives"
-import { useCatalog } from "@/hooks/useCatalog"
-import { useInventory } from "@/hooks/useInventory"
 
 export default function MyBarScreen() {
   const navigate = useNavigate()
-  const { userId } = useOutletContext()
-  const { loading: catalogLoading, categories, types, products } = useCatalog()
-  const { loading: inventoryLoading, ownedTypeIds, ownedProductIds, toggleType } = useInventory(userId)
+  const { catalog, inventory } = useOutletContext()
+  const { loading: catalogLoading, categories, types, products } = catalog
+  const { loading: inventoryLoading, ownedTypeIds, ownedProductIds, toggleType } = inventory
 
   const [query, setQuery] = useState("")
   const [cat, setCat] = useState("All")

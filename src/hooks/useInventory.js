@@ -14,12 +14,13 @@ export function useInventory(userId) {
     if (!userId) {
       setRows([])
       setLoading(false)
-      return
+      return Promise.resolve([])
     }
     setLoading(true)
-    fetchInventory(userId).then((data) => {
+    return fetchInventory(userId).then((data) => {
       setRows(data)
       setLoading(false)
+      return data
     })
   }, [userId])
 

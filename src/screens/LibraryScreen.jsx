@@ -4,12 +4,11 @@ import { CocktailCard } from "@/components/CocktailCard"
 import { IconFilter, IconGlass, IconPlus, IconSearch } from "@/components/icons"
 import { Btn, FilterChip } from "@/components/primitives"
 import { AVAIL_FILTERS, SOURCE_FILTERS } from "@/data/constants"
-import { useCatalog } from "@/hooks/useCatalog"
 
 export default function LibraryScreen() {
   const navigate = useNavigate()
-  const { computed } = useOutletContext()
-  const { tasteTags } = useCatalog()
+  const { computed, catalog } = useOutletContext()
+  const { tasteTags } = catalog
   const [query, setQuery] = useState("")
   const [availFilter, setAvailFilter] = useState("all")
   const [sourceFilters, setSourceFilters] = useState([])

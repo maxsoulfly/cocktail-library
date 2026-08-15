@@ -10,7 +10,7 @@ import { deleteRecipe } from "@/services/recipes"
 export default function DetailScreen() {
   const navigate = useNavigate()
   const { id } = useParams()
-  const { computed, unit, setUnit, favorites, wantToMake, toggleFav, toggleWtm, owned, userId } = useOutletContext()
+  const { computed, unit, setUnit, favorites, wantToMake, toggleFav, toggleWtm, owned, userId, refetchRecipes } = useOutletContext()
   const [showConfirmShare, setShowConfirmShare] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -137,7 +137,7 @@ export default function DetailScreen() {
           <Card style={{ padding: 16, border: "1px solid rgba(251,113,133,0.3)" }}>
             <p style={{ margin: "0 0 12px", fontSize: 14, color: "var(--text2)" }}>Delete "{c.name}"? This can't be undone.</p>
             <div style={{ display: "flex", gap: 8 }}>
-              <Btn variant="danger" small disabled={deleting} onClick={async () => { setDeleting(true); await deleteRecipe(c.id); navigate("/library") }}>Delete</Btn>
+              <Btn variant="danger" small disabled={deleting} onClick={async () => { setDeleting(true); await deleteRecipe(c.id); await refetchRecipes(); navigate("/library") }}>Delete</Btn>
               <Btn variant="ghost" small onClick={() => setConfirmDelete(false)}>Cancel</Btn>
             </div>
           </Card>

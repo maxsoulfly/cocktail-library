@@ -7,9 +7,10 @@ export function useRecipes() {
 
   const load = useCallback(() => {
     setLoading(true)
-    fetchRecipes().then((data) => {
+    return fetchRecipes().then((data) => {
       setRecipes(data)
       setLoading(false)
+      return data
     })
   }, [])
 
