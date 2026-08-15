@@ -30,6 +30,7 @@ function mapRecipe(row) {
       .sort((a, b) => a.sort_order - b.sort_order)
       .map((c) => ({
         ingId: c.ingredient_type_id,
+        alternativeIds: (c.recipe_component_alternatives ?? []).map((a) => a.ingredient_type_id),
         // numeric columns come back as strings over PostgREST
         amount: Number(c.amount),
         unitLabel: c.unit_label,
@@ -44,7 +45,7 @@ const RECIPE_SELECT = `
   glass:glasses(name),
   family:cocktail_families(name),
   owner:profiles(display_name),
-  recipe_components(id, ingredient_type_id, amount, unit_label, role, sort_order, ingredient_types(name, color)),
+  recipe_components(id, ingredient_type_id, amount, unit_label, role, sort_order, ingredient_types(name, color), recipe_component_alternatives(ingredient_type_id)),
   recipe_taste_tags(taste_tags(name))
 `
 

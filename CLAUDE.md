@@ -22,7 +22,8 @@
 - `pnpm format` — oxfmt
 - `npx supabase ...` — Supabase CLI (not globally installed in this sandbox)
 - `corepack pnpm ...` or `npx pnpm ...` — bare `pnpm` is not on PATH here
-- Test/lint commands: add here once a test runner and linter are introduced.
+- `pnpm test` — Vitest, currently covering `src/domain/` only (no component/integration tests yet)
+- Lint command: none introduced yet.
 
 ## Security rules
 

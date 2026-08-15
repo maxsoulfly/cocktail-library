@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Navigate, Outlet, Route, Routes } from "react-router-dom"
 import { BottomNav, SideNav } from "@/components/Nav"
-import { computeAvail } from "@/domain/availability"
+import { computeAvail, resolveOwnedIngredientTypes } from "@/domain/availability"
 import { useCatalog } from "@/hooks/useCatalog"
 import { useInventory } from "@/hooks/useInventory"
 import { useMembership } from "@/hooks/useMembership"
@@ -53,10 +53,13 @@ function LoadingScreen() {
 // update anywhere is immediately visible everywhere, since it's the same
 // React state.
 //
-// `computed` = real recipes run through the unchanged computeAvail(), using
-// a resolved "owned ingredient type ids" set (generic ownership OR an owned
-// product's mapped type). Favorites/Want to Make are still local-only mock
-// state - Supabase in step 9.
+// `computed` = real recipes run through computeAvail(), fed a resolved
+// "owned ingredient type ids" set from resolveOwnedIngredientTypes() (src/
+// domain/availability.js) - generic ownership, owned products' mapped
+// types, and parent/child hierarchy, all expanded once up front so
+// computeAvail() itself only ever needs a plain Set membership check.
+// Favorites/Want to Make are still local-only mock state - Supabase in
+// step 9.
 function AppShell({ profile, session }) {
   const userId = session?.user?.id
   // profiles.theme_preference defaults to 'system' for new signups, but there's
@@ -91,13 +94,15 @@ function AppShell({ profile, session }) {
 
   const ingredientTypesById = useMemo(() => new Map(catalog.types.map((t) => [t.id, t])), [catalog.types])
 
-  const resolvedOwned = useMemo(() => {
-    const set = new Set(inventory.ownedTypeIds)
-    catalog.products.forEach((p) => {
-      if (inventory.ownedProductIds.has(p.id)) set.add(p.ingredient_type_id)
-    })
-    return set
-  }, [inventory.ownedTypeIds, inventory.ownedProductIds, catalog.products])
+  const resolvedOwned = useMemo(
+    () => resolveOwnedIngredientTypes({
+      ownedTypeIds: inventory.ownedTypeIds,
+      ownedProductIds: inventory.ownedProductIds,
+      products: catalog.products,
+      ingredientTypes: catalog.types,
+    }),
+    [inventory.ownedTypeIds, inventory.ownedProductIds, catalog.products, catalog.types],
+  )
 
   const computed = useMemo(
     () => recipes.map((r) => ({ ...r, ...computeAvail(r, resolvedOwned, (id) => ingredientTypesById.get(id)?.name ?? id) })),
