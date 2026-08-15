@@ -36,6 +36,7 @@ Step 5 — real ingredient/product catalog and private My Bar, replacing `src/da
 - `npx supabase db advisors --linked --type all` clean except the four expected WARNs (the three from step 4, plus one project-level "leaked password protection disabled" Auth setting unrelated to any migration — a Dashboard toggle under Authentication → Sign In / Providers → Email the user can enable whenever, not blocking anything).
 - RLS policies spot-checked directly against `pg_policies`: exactly one policy per command per table, all scoped to `authenticated` (never `anon`/`public`), matching every other table so far.
 - **Not yet verified in a real browser** — My Bar toggles, Add Product flow. Code-reviewed and build-verified only, same caveat as usual (no browser automation available here).
+- **Fixed post-ship**: My Bar toggles were doing a write, then a full re-fetch of the entire inventory before updating anything on screen — and `useInventory`'s `loading` flag flipping true mid-toggle was unmounting the whole screen to a "Loading your bar..." state on every single click. User caught this as a perceptible per-toggle delay. `useInventory.js` now updates local state optimistically (instant UI response) and only falls back to a full reload if the background write actually fails.
 
 ## Remaining / not started
 
