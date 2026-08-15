@@ -61,10 +61,11 @@ export async function fetchRecipe(id) {
   return mapRecipe(data)
 }
 
-// Always creates a private user recipe - publishing (visibility -> 'shared')
-// is step 11's job. Components/tags are inserted after the recipe row in
-// separate calls (no client-side multi-statement transaction available);
-// best-effort cleanup deletes the recipe again if a later step fails.
+// Always creates a private user recipe - publishing is a separate action
+// (publishRecipe(), below). Components/tags are inserted after the recipe
+// row in separate calls (no client-side multi-statement transaction
+// available); best-effort cleanup deletes the recipe again if a later step
+// fails.
 export async function createRecipe({ name, description, glassId, familyId, steps, components, tasteTagIds }) {
   const { data: recipe, error: recipeError } = await supabase
     .from("recipes")
@@ -113,4 +114,32 @@ export async function createRecipe({ name, description, glassId, familyId, steps
 export async function deleteRecipe(id) {
   const { error } = await supabase.from("recipes").delete().eq("id", id)
   if (error) throw error
+}
+
+// Both go through SECURITY DEFINER functions - visibility/moderation_status
+// are deliberately excluded from the general recipes UPDATE grant (step 6),
+// so a direct .update({visibility: 'shared'}) call would fail regardless.
+export async function publishRecipe(id) {
+  const { error } = await supabase.rpc("publish_recipe", { p_recipe_id: id })
+  if (error) throw error
+}
+
+export async function unpublishRecipe(id) {
+  const { error } = await supabase.rpc("unpublish_recipe", { p_recipe_id: id })
+  if (error) throw error
+}
+
+// Admin moderation tab: currently-shared community recipes only - there's no
+// pre-publish review queue (publishing is immediate per the spec), just
+// after-the-fact unpublishing.
+export async function fetchCommunityRecipes() {
+  const { data, error } = await supabase
+    .from("recipes")
+    .select("id, name, published_at, owner:profiles(display_name)")
+    .eq("source_type", "user")
+    .eq("visibility", "shared")
+    .eq("moderation_status", "active")
+    .order("published_at", { ascending: false })
+  if (error) throw error
+  return data
 }

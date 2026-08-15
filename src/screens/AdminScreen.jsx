@@ -1,9 +1,10 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { IconCheck, IconCopy, IconPlus, IconTrash } from "@/components/icons"
+import { IconCheck, IconCopy, IconLock, IconPlus, IconTrash } from "@/components/icons"
 import { TopBar } from "@/components/Nav"
 import { Btn, Card } from "@/components/primitives"
-import { COCKTAILS, INGS, MOCK_COMMUNITY, MOCK_INVITES } from "@/data/mockData"
+import { COCKTAILS, INGS, MOCK_INVITES } from "@/data/mockData"
+import { fetchCommunityRecipes, unpublishRecipe } from "@/services/recipes"
 
 const TABS = [
   { id: "overview", label: "Overview" },
@@ -15,17 +16,52 @@ const TABS = [
 const STATUS_COLORS = { active: "var(--green)", redeemed: "var(--cyan)", expired: "var(--unavail)" }
 const STATUS_DOTS = { active: "●", redeemed: "◎", expired: "○" }
 
+const formatDate = (iso) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+
 export default function AdminScreen() {
   const navigate = useNavigate()
   const [tab, setTab] = useState("overview")
+  // Invites and batch import are still mock UI - real admin catalog tools
+  // (invite generation/revocation, ingredient/product management, JSON
+  // import) are step 12's job, not this one (recipe publishing/unpublishing).
   const [invites, setInvites] = useState(MOCK_INVITES)
-  const [community, setCommunity] = useState(MOCK_COMMUNITY)
-  const [confirmUnpublish, setConfirmUnpublish] = useState(null)
   const [copied, setCopied] = useState(null)
   const [importStep, setImportStep] = useState(0)
   const [importType, setImportType] = useState("classics")
   const [importJson, setImportJson] = useState("")
   const [importResult, setImportResult] = useState(null)
+
+  // Moderation is real: currently-published community recipes, with an
+  // Unpublish action. There's no pre-publish review queue in the spec
+  // (publishing is immediate) - the original mock's "pending/approve/reject"
+  // flow didn't map to anything real and has been dropped rather than faked.
+  const [communityRecipes, setCommunityRecipes] = useState([])
+  const [communityLoading, setCommunityLoading] = useState(true)
+  const [confirmUnpublish, setConfirmUnpublish] = useState(null)
+  const [unpublishing, setUnpublishing] = useState(false)
+
+  const loadCommunityRecipes = () => {
+    setCommunityLoading(true)
+    fetchCommunityRecipes().then((data) => {
+      setCommunityRecipes(data)
+      setCommunityLoading(false)
+    })
+  }
+
+  useEffect(() => {
+    loadCommunityRecipes()
+  }, [])
+
+  const handleUnpublish = async (id) => {
+    setUnpublishing(true)
+    try {
+      await unpublishRecipe(id)
+      loadCommunityRecipes()
+    } finally {
+      setUnpublishing(false)
+      setConfirmUnpublish(null)
+    }
+  }
 
   const generateInvite = () => {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
@@ -44,11 +80,6 @@ export default function AdminScreen() {
   }
 
   const revokeInvite = (code) => setInvites(invites.map((i) => (i.code === code ? { ...i, status: "expired" } : i)))
-
-  const unpublish = (id) => {
-    setCommunity(community.map((c) => (c.id === id ? { ...c, status: "unpublished" } : c)))
-    setConfirmUnpublish(null)
-  }
 
   const runImportValidation = () => {
     setImportResult({ additions: 3, updates: 1, duplicates: 1 })
@@ -73,7 +104,7 @@ export default function AdminScreen() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
               {[
                 { label: "Classic Recipes", val: COCKTAILS.filter((c) => c.source === "classic").length, color: "var(--violet)" },
-                { label: "Community Recipes", val: COCKTAILS.filter((c) => c.source === "community").length, color: "var(--cyan)" },
+                { label: "Community Recipes", val: communityRecipes.length, color: "var(--cyan)" },
                 { label: "Ingredient Types", val: INGS.length, color: "var(--green)" },
                 { label: "Active Invitations", val: invites.filter((i) => i.status === "active").length, color: "var(--amber)" },
               ].map(({ label, val, color }) => (
@@ -83,20 +114,9 @@ export default function AdminScreen() {
                 </Card>
               ))}
             </div>
-            <Card style={{ padding: "16px" }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text2)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-display)", marginBottom: 10 }}>Pending Review</div>
-              {community.filter((c) => c.status === "pending").length === 0 ? (
-                <p style={{ margin: 0, fontSize: 14, color: "var(--text3)" }}>Nothing pending — you are all caught up.</p>
-              ) : community.filter((c) => c.status === "pending").map((c) => (
-                <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--border-s)" }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontFamily: "var(--font-body)", color: "var(--text)", fontWeight: 500 }}>{c.name}</div>
-                    <div style={{ fontSize: 12, color: "var(--text3)" }}>by {c.author} · {c.submitted}</div>
-                  </div>
-                  <button onClick={() => setTab("moderation")} style={{ background: "none", border: "1px solid var(--border-s)", borderRadius: 6, padding: "4px 10px", cursor: "pointer", color: "var(--text2)", fontSize: 12, fontFamily: "var(--font-display)" }}>Review</button>
-                </div>
-              ))}
-            </Card>
+            <p style={{ margin: 0, fontSize: 12, color: "var(--text3)" }}>
+              "Community Recipes" is real (from the Moderation tab); the other three are still placeholder counts pending admin catalog tools.
+            </p>
           </div>
         )}
 
@@ -132,42 +152,40 @@ export default function AdminScreen() {
 
         {tab === "moderation" && (
           <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <p style={{ margin: 0, fontSize: 13, color: "var(--text2)" }}>Community-submitted recipes. Published recipes are visible to all members.</p>
-            {community.map((c) => (
-              <Card key={c.id} style={{ padding: "14px 16px" }}>
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 15, fontFamily: "var(--font-display)", fontWeight: 700, color: "var(--text)", marginBottom: 3 }}>{c.name}</div>
-                    <div style={{ fontSize: 12, color: "var(--text3)" }}>by {c.author} · submitted {c.submitted}</div>
-                    <div style={{ marginTop: 6 }}>
-                      <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: c.status === "published" ? "var(--green)" : c.status === "pending" ? "var(--amber)" : "var(--unavail)", border: "1px solid currentColor", borderRadius: 4, padding: "2px 6px" }}>
-                        {c.status}
-                      </span>
+            <p style={{ margin: 0, fontSize: 13, color: "var(--text2)" }}>Published community recipes. Unpublishing returns a recipe to its owner's private list without deleting it.</p>
+            {communityLoading ? (
+              <p style={{ margin: 0, fontSize: 14, color: "var(--text3)" }}>Loading...</p>
+            ) : communityRecipes.length === 0 ? (
+              <p style={{ margin: 0, fontSize: 14, color: "var(--text3)" }}>No published community recipes.</p>
+            ) : (
+              communityRecipes.map((c) => (
+                <Card key={c.id} style={{ padding: "14px 16px" }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 15, fontFamily: "var(--font-display)", fontWeight: 700, color: "var(--text)", marginBottom: 3 }}>{c.name}</div>
+                      <div style={{ fontSize: 12, color: "var(--text3)" }}>
+                        by {c.owner?.display_name ?? "unknown"}
+                        {c.published_at && ` · published ${formatDate(c.published_at)}`}
+                      </div>
                     </div>
+                    <button onClick={() => setConfirmUnpublish(c.id)} style={{ background: "rgba(251,113,133,0.1)", border: "1px solid rgba(251,113,133,0.25)", borderRadius: 8, padding: "6px 12px", cursor: "pointer", color: "var(--coral)", fontSize: 12, fontFamily: "var(--font-display)", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                      <IconLock size={12} /> Unpublish
+                    </button>
                   </div>
-                  {c.status === "published" && (
-                    <button onClick={() => setConfirmUnpublish(c.id)} style={{ background: "rgba(251,113,133,0.1)", border: "1px solid rgba(251,113,133,0.25)", borderRadius: 8, padding: "6px 12px", cursor: "pointer", color: "var(--coral)", fontSize: 12, fontFamily: "var(--font-display)", fontWeight: 600 }}>Unpublish</button>
-                  )}
-                  {c.status === "pending" && (
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <Btn variant="primary" small onClick={() => setCommunity(community.map((r) => (r.id === c.id ? { ...r, status: "published" } : r)))}>Approve</Btn>
-                      <Btn variant="danger" small onClick={() => setConfirmUnpublish(c.id)}>Reject</Btn>
+                  {confirmUnpublish === c.id && (
+                    <div style={{ marginTop: 12, padding: "12px", background: "rgba(251,113,133,0.08)", borderRadius: 8, border: "1px solid rgba(251,113,133,0.25)" }}>
+                      <p style={{ margin: "0 0 10px", fontSize: 13, color: "var(--text2)" }}>
+                        Unpublish "{c.name}"? It returns to {c.owner?.display_name ?? "the owner"}'s private list — their copy won't be deleted.
+                      </p>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <Btn variant="danger" small disabled={unpublishing} onClick={() => handleUnpublish(c.id)}>Unpublish</Btn>
+                        <Btn variant="ghost" small onClick={() => setConfirmUnpublish(null)}>Cancel</Btn>
+                      </div>
                     </div>
                   )}
-                </div>
-                {confirmUnpublish === c.id && (
-                  <div style={{ marginTop: 12, padding: "12px", background: "rgba(251,113,133,0.08)", borderRadius: 8, border: "1px solid rgba(251,113,133,0.25)" }}>
-                    <p style={{ margin: "0 0 10px", fontSize: 13, color: "var(--text2)" }}>
-                      {c.status === "pending" ? `Reject "${c.name}"? The author will be notified.` : `Unpublish "${c.name}"? It will be hidden from all members but not deleted.`}
-                    </p>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <Btn variant="danger" small onClick={() => unpublish(c.id)}>{c.status === "pending" ? "Reject" : "Unpublish"}</Btn>
-                      <Btn variant="ghost" small onClick={() => setConfirmUnpublish(null)}>Cancel</Btn>
-                    </div>
-                  </div>
-                )}
-              </Card>
-            ))}
+                </Card>
+              ))
+            )}
           </div>
         )}
 

@@ -1,19 +1,23 @@
 import { useState } from "react"
 import { useNavigate, useOutletContext, useParams } from "react-router-dom"
 import { GlassSvg } from "@/components/GlassSvg"
-import { IconBookmark, IconGlobe, IconHeart, IconTrash } from "@/components/icons"
+import { IconBookmark, IconGlobe, IconHeart, IconLock, IconTrash } from "@/components/icons"
 import { TopBar } from "@/components/Nav"
 import { AvailBadge, Btn, Card, SectionTitle, SourceBadge, TasteTag } from "@/components/primitives"
 import { formatAmount } from "@/domain/availability"
-import { deleteRecipe } from "@/services/recipes"
+import { deleteRecipe, publishRecipe, unpublishRecipe } from "@/services/recipes"
 
 export default function DetailScreen() {
   const navigate = useNavigate()
   const { id } = useParams()
-  const { computed, unit, setUnit, favorites, wantToMake, toggleFav, toggleWtm, owned, userId, refetchRecipes } = useOutletContext()
+  const { computed, unit, setUnit, favorites, wantToMake, toggleFav, toggleWtm, owned, userId, isAdmin, refetchRecipes } = useOutletContext()
   const [showConfirmShare, setShowConfirmShare] = useState(false)
+  const [showConfirmUnpublish, setShowConfirmUnpublish] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [publishing, setPublishing] = useState(false)
+  const [unpublishing, setUnpublishing] = useState(false)
+  const [actionError, setActionError] = useState(null)
 
   const c = computed.find((item) => item.id === id)
 
@@ -28,6 +32,36 @@ export default function DetailScreen() {
 
   const isFav = favorites.has(c.id)
   const isWtm = wantToMake.has(c.id)
+  const isOwner = c.ownerId === userId
+  const canManage = isOwner || isAdmin
+
+  const handlePublish = async () => {
+    setPublishing(true)
+    setActionError(null)
+    try {
+      await publishRecipe(c.id)
+      await refetchRecipes()
+      setShowConfirmShare(false)
+    } catch (err) {
+      setActionError(err.message)
+    } finally {
+      setPublishing(false)
+    }
+  }
+
+  const handleUnpublish = async () => {
+    setUnpublishing(true)
+    setActionError(null)
+    try {
+      await unpublishRecipe(c.id)
+      await refetchRecipes()
+      setShowConfirmUnpublish(false)
+    } catch (err) {
+      setActionError(err.message)
+    } finally {
+      setUnpublishing(false)
+    }
+  }
 
   return (
     <div style={{ paddingBottom: 80 }}>
@@ -114,22 +148,42 @@ export default function DetailScreen() {
           </div>
         </div>
 
-        {c.source === "private" && c.ownerId === userId && (
+        {c.source === "private" && isOwner && (
           <div style={{ display: "flex", gap: 8 }}>
-            {/* Publishing (visibility -> shared) is step 11 - this stays a UI-only
-                placeholder until that function exists, same as before. */}
             <button onClick={() => setShowConfirmShare(!showConfirmShare)} style={{ flex: 1, background: "rgba(34,211,238,0.1)", border: "1px solid rgba(34,211,238,0.25)", borderRadius: "var(--r)", padding: "10px 16px", cursor: "pointer", color: "var(--cyan)", fontSize: 14, fontFamily: "var(--font-display)", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
               <IconGlobe size={15} /> Publish
             </button>
             <Btn variant="danger" onClick={() => setConfirmDelete(true)}><IconTrash size={15} /> Delete</Btn>
           </div>
         )}
+
+        {c.source === "community" && canManage && (
+          <button onClick={() => setShowConfirmUnpublish(true)} style={{ background: "var(--surface3)", border: "1px solid var(--border-s)", borderRadius: "var(--r)", padding: "10px 16px", cursor: "pointer", color: "var(--text2)", fontSize: 14, fontFamily: "var(--font-display)", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+            <IconLock size={15} /> Unpublish
+          </button>
+        )}
+
         {showConfirmShare && (
           <Card style={{ padding: 16, border: "1px solid rgba(34,211,238,0.25)" }}>
             <p style={{ margin: "0 0 12px", fontSize: 14, color: "var(--text2)" }}>Publishing makes this recipe visible to all Cocktail Library members. You can unpublish it later from your profile.</p>
+            {actionError && <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--coral)" }}>{actionError}</p>}
             <div style={{ display: "flex", gap: 8 }}>
-              <Btn variant="primary" small onClick={() => setShowConfirmShare(false)}>Publish</Btn>
+              <Btn variant="primary" small disabled={publishing} onClick={handlePublish}>Publish</Btn>
               <Btn variant="ghost" small onClick={() => setShowConfirmShare(false)}>Cancel</Btn>
+            </div>
+          </Card>
+        )}
+        {showConfirmUnpublish && (
+          <Card style={{ padding: 16, border: "1px solid var(--border-s)" }}>
+            <p style={{ margin: "0 0 12px", fontSize: 14, color: "var(--text2)" }}>
+              {isOwner
+                ? "Make this recipe private again? Only you will be able to see it."
+                : `Unpublish "${c.name}"? It returns to ${c.author ?? "the owner"}'s private list - their copy won't be deleted.`}
+            </p>
+            {actionError && <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--coral)" }}>{actionError}</p>}
+            <div style={{ display: "flex", gap: 8 }}>
+              <Btn variant="danger" small disabled={unpublishing} onClick={handleUnpublish}>Unpublish</Btn>
+              <Btn variant="ghost" small onClick={() => setShowConfirmUnpublish(false)}>Cancel</Btn>
             </div>
           </Card>
         )}
