@@ -1,22 +1,30 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { IconGlobe, IconLock, IconPlus, IconX } from "@/components/icons"
+import { IconPlus, IconX } from "@/components/icons"
 import { TopBar } from "@/components/Nav"
 import { Btn, FilterChip, Input } from "@/components/primitives"
-import { GLASSES, TASTE_FILTERS } from "@/data/constants"
-import { INGS } from "@/data/mockData"
+import { useCatalog } from "@/hooks/useCatalog"
+import { createRecipe } from "@/services/recipes"
+
+const NON_VOLUME_UNITS = ["dash", "barspoon", "piece", "slice", "wedge", "top-up"]
 
 export default function EditorScreen() {
   const navigate = useNavigate()
+  const { types, glasses, families, tasteTags, loading: catalogLoading } = useCatalog()
+
   const [name, setName] = useState("")
   const [desc, setDesc] = useState("")
-  const [glass, setGlass] = useState("coupe")
-  const [visibility, setVisibility] = useState("private")
-  const [ings, setIngs] = useState([{ ingId: "", amount: "", unit: "ml", role: "required" }])
+  const [glassName, setGlassName] = useState("")
+  const [familyId, setFamilyId] = useState("")
+  const [ings, setIngs] = useState([{ ingredientName: "", amount: "", unit: "ml", role: "required" }])
   const [steps, setSteps] = useState([""])
-  const [taste, setTaste] = useState([])
+  const [tasteTagIds, setTasteTagIds] = useState([])
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
 
-  const addIng = () => setIngs([...ings, { ingId: "", amount: "", unit: "ml", role: "required" }])
+  const effectiveGlassName = glassName || glasses[0]?.name || ""
+
+  const addIng = () => setIngs([...ings, { ingredientName: "", amount: "", unit: "ml", role: "required" }])
   const removeIng = (i) => setIngs(ings.filter((_, idx) => idx !== i))
   const updateIng = (i, k, v) => setIngs(ings.map((ing, idx) => (idx === i ? { ...ing, [k]: v } : ing)))
 
@@ -24,7 +32,51 @@ export default function EditorScreen() {
   const removeStep = (i) => setSteps(steps.filter((_, idx) => idx !== i))
   const updateStep = (i, v) => setSteps(steps.map((s, idx) => (idx === i ? v : s)))
 
-  const toggleTaste = (t) => setTaste(taste.includes(t) ? taste.filter((x) => x !== t) : [...taste, t])
+  const toggleTaste = (tagId) => setTasteTagIds(tasteTagIds.includes(tagId) ? tasteTagIds.filter((x) => x !== tagId) : [...tasteTagIds, tagId])
+
+  // Non-empty rows must match a real ingredient type - same rule as Add
+  // Product, since a member can't create a new ingredient type either way.
+  const nonEmptyIngs = ings.filter((i) => i.ingredientName.trim() || i.amount.trim())
+  const resolvedIngs = nonEmptyIngs.map((i) => ({
+    ...i,
+    matchedType: types.find((t) => t.name.toLowerCase() === i.ingredientName.trim().toLowerCase()),
+  }))
+  const hasUnmatchedIng = resolvedIngs.some((i) => !i.matchedType)
+  const canSave = name.trim() && effectiveGlassName && resolvedIngs.length > 0 && !hasUnmatchedIng && !saving
+
+  const handleSave = async () => {
+    setSaving(true)
+    setError(null)
+    try {
+      const glass = glasses.find((g) => g.name === effectiveGlassName)
+      const components = resolvedIngs.map((i) => {
+        const isVolume = i.unit === "ml"
+        return {
+          ingredientTypeId: i.matchedType.id,
+          amount: isVolume ? Number(i.amount) || 0 : 0,
+          unitLabel: isVolume ? "ml" : `${i.amount} ${i.unit}`.trim(),
+          role: i.role,
+        }
+      })
+      const recipe = await createRecipe({
+        name: name.trim(),
+        description: desc.trim(),
+        glassId: glass.id,
+        familyId: familyId || null,
+        steps: steps.map((s) => s.trim()).filter(Boolean),
+        components,
+        tasteTagIds,
+      })
+      navigate(`/library/${recipe.id}`)
+    } catch (err) {
+      setError(err.message)
+      setSaving(false)
+    }
+  }
+
+  if (catalogLoading) {
+    return <div style={{ padding: "60px 24px", textAlign: "center", color: "var(--text2)", fontSize: 14 }}>Loading...</div>
+  }
 
   return (
     <div style={{ paddingBottom: 80 }}>
@@ -40,9 +92,21 @@ export default function EditorScreen() {
         <div>
           <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text2)", fontFamily: "var(--font-display)", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 8 }}>Glass</label>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {GLASSES.map((g) => (
-              <button key={g} onClick={() => setGlass(g)} style={{ padding: "6px 14px", borderRadius: 8, border: `1px solid ${glass === g ? "var(--cyan)" : "var(--border-s)"}`, background: glass === g ? "rgba(34,211,238,0.1)" : "var(--surface)", color: glass === g ? "var(--cyan)" : "var(--text2)", cursor: "pointer", fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 500, textTransform: "capitalize", transition: "all 0.15s" }}>
-                {g}
+            {glasses.map((g) => (
+              <button key={g.id} onClick={() => setGlassName(g.name)} style={{ padding: "6px 14px", borderRadius: 8, border: `1px solid ${effectiveGlassName === g.name ? "var(--cyan)" : "var(--border-s)"}`, background: effectiveGlassName === g.name ? "rgba(34,211,238,0.1)" : "var(--surface)", color: effectiveGlassName === g.name ? "var(--cyan)" : "var(--text2)", cursor: "pointer", fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 500, textTransform: "capitalize", transition: "all 0.15s" }}>
+                {g.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text2)", fontFamily: "var(--font-display)", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 8 }}>Family (optional)</label>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button onClick={() => setFamilyId("")} style={{ padding: "6px 14px", borderRadius: 8, border: `1px solid ${!familyId ? "var(--cyan)" : "var(--border-s)"}`, background: !familyId ? "rgba(34,211,238,0.1)" : "var(--surface)", color: !familyId ? "var(--cyan)" : "var(--text2)", cursor: "pointer", fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 500 }}>None</button>
+            {families.map((f) => (
+              <button key={f.id} onClick={() => setFamilyId(f.id)} style={{ padding: "6px 14px", borderRadius: 8, border: `1px solid ${familyId === f.id ? "var(--cyan)" : "var(--border-s)"}`, background: familyId === f.id ? "rgba(34,211,238,0.1)" : "var(--surface)", color: familyId === f.id ? "var(--cyan)" : "var(--text2)", cursor: "pointer", fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 500 }}>
+                {f.name}
               </button>
             ))}
           </div>
@@ -56,24 +120,34 @@ export default function EditorScreen() {
             </button>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {ings.map((ing, i) => (
-              <div key={i} style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                <div style={{ flex: 2, position: "relative" }}>
-                  <input list="ing-types-editor" placeholder="Ingredient type" value={ing.ingId} onChange={(e) => updateIng(i, "ingId", e.target.value)} style={{ background: "var(--surface)", border: "1px solid var(--border-s)", borderRadius: "var(--r-sm)", padding: "8px 10px", color: "var(--text)", fontSize: 13, fontFamily: "var(--font-body)", width: "100%" }} />
-                  <datalist id="ing-types-editor">{INGS.map((ii) => <option key={ii.id} value={ii.name} />)}</datalist>
+            {ings.map((ing, i) => {
+              const trimmedName = ing.ingredientName.trim()
+              const matched = trimmedName && types.some((t) => t.name.toLowerCase() === trimmedName.toLowerCase())
+              return (
+                <div key={i} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <div style={{ flex: 2, position: "relative" }}>
+                      <input list="ing-types-editor" placeholder="Ingredient type" value={ing.ingredientName} onChange={(e) => updateIng(i, "ingredientName", e.target.value)} style={{ background: "var(--surface)", border: `1px solid ${trimmedName && !matched ? "var(--coral)" : "var(--border-s)"}`, borderRadius: "var(--r-sm)", padding: "8px 10px", color: "var(--text)", fontSize: 13, fontFamily: "var(--font-body)", width: "100%" }} />
+                      <datalist id="ing-types-editor">{types.map((t) => <option key={t.id} value={t.name} />)}</datalist>
+                    </div>
+                    <input placeholder="amt" value={ing.amount} onChange={(e) => updateIng(i, "amount", e.target.value)} style={{ width: 50, background: "var(--surface)", border: "1px solid var(--border-s)", borderRadius: "var(--r-sm)", padding: "8px 8px", color: "var(--text)", fontSize: 13, textAlign: "center", fontFamily: "var(--font-mono)" }} />
+                    <select value={ing.unit} onChange={(e) => updateIng(i, "unit", e.target.value)} style={{ background: "var(--surface)", border: "1px solid var(--border-s)", borderRadius: "var(--r-sm)", padding: "8px 6px", color: "var(--text2)", fontSize: 12, fontFamily: "var(--font-mono)" }}>
+                      <option value="ml">ml</option>
+                      {NON_VOLUME_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                    <select value={ing.role} onChange={(e) => updateIng(i, "role", e.target.value)} style={{ background: "var(--surface)", border: "1px solid var(--border-s)", borderRadius: "var(--r-sm)", padding: "8px 6px", color: "var(--text2)", fontSize: 12, fontFamily: "var(--font-display)" }}>
+                      <option value="required">Required</option><option value="optional">Optional</option><option value="garnish">Garnish</option>
+                    </select>
+                    {ings.length > 1 && (
+                      <button onClick={() => removeIng(i)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text3)", padding: 4 }}><IconX size={14} /></button>
+                    )}
+                  </div>
+                  {trimmedName && !matched && (
+                    <span style={{ fontSize: 11, color: "var(--coral)" }}>Doesn't match an existing ingredient type - new types require admin approval.</span>
+                  )}
                 </div>
-                <input placeholder="amt" value={ing.amount} onChange={(e) => updateIng(i, "amount", e.target.value)} style={{ width: 50, background: "var(--surface)", border: "1px solid var(--border-s)", borderRadius: "var(--r-sm)", padding: "8px 8px", color: "var(--text)", fontSize: 13, textAlign: "center", fontFamily: "var(--font-mono)" }} />
-                <select value={ing.unit} onChange={(e) => updateIng(i, "unit", e.target.value)} style={{ background: "var(--surface)", border: "1px solid var(--border-s)", borderRadius: "var(--r-sm)", padding: "8px 6px", color: "var(--text2)", fontSize: 12, fontFamily: "var(--font-mono)" }}>
-                  <option>ml</option><option>oz</option><option>dash</option><option>sprig</option><option>slice</option>
-                </select>
-                <select value={ing.role} onChange={(e) => updateIng(i, "role", e.target.value)} style={{ background: "var(--surface)", border: "1px solid var(--border-s)", borderRadius: "var(--r-sm)", padding: "8px 6px", color: "var(--text2)", fontSize: 12, fontFamily: "var(--font-display)" }}>
-                  <option value="required">Required</option><option value="optional">Optional</option><option value="garnish">Garnish</option>
-                </select>
-                {ings.length > 1 && (
-                  <button onClick={() => removeIng(i)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text3)", padding: 4 }}><IconX size={14} /></button>
-                )}
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
 
@@ -98,25 +172,17 @@ export default function EditorScreen() {
         <div>
           <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text2)", fontFamily: "var(--font-display)", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 8 }}>Taste Tags</label>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {TASTE_FILTERS.map((t) => <FilterChip key={t} label={t} active={taste.includes(t)} onClick={() => toggleTaste(t)} />)}
+            {tasteTags.map((t) => <FilterChip key={t.id} label={t.name} active={tasteTagIds.includes(t.id)} onClick={() => toggleTaste(t.id)} />)}
           </div>
         </div>
 
-        <div>
-          <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text2)", fontFamily: "var(--font-display)", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 8 }}>Visibility</label>
-          <div style={{ display: "flex", gap: 8 }}>
-            {["private", "shared"].map((v) => (
-              <button key={v} onClick={() => setVisibility(v)} style={{ flex: 1, padding: "10px", borderRadius: "var(--r-sm)", border: `1px solid ${visibility === v ? "var(--cyan)" : "var(--border-s)"}`, background: visibility === v ? "rgba(34,211,238,0.1)" : "var(--surface)", color: visibility === v ? "var(--cyan)" : "var(--text2)", cursor: "pointer", fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "all 0.15s" }}>
-                {v === "private" ? <IconLock size={14} /> : <IconGlobe size={14} />} {v === "private" ? "Private" : "Share with community"}
-              </button>
-            ))}
-          </div>
-          <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--text3)", lineHeight: 1.5 }}>
-            {visibility === "private" ? "Only you can see this recipe." : "Published recipes are visible to all members and can be moderated by admins."}
-          </p>
-        </div>
+        <p style={{ margin: 0, fontSize: 12, color: "var(--text3)", lineHeight: 1.5 }}>
+          Recipes you create are private to you. Publishing to the community isn't available yet.
+        </p>
 
-        <Btn variant="primary" full onClick={() => navigate("/library")} disabled={!name}>Save Recipe</Btn>
+        {error && <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>{error}</p>}
+
+        <Btn variant="primary" full onClick={handleSave} disabled={!canSave}>Save Recipe</Btn>
       </div>
     </div>
   )

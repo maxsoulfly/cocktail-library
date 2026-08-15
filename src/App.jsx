@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react"
 import { Navigate, Outlet, Route, Routes } from "react-router-dom"
 import { BottomNav, SideNav } from "@/components/Nav"
-import { COCKTAILS, ING_MAP, INITIAL_OWNED } from "@/data/mockData"
 import { computeAvail } from "@/domain/availability"
+import { useCatalog } from "@/hooks/useCatalog"
+import { useInventory } from "@/hooks/useInventory"
 import { useMembership } from "@/hooks/useMembership"
+import { useRecipes } from "@/hooks/useRecipes"
 import { useSupabaseSession } from "@/hooks/useSupabaseSession"
 import AddProductScreen from "@/screens/AddProductScreen"
 import AdminScreen from "@/screens/AdminScreen"
@@ -38,42 +40,59 @@ function LoadingScreen() {
 }
 
 // Wraps every authenticated screen: side/bottom nav plus the shared app state
-// handed down via router Outlet context. profile/isAdmin/userId are real
-// (step 4); My Bar is real too as of step 5 (see src/hooks/useCatalog.js and
-// useInventory.js, used directly by MyBarScreen/AddProductScreen rather than
-// through this context). `owned` below is a SEPARATE, still-mock Set used
-// only by the still-mock COCKTAILS recipe demo on Home/Library/Detail - it
-// is unrelated to the real user_inventory system and gets replaced once
-// step 6 wires up real recipes against real ingredient_type ids.
-// Favorites/Want to Make are still mock too - Supabase in step 9.
+// handed down via router Outlet context. As of step 6, everything here is
+// real: catalog + inventory (step 5) feed a resolved "owned ingredient type
+// ids" set (generic ownership OR an owned product mapped to that type), fed
+// into the same computeAvail() used since the mock-data days - it only ever
+// needed a Set<string> and a name resolver, so it didn't need to change.
+// MyBarScreen/AddProductScreen fetch their own catalog/inventory copies
+// rather than sharing these instances - mildly redundant network-wise, but
+// avoids a shared cache/context layer that isn't needed at this app's scale.
+// Favorites/Want to Make are still local-only mock state - Supabase in step 9.
 function AppShell({ profile, session }) {
+  const userId = session?.user?.id
   const [theme, setTheme] = useState("dark")
   const [unit, setUnit] = useState("ml")
-  const [owned, setOwned] = useState(() => new Set(INITIAL_OWNED))
-  const [favorites, setFavorites] = useState(() => new Set(["negroni", "daiquiri", "manhattan"]))
-  const [wantToMake, setWantToMake] = useState(() => new Set(["mojito", "dirty-martini"]))
+  const [favorites, setFavorites] = useState(() => new Set())
+  const [wantToMake, setWantToMake] = useState(() => new Set())
 
   useEffect(() => {
     document.documentElement.classList.toggle("light", theme === "light")
   }, [theme])
 
+  const { types, products, loading: catalogLoading } = useCatalog()
+  const { ownedTypeIds, ownedProductIds, loading: inventoryLoading } = useInventory(userId)
+  const { recipes, loading: recipesLoading } = useRecipes()
+
+  const ingredientTypesById = useMemo(() => new Map(types.map((t) => [t.id, t])), [types])
+
+  const resolvedOwned = useMemo(() => {
+    const set = new Set(ownedTypeIds)
+    products.forEach((p) => {
+      if (ownedProductIds.has(p.id)) set.add(p.ingredient_type_id)
+    })
+    return set
+  }, [ownedTypeIds, ownedProductIds, products])
+
   const computed = useMemo(
-    () => COCKTAILS.map((c) => ({ ...c, ...computeAvail(c, owned, (id) => ING_MAP[id]?.name ?? id) })),
-    [owned],
+    () => recipes.map((r) => ({ ...r, ...computeAvail(r, resolvedOwned, (id) => ingredientTypesById.get(id)?.name ?? id) })),
+    [recipes, resolvedOwned, ingredientTypesById],
   )
 
   const isAdmin = profile?.role === "admin"
+  const isLoading = catalogLoading || inventoryLoading || recipesLoading
 
   const outletContext = {
     computed,
-    owned, toggleOwned: toggleInSet(setOwned),
+    owned: resolvedOwned,
+    ingredientTypesById,
     favorites, toggleFav: toggleInSet(setFavorites),
     wantToMake, toggleWtm: toggleInSet(setWantToMake),
     unit, setUnit,
     theme, setTheme,
     isAdmin,
     profile,
-    userId: session?.user?.id,
+    userId,
     email: session?.user?.email,
     signOut,
   }
@@ -84,7 +103,7 @@ function AppShell({ profile, session }) {
         <SideNav isAdmin={isAdmin} />
       </div>
       <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
-        <Outlet context={outletContext} />
+        {isLoading ? <LoadingScreen /> : <Outlet context={outletContext} />}
       </div>
       <BottomNav />
       <style>{`

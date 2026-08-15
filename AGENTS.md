@@ -57,6 +57,7 @@ If a subdirectory later needs its own `AGENTS.md`, document its scope here and k
 
 - The availability engine, unit conversion, recommendation ranking, and import validation are pure `src/domain/` functions — write unit tests for the states/rules in the dev spec's "Testing requirements" section before calling that logic done.
 - Run the production build (`pnpm build`) and any test suite before reporting a chunk complete.
+- PostgREST resource-embedding selects (`.select("a, b:table(col), c(nested(col))")`) can't be validated through `supabase db query` — that runs raw SQL directly, bypassing PostgREST's embed resolution entirely. Sanity-check the actual query string with a real REST call instead: `curl -s -G "$VITE_SUPABASE_URL/rest/v1/<table>" -H "apikey: $VITE_SUPABASE_PUBLISHABLE_KEY" -H "Authorization: Bearer $VITE_SUPABASE_PUBLISHABLE_KEY" --data-urlencode "select=<the select string>" --data-urlencode "limit=1"`. A 400 means the embed is ambiguous/wrong; a 200 (even with `[]`, since RLS denies anon by default) confirms the query shape itself is valid.
 
 ## Preserving unrelated work
 

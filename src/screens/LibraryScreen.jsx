@@ -3,11 +3,13 @@ import { useNavigate, useOutletContext } from "react-router-dom"
 import { CocktailCard } from "@/components/CocktailCard"
 import { IconFilter, IconGlass, IconPlus, IconSearch } from "@/components/icons"
 import { Btn, FilterChip } from "@/components/primitives"
-import { AVAIL_FILTERS, SOURCE_FILTERS, TASTE_FILTERS } from "@/data/constants"
+import { AVAIL_FILTERS, SOURCE_FILTERS } from "@/data/constants"
+import { useCatalog } from "@/hooks/useCatalog"
 
 export default function LibraryScreen() {
   const navigate = useNavigate()
   const { computed } = useOutletContext()
+  const { tasteTags } = useCatalog()
   const [query, setQuery] = useState("")
   const [availFilter, setAvailFilter] = useState("all")
   const [sourceFilters, setSourceFilters] = useState([])
@@ -50,7 +52,7 @@ export default function LibraryScreen() {
             </div>
             <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text3)", fontFamily: "var(--font-display)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Taste</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {TASTE_FILTERS.map((t) => <FilterChip key={t} label={t} active={tasteFilters.includes(t)} onClick={() => toggleArr(tasteFilters, t, setTasteFilters)} />)}
+              {tasteTags.map((t) => <FilterChip key={t.id} label={t.name} active={tasteFilters.includes(t.name)} onClick={() => toggleArr(tasteFilters, t.name, setTasteFilters)} />)}
             </div>
           </div>
         )}

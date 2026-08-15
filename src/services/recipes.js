@@ -1,0 +1,115 @@
+import { supabase } from "@/lib/supabaseClient"
+
+// "Community" vs "private" is derived, not stored - see recipes table comment
+// in the migration. Matches the source values SourceBadge already expects.
+function deriveSource(recipe) {
+  if (recipe.source_type === "classic") return "classic"
+  if (recipe.visibility === "shared" && recipe.moderation_status === "active") return "community"
+  return "private"
+}
+
+// Shapes a Supabase row into exactly what src/domain/availability.js and the
+// screens already expect from the old mock COCKTAILS array (ings[].ingId/
+// amount/unitLabel/role, taste[], etc.) so screen components don't need to
+// change just because the data source did.
+function mapRecipe(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    source: deriveSource(row),
+    ownerId: row.owner_id,
+    author: row.owner?.display_name ?? undefined,
+    glass: row.glass?.name ?? "rocks",
+    family: row.family?.name,
+    liquidColor: row.liquid_color ?? "#22d3ee",
+    steps: row.steps ?? [],
+    taste: (row.recipe_taste_tags ?? []).map((t) => t.taste_tags?.name).filter(Boolean),
+    ings: (row.recipe_components ?? [])
+      .slice()
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((c) => ({
+        ingId: c.ingredient_type_id,
+        // numeric columns come back as strings over PostgREST
+        amount: Number(c.amount),
+        unitLabel: c.unit_label,
+        role: c.role,
+        name: c.ingredient_types?.name,
+      })),
+  }
+}
+
+const RECIPE_SELECT = `
+  id, name, description, source_type, visibility, moderation_status, owner_id, liquid_color, steps,
+  glass:glasses(name),
+  family:cocktail_families(name),
+  owner:profiles(display_name),
+  recipe_components(id, ingredient_type_id, amount, unit_label, role, sort_order, ingredient_types(name, color)),
+  recipe_taste_tags(taste_tags(name))
+`
+
+export async function fetchRecipes() {
+  const { data, error } = await supabase.from("recipes").select(RECIPE_SELECT).order("name")
+  if (error) throw error
+  return data.map(mapRecipe)
+}
+
+export async function fetchRecipe(id) {
+  const { data, error } = await supabase.from("recipes").select(RECIPE_SELECT).eq("id", id).single()
+  if (error) throw error
+  return mapRecipe(data)
+}
+
+// Always creates a private user recipe - publishing (visibility -> 'shared')
+// is step 11's job. Components/tags are inserted after the recipe row in
+// separate calls (no client-side multi-statement transaction available);
+// best-effort cleanup deletes the recipe again if a later step fails.
+export async function createRecipe({ name, description, glassId, familyId, steps, components, tasteTagIds }) {
+  const { data: recipe, error: recipeError } = await supabase
+    .from("recipes")
+    .insert({
+      name,
+      description: description || null,
+      source_type: "user",
+      visibility: "private",
+      glass_id: glassId,
+      family_id: familyId || null,
+      steps,
+    })
+    .select()
+    .single()
+  if (recipeError) throw recipeError
+
+  try {
+    if (components.length > 0) {
+      const { error: componentsError } = await supabase.from("recipe_components").insert(
+        components.map((c, index) => ({
+          recipe_id: recipe.id,
+          ingredient_type_id: c.ingredientTypeId,
+          amount: c.amount,
+          unit_label: c.unitLabel,
+          role: c.role,
+          sort_order: index,
+        })),
+      )
+      if (componentsError) throw componentsError
+    }
+
+    if (tasteTagIds.length > 0) {
+      const { error: tagsError } = await supabase
+        .from("recipe_taste_tags")
+        .insert(tasteTagIds.map((tagId) => ({ recipe_id: recipe.id, taste_tag_id: tagId })))
+      if (tagsError) throw tagsError
+    }
+  } catch (err) {
+    await supabase.from("recipes").delete().eq("id", recipe.id)
+    throw err
+  }
+
+  return fetchRecipe(recipe.id)
+}
+
+export async function deleteRecipe(id) {
+  const { error } = await supabase.from("recipes").delete().eq("id", id)
+  if (error) throw error
+}

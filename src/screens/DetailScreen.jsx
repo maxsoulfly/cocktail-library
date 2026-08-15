@@ -1,17 +1,19 @@
 import { useState } from "react"
 import { useNavigate, useOutletContext, useParams } from "react-router-dom"
 import { GlassSvg } from "@/components/GlassSvg"
-import { IconBookmark, IconEdit, IconGlobe, IconHeart } from "@/components/icons"
+import { IconBookmark, IconGlobe, IconHeart, IconTrash } from "@/components/icons"
 import { TopBar } from "@/components/Nav"
 import { AvailBadge, Btn, Card, SectionTitle, SourceBadge, TasteTag } from "@/components/primitives"
-import { ING_MAP } from "@/data/mockData"
 import { formatAmount } from "@/domain/availability"
+import { deleteRecipe } from "@/services/recipes"
 
 export default function DetailScreen() {
   const navigate = useNavigate()
   const { id } = useParams()
-  const { computed, unit, setUnit, favorites, wantToMake, toggleFav, toggleWtm, owned } = useOutletContext()
+  const { computed, unit, setUnit, favorites, wantToMake, toggleFav, toggleWtm, owned, userId } = useOutletContext()
   const [showConfirmShare, setShowConfirmShare] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const c = computed.find((item) => item.id === id)
 
@@ -81,14 +83,12 @@ export default function DetailScreen() {
               <div key={role} style={{ marginBottom: 12 }}>
                 {role !== "required" && <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6, fontFamily: "var(--font-display)" }}>{role}</div>}
                 {ings.map((ri) => {
-                  const ing = ING_MAP[ri.ingId]
                   const isOwned = owned.has(ri.ingId)
                   return (
                     <div key={ri.ingId} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid var(--border-s)" }}>
                       <div style={{ width: 8, height: 8, borderRadius: "50%", background: isOwned ? "var(--green)" : ri.role === "required" ? "var(--coral)" : "var(--text3)", flexShrink: 0, boxShadow: isOwned ? "0 0 6px rgba(52,211,153,0.6)" : undefined }} />
                       <span style={{ flex: 1, fontSize: 14, color: "var(--text)", fontFamily: "var(--font-body)" }}>
-                        {ing?.name ?? ri.ingId}
-                        {ing?.brand && <span style={{ fontSize: 12, color: "var(--text3)", marginLeft: 6 }}>{ing.brand}</span>}
+                        {ri.name ?? ri.ingId}
                       </span>
                       <span style={{ fontSize: 13, fontFamily: "var(--font-mono)", color: "var(--text2)", whiteSpace: "nowrap" }}>{formatAmount(ri, unit)}</span>
                     </div>
@@ -114,12 +114,14 @@ export default function DetailScreen() {
           </div>
         </div>
 
-        {c.source === "private" && (
+        {c.source === "private" && c.ownerId === userId && (
           <div style={{ display: "flex", gap: 8 }}>
-            <Btn variant="secondary" full><IconEdit size={15} /> Edit recipe</Btn>
-            <button onClick={() => setShowConfirmShare(!showConfirmShare)} style={{ background: "rgba(34,211,238,0.1)", border: "1px solid rgba(34,211,238,0.25)", borderRadius: "var(--r)", padding: "10px 16px", cursor: "pointer", color: "var(--cyan)", fontSize: 14, fontFamily: "var(--font-display)", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+            {/* Publishing (visibility -> shared) is step 11 - this stays a UI-only
+                placeholder until that function exists, same as before. */}
+            <button onClick={() => setShowConfirmShare(!showConfirmShare)} style={{ flex: 1, background: "rgba(34,211,238,0.1)", border: "1px solid rgba(34,211,238,0.25)", borderRadius: "var(--r)", padding: "10px 16px", cursor: "pointer", color: "var(--cyan)", fontSize: 14, fontFamily: "var(--font-display)", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
               <IconGlobe size={15} /> Publish
             </button>
+            <Btn variant="danger" onClick={() => setConfirmDelete(true)}><IconTrash size={15} /> Delete</Btn>
           </div>
         )}
         {showConfirmShare && (
@@ -128,6 +130,15 @@ export default function DetailScreen() {
             <div style={{ display: "flex", gap: 8 }}>
               <Btn variant="primary" small onClick={() => setShowConfirmShare(false)}>Publish</Btn>
               <Btn variant="ghost" small onClick={() => setShowConfirmShare(false)}>Cancel</Btn>
+            </div>
+          </Card>
+        )}
+        {confirmDelete && (
+          <Card style={{ padding: 16, border: "1px solid rgba(251,113,133,0.3)" }}>
+            <p style={{ margin: "0 0 12px", fontSize: 14, color: "var(--text2)" }}>Delete "{c.name}"? This can't be undone.</p>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Btn variant="danger" small disabled={deleting} onClick={async () => { setDeleting(true); await deleteRecipe(c.id); navigate("/library") }}>Delete</Btn>
+              <Btn variant="ghost" small onClick={() => setConfirmDelete(false)}>Cancel</Btn>
             </div>
           </Card>
         )}

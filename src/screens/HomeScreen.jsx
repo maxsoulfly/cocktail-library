@@ -4,11 +4,10 @@ import { IconBookmark, IconBottle, IconChevR, IconHeart, IconSearch } from "@/co
 import { GlassSvg } from "@/components/GlassSvg"
 import { SmallCard } from "@/components/CocktailCard"
 import { Card, SectionTitle } from "@/components/primitives"
-import { ING_MAP } from "@/data/mockData"
 
 export default function HomeScreen() {
   const navigate = useNavigate()
-  const { computed, favorites, wantToMake, profile, email } = useOutletContext()
+  const { computed, favorites, wantToMake, profile, email, ingredientTypesById } = useOutletContext()
   const firstName = (profile?.display_name || email || "there").split(/[\s@]/)[0]
 
   const perfect = computed.filter((c) => c.avail === "perfect")
@@ -104,7 +103,7 @@ export default function HomeScreen() {
             <SectionTitle>Buy Next</SectionTitle>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {buyNext.map(([ingId, cocktailNames]) => {
-                const ing = ING_MAP[ingId]
+                const ing = ingredientTypesById.get(ingId)
                 return (
                   <Card key={ingId} style={{ padding: "14px 16px", border: "1px solid rgba(251,191,36,0.25)", background: "rgba(251,191,36,0.05)" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>

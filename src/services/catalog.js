@@ -33,3 +33,21 @@ export async function createProduct({ name, ingredientTypeId, brand, isHomemade 
   if (error) throw error
   return data
 }
+
+export async function fetchGlasses() {
+  const { data, error } = await supabase.from("glasses").select("id, name").order("name")
+  if (error) throw error
+  return data
+}
+
+export async function fetchTasteTags() {
+  const { data, error } = await supabase.from("taste_tags").select("id, name").order("name")
+  if (error) throw error
+  return data
+}
+
+export async function fetchCocktailFamilies() {
+  const { data, error } = await supabase.from("cocktail_families").select("id, name").order("name")
+  if (error) throw error
+  return data
+}

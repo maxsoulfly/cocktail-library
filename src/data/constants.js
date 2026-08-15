@@ -1,6 +1,5 @@
-// Fixed vocabularies shared across screens. Taste tags and glasses are
-// administrator-managed per the spec; these lists stand in for that catalog
-// until it's backed by Supabase.
+// Pure UI vocabulary (not admin-managed catalog data, unlike taste tags and
+// glasses - those are real Supabase tables now, fetched via useCatalog()).
 
 export const AVAIL_FILTERS = [
   { key: "all", label: "All" },
@@ -15,7 +14,3 @@ export const SOURCE_FILTERS = [
   { key: "community", label: "Community" },
   { key: "private", label: "Private" },
 ]
-
-export const TASTE_FILTERS = ["Bitter", "Citrus", "Sweet", "Herbal", "Spicy", "Fruity", "Tropical", "Refreshing", "Whiskey", "Tequila"]
-
-export const GLASSES = ["martini", "rocks", "highball", "coupe", "wine", "collins"]
