@@ -13,8 +13,8 @@ Agreed phase plan (revised by user on 2026-08-15 — private recipe CRUD moved i
 7. ~~Unit preference + conversion (Phase 3)~~ — **done, 2026-08-16 — not yet browser-verified**
 8. ~~Availability engine, tested (Phase 3)~~ — **done, 2026-08-16 — not yet browser-verified**
 9. ~~Library browsing, filters, Favorites, Want to Make (Phase 4)~~ — **done, 2026-08-16 — not yet browser-verified**
-10. Purchase recommendations, tested (Phase 4) — **next**
-11. Recipe publishing + admin unpublishing (Phase 5)
+10. ~~Purchase recommendations, tested (Phase 4)~~ — **done, 2026-08-16 — not yet browser-verified**
+11. Recipe publishing + admin unpublishing (Phase 5) — **next**
 12. Admin catalog tools + JSON import preview/validation (Phase 5)
 13. Responsive/accessibility/security/deployment QA (Phase 6)
 
@@ -22,23 +22,25 @@ Each numbered step is a development chunk boundary for this file.
 
 ## Last completed chunk
 
-Step 9 — real Favorites and Want to Make, replacing the last piece of local-only mock state in `AppShell`. Library browsing/filters needed no work — already real since step 6 (`LibraryScreen` already filters real recipes by availability/source/taste).
+Step 10 — purchase recommendations, implementing the spec's actual ranking rules (§11) for the first time. `HomeScreen`'s previous "Buy Next" was a simplified stand-in (just counted recipes unlocked per missing ingredient, no priority ranking, no suppression) — this replaces it with a proper tested domain function.
 
-**Database**: `20260815223400_user_lists.sql` — `user_favorites`/`user_want_to_make`, each just `(user_id, recipe_id)` as a composite primary key (does double duty as the natural key and the "can't favorite twice" constraint — simpler than `user_inventory`'s polymorphic shape since there's only one possible target, a recipe). RLS: read/insert/delete own only, no admin override, matching `user_inventory`'s "strictly private" precedent. Clean on `db advisors`.
+**Domain**: `src/domain/recommendations.js` — `rankPurchaseRecommendations({ computed, ingredientTypesById, favoriteIds, wantToMakeIds, limit })`. Candidates are ingredient types that would unlock an `avail === 'almost'` recipe (missing exactly one required ingredient). Ranked in the spec's exact order, as a comparator (not a weighted score, per the spec's explicit "readable rules... only add numeric weighting if real usage shows it's needed"): (1) unlocks a Favorite/Want-to-Make, (2) unlocks a classic, (3) `bar_priority` essential/common *and* `recommend_by_default` true, (4) total recipes unlocked, (5) how many already-`good`-enough recipes it would also push to `perfect`. Niche/specialized ingredients are suppressed from the list entirely unless they satisfy rule 1 — this function only ever produces the *general* suggestion list; a recipe detail page's own missing-ingredient display is a separate, always-unfiltered path (spec: "unless... the user is viewing that specific cocktail").
 
-**Client**: `src/services/lists.js` (fetch/add/remove for both lists), `src/hooks/useLists.js` — same optimistic-update shape as `useInventory.js` from step 5 (flip local state instantly, write in background, roll back via reload only on failure). Wired into `AppShell` replacing the old `useState(() => new Set())` pair; `favorites`/`wantToMake`/`toggleFav`/`toggleWtm` keep the exact same names and shapes in Outlet context, so **zero screen changes were needed** — `ListsScreen`/`HomeScreen`/`DetailScreen` all just called `.has()`/`.size`/`toggleFav(id)` already, confirmed by grep before considering this done. The now-unused `toggleInSet` helper was removed from `App.jsx` along with the old state.
+`computeAvail` gained a `missingOptionalIds` field (parallel to the existing `missingRequiredIds`) — needed to detect rule 5 (which `good`-enough recipes have this exact ingredient as their missing optional/garnish item). Purely additive, nothing else changed shape.
+
+**Tests**: `src/domain/recommendations.test.js` — 12 tests covering suppression (niche/specialized, both the suppressed and favorited-so-shown cases), each ranking tier in order, the essential/common-but-not-recommended edge case, both tiebreak levels, `limit`, and the reason-string wording. Combined with the existing 19, `pnpm test` is 31/31.
+
+**Screen**: `HomeScreen.jsx`'s `buyNext` now calls the domain function directly; the card's subtitle shows the domain-computed plain-language `reason` (e.g. "Unlocks 2 classics") instead of a raw ingredient-name list, and the count badge uses the real `unlockCount`.
 
 ## Implemented & verified
 
-- `pnpm test` — 19/19 passing (unchanged, this chunk didn't touch `src/domain/`).
-- `pnpm build` succeeds — 100 modules, no errors.
-- New migration verified clean on `db advisors --type all`.
-- Confirmed via `grep` that every screen consuming `favorites`/`wantToMake`/`toggleFav`/`toggleWtm` only used the Set/function interface the new hook already provides — no screen edits required, reducing regression risk for this chunk.
-- **Not yet browser-verified**: favoriting/want-to-make toggling on Detail, and that the Lists screen shows the right items after a refresh (the actual persistence test, same as My Bar's in step 5).
+- `pnpm test` — 31/31 passing.
+- `pnpm build` succeeds — 101 modules, no errors.
+- **Not yet browser-verified**: nothing here has a guaranteed-visible UI change unless the current My Bar state actually produces an "almost" recipe with a suppressible or rankable candidate — worth checking Home's Buy Next section shows sensible reasons for whatever's currently almost-available.
 
 ## Remaining / not started
 
-Steps 10–13. Plus, carried over: no editor UI for substitution alternatives/hierarchy (step 8 gap), no RLS/integration test harness (step 8 gap), real recipe editing (step 6 gap), `<datalist>` theming (step 6 gap, user-accepted).
+Steps 11–13. Plus, carried over: no editor UI for substitution alternatives/hierarchy (step 8), no RLS/integration test harness (step 8), real recipe editing (step 6), `<datalist>` theming (step 6, user-accepted). New from this chunk: no UI anywhere shows *why* an ingredient was suppressed (niche/specialized ingredients just silently don't appear in Buy Next) — matches spec (suppression is meant to be silent, not explained), noting only so it doesn't read as a missing feature later.
 
 ## Blockers / open questions
 
@@ -46,24 +48,24 @@ None blocking further work.
 
 ## Decisions made & why
 
-- **Composite primary key `(user_id, recipe_id)`, no separate `id` column** — unlike `user_inventory` (which needs to represent "generic type OR product," a real either/or with two possible FK targets), a favorite/want-to-make row only ever points at one thing: a recipe. The natural key already prevents duplicates, so a surrogate id would be pure overhead.
-- **Reused `useInventory.js`'s optimistic-update pattern exactly** rather than inventing a new one — same shape of problem (private per-user toggle state), same solution.
-- **Verified screen compatibility by grep before writing any screen code**, rather than assuming the old local-state shape and the new hook's shape matched. They did, so no screens changed — but this is exactly the kind of assumption that caused step 6's staleness bug, so checking first rather than after felt worth doing explicitly this time.
+- **Ranking implemented as a comparator with sequential tie-breaking, not a weighted score** — directly matches the spec's explicit instruction ("initial ranking should use readable rules... add numeric weighting only after real usage shows it is needed"). Each candidate object exposes the raw booleans/counts (`unlocksFavoriteOrWantToMake`, `unlocksClassic`, `isEssentialOrCommon`, `unlockCount`, `upgradeCount`) rather than a single score, so the ranking reason is always inspectable/explainable, including in the `reason` string shown to the user.
+- **Suppression and ranking live in the same function**, rather than filtering separately before/after. Keeps the "niche unless it unlocks a favorite" rule co-located with the favorite-unlock check it depends on, avoiding two places that both need to know what "unlocks a favorite" means.
+- **`missingOptionalIds` added to `computeAvail` as a pure addition**, not a breaking change to existing fields — checked before writing any code that nothing consumes the return object by shape-equality, only by destructuring specific fields.
 
-Earlier decisions (still standing, trimmed here — see git history for step 2-8 notes): JS-only in `src/**` with `vite.config.ts` exempted; hosted Supabase; repo at `github.com/maxsoulfly/cocktail-library`; RLS policy shape (one policy per command, `to authenticated` explicit, `(select auth.uid())` wrapped); every `SECURITY DEFINER` function needs `revoke ... from public, anon, authenticated` explicitly; `useCatalog`/`useInventory`/`useRecipes`/`useLists` called exactly once in `AppShell` and shared via context, never independently per-screen.
+Earlier decisions (still standing, trimmed here — see git history for step 2-9 notes): JS-only in `src/**` with `vite.config.ts` exempted; hosted Supabase; repo at `github.com/maxsoulfly/cocktail-library`; RLS policy shape (one policy per command, `to authenticated` explicit, `(select auth.uid())` wrapped); every `SECURITY DEFINER` function needs `revoke ... from public, anon, authenticated` explicitly; `useCatalog`/`useInventory`/`useRecipes`/`useLists` called exactly once in `AppShell` and shared via context.
 
 ## Migrations / environment changes
 
-One new migration this chunk (`20260815223400_user_lists.sql`), applied via `supabase db push`. No new environment variables, no `AGENTS.md`/`CLAUDE.md` changes needed (existing hook-sharing and RLS conventions already covered this).
+None this chunk — pure domain logic + one screen wiring, no schema changes.
 
 ## Tests / build checks last run
 
-2026-08-16: `pnpm test` — 19/19 passing. `pnpm build` — 100 modules, no errors. `npx supabase db push` — migration applied. `npx supabase db advisors --linked --type all` — clean, no new findings. No real-browser test of favorite/want-to-make toggling yet.
+2026-08-16: `pnpm test` — 31/31 passing (19 availability + 12 recommendations). `pnpm build` — 101 modules, no errors. No real-browser test yet.
 
 ## Exact next recommended action
 
-Get a real-browser pass on steps 7–9 together (unit/theme persistence, availability engine regressions, and favorites/want-to-make persistence — none of the last three chunks have been clicked through yet). Then start step 10: purchase recommendations. Per spec §11, candidates come from recipes missing exactly one required ingredient (the existing `avail === 'almost'` recipes already computed by `computeAvail`), ranked by: unlocks a Favorite/Want-to-Make first, then a classic recipe, then essential/common `bar_priority` ingredients (already a column on `ingredient_types` since step 3, unused so far), then count of recipes unlocked, then count of good-enough-to-perfect upgrades. Niche ingredients suppressed from general suggestions unless completing a Favorite/Want-to-Make or the user is viewing that specific cocktail. `HomeScreen`'s existing "Buy Next" section is a simple version of this (just counts recipes unlocked, no priority ranking) — this step properly implements the spec's ranking rules, ideally as a tested `src/domain/` function alongside `computeAvail`.
+Get a real-browser pass on steps 7–10 together (unit/theme persistence, availability engine regressions, favorites/want-to-make persistence, and Buy Next's new reasons/ranking — none of the last four chunks have been clicked through yet). Then start step 11: recipe publishing + admin unpublishing. Needs a `publish_recipe(recipe_id)` and `unpublish_recipe(recipe_id)` pair of `SECURITY DEFINER` functions (same reasoning as `redeem_invitation`: owners can't just update `visibility` directly per step 6's column-grant restriction, and unpublishing needs `is_admin()` + must preserve the owner's private access per spec §4/§8.3 — visibility flips back to `'private'`, `moderation_status` becomes `'unpublished_by_admin'`, row is never deleted). `DetailScreen`'s "Publish" button and `AdminScreen`'s moderation tab are still UI-only placeholders from step 6/the original mock — this is where they get wired to real data.
 
 ## Files/areas relevant to next action
 
-For browser verification: `/more` (unit/theme), `/bar` + `/home` + `/library` (My Bar → availability), `/library/:id` + `/lists` (favorite/want-to-make toggle + persistence). For step 10: a new `src/domain/recommendations.js` (pure, tested like `availability.js`), `src/screens/HomeScreen.jsx`'s existing `buyNext` `useMemo` (currently inline, simple unlock-count logic — replace with the real ranked domain function), `ingredient_types.bar_priority`/`recommend_by_default` columns (exist since step 3, first real consumer), `docs/Cocktail_Library_Development_Spec.md` §11 (purchase recommendation logic) for the exact ranking order.
+New migration for `publish_recipe()`/`unpublish_recipe()` functions (remember the `revoke ... from public, anon, authenticated` + `grant ... to authenticated` pattern from the start, verify with `db advisors` immediately). `src/services/recipes.js` (add publish/unpublish calls). `src/screens/DetailScreen.jsx` (wire the existing confirm-dialog UI to a real call). `src/screens/AdminScreen.jsx` (moderation tab still reads `MOCK_COMMUNITY` from `src/data/mockData.js` — needs a real `fetchCommunityRecipes()`-style query for shared+active+pending... though "pending" isn't a real spec concept, see step 6's decision that publish is immediate, not review-gated - the moderation tab's "Approve/Reject" pending flow doesn't map to anything real and will need its own scope decision). `docs/Cocktail_Library_Development_Spec.md` §4 (roles/permissions table) and §8.3 (ownership/visibility) for exact behavior.

@@ -4,6 +4,7 @@ import { IconBookmark, IconBottle, IconChevR, IconHeart, IconSearch } from "@/co
 import { GlassSvg } from "@/components/GlassSvg"
 import { SmallCard } from "@/components/CocktailCard"
 import { Card, SectionTitle } from "@/components/primitives"
+import { rankPurchaseRecommendations } from "@/domain/recommendations"
 
 export default function HomeScreen() {
   const navigate = useNavigate()
@@ -14,17 +15,10 @@ export default function HomeScreen() {
   const good = computed.filter((c) => c.avail === "good")
   const almost = computed.filter((c) => c.avail === "almost")
 
-  const buyNext = useMemo(() => {
-    const map = new Map()
-    almost.forEach((c) => {
-      const id = c.missingRequiredIds[0]
-      if (id) {
-        if (!map.has(id)) map.set(id, [])
-        map.get(id).push(c.name)
-      }
-    })
-    return [...map.entries()].sort((a, b) => b[1].length - a[1].length).slice(0, 2)
-  }, [almost])
+  const buyNext = useMemo(
+    () => rankPurchaseRecommendations({ computed, ingredientTypesById, favoriteIds: favorites, wantToMakeIds: wantToMake, limit: 2 }),
+    [computed, ingredientTypesById, favorites, wantToMake],
+  )
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"
@@ -102,19 +96,19 @@ export default function HomeScreen() {
           <div style={{ marginBottom: 24 }}>
             <SectionTitle>Buy Next</SectionTitle>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {buyNext.map(([ingId, cocktailNames]) => {
-                const ing = ingredientTypesById.get(ingId)
+              {buyNext.map((candidate) => {
+                const ing = ingredientTypesById.get(candidate.ingredientTypeId)
                 return (
-                  <Card key={ingId} style={{ padding: "14px 16px", border: "1px solid rgba(251,191,36,0.25)", background: "rgba(251,191,36,0.05)" }}>
+                  <Card key={candidate.ingredientTypeId} style={{ padding: "14px 16px", border: "1px solid rgba(251,191,36,0.25)", background: "rgba(251,191,36,0.05)" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                       <div style={{ width: 36, height: 36, borderRadius: 10, background: ing ? `${ing.color}30` : "var(--surface3)", display: "flex", alignItems: "center", justifyContent: "center", border: ing ? `1px solid ${ing.color}50` : "1px solid var(--border-s)" }}>
                         <IconBottle size={18} style={{ color: ing?.color ?? "var(--text2)" }} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 15, fontFamily: "var(--font-display)", fontWeight: 700, color: "var(--text)", marginBottom: 2 }}>{ing?.name ?? ingId}</div>
-                        <div style={{ fontSize: 12, color: "var(--text2)" }}>Unlocks {cocktailNames.join(", ")}</div>
+                        <div style={{ fontSize: 15, fontFamily: "var(--font-display)", fontWeight: 700, color: "var(--text)", marginBottom: 2 }}>{candidate.name}</div>
+                        <div style={{ fontSize: 12, color: "var(--text2)" }}>{candidate.reason}</div>
                       </div>
-                      <span style={{ fontSize: 11, color: "var(--almost)", fontFamily: "var(--font-mono)", background: "rgba(251,191,36,0.12)", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>+{cocktailNames.length} {cocktailNames.length === 1 ? "cocktail" : "cocktails"}</span>
+                      <span style={{ fontSize: 11, color: "var(--almost)", fontFamily: "var(--font-mono)", background: "rgba(251,191,36,0.12)", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>+{candidate.unlockCount} {candidate.unlockCount === 1 ? "cocktail" : "cocktails"}</span>
                     </div>
                   </Card>
                 )

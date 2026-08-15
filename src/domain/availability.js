@@ -20,9 +20,10 @@ export function computeAvail(cocktail, owned, resolveIngredientName) {
     .filter((i) => i.role === "required" && !isSatisfied(i))
     .map((i) => i.ingId)
   const missingRequired = missingRequiredIds.map(resolveName)
-  const missingOptional = cocktail.ings
+  const missingOptionalIds = cocktail.ings
     .filter((i) => i.role !== "required" && !isSatisfied(i))
-    .map((i) => resolveName(i.ingId))
+    .map((i) => i.ingId)
+  const missingOptional = missingOptionalIds.map(resolveName)
 
   let avail
   if (missingRequired.length === 0 && missingOptional.length === 0) avail = "perfect"
@@ -30,7 +31,7 @@ export function computeAvail(cocktail, owned, resolveIngredientName) {
   else if (missingRequired.length === 1) avail = "almost"
   else avail = "unavail"
 
-  return { avail, missingRequired, missingOptional, missingRequiredIds }
+  return { avail, missingRequired, missingOptional, missingRequiredIds, missingOptionalIds }
 }
 
 export function mlToOz(ml) {

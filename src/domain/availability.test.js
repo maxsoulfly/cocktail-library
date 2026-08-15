@@ -32,6 +32,7 @@ describe("computeAvail", () => {
     expect(result.avail).toBe("good")
     expect(result.missingRequired).toEqual([])
     expect(result.missingOptional).toEqual(["lime", "mint"])
+    expect(result.missingOptionalIds).toEqual(["lime", "mint"])
   })
 
   it("is almost when exactly one required component is missing", () => {
