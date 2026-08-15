@@ -20,6 +20,7 @@ import MyBarScreen from "@/screens/MyBarScreen"
 import SignInScreen from "@/screens/SignInScreen"
 import WelcomeScreen from "@/screens/WelcomeScreen"
 import { signOut } from "@/services/auth"
+import { updateProfile } from "@/services/membership"
 
 function toggleInSet(setter) {
   return (id) =>
@@ -58,14 +59,30 @@ function LoadingScreen() {
 // state - Supabase in step 9.
 function AppShell({ profile, session }) {
   const userId = session?.user?.id
-  const [theme, setTheme] = useState("dark")
-  const [unit, setUnit] = useState("ml")
+  // profiles.theme_preference defaults to 'system' for new signups, but there's
+  // no OS-preference detection implemented - treat anything but an explicit
+  // 'light' as dark, so the More screen's toggle always has a coherent
+  // selected state instead of showing neither button active.
+  const [theme, setThemeState] = useState(() => (profile?.theme_preference === "light" ? "light" : "dark"))
+  const [unit, setUnitState] = useState(() => profile?.unit_preference ?? "ml")
   const [favorites, setFavorites] = useState(() => new Set())
   const [wantToMake, setWantToMake] = useState(() => new Set())
 
   useEffect(() => {
     document.documentElement.classList.toggle("light", theme === "light")
   }, [theme])
+
+  // Wrapped so every change is felt instantly (local state) and remembered
+  // across sessions (persisted to profiles) - fire-and-forget, since a rare
+  // failed preference save isn't worth interrupting the user over.
+  const setTheme = (value) => {
+    setThemeState(value)
+    if (userId) updateProfile(userId, { theme_preference: value }).catch((err) => console.error("Failed to save theme preference:", err))
+  }
+  const setUnit = (value) => {
+    setUnitState(value)
+    if (userId) updateProfile(userId, { unit_preference: value }).catch((err) => console.error("Failed to save unit preference:", err))
+  }
 
   const catalog = useCatalog()
   const inventory = useInventory(userId)

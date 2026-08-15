@@ -11,3 +11,11 @@ export async function fetchMembership(userId) {
   if (error) throw error
   return data
 }
+
+// Only display_name/unit_preference/theme_preference are grantable to
+// authenticated (see the profiles migration) - role and everything else is
+// deliberately not updatable through this path.
+export async function updateProfile(userId, updates) {
+  const { error } = await supabase.from("profiles").update(updates).eq("id", userId)
+  if (error) throw error
+}
