@@ -14,18 +14,26 @@ function Row({ icon, label, right, onClick, danger }) {
 
 export default function MoreScreen() {
   const navigate = useNavigate()
-  const { unit, setUnit, theme, setTheme, isAdmin } = useOutletContext()
+  const { unit, setUnit, theme, setTheme, isAdmin, profile, email, signOut } = useOutletContext()
+
+  const displayName = profile?.display_name || email || "Member"
+  const initial = displayName.charAt(0).toUpperCase()
+
+  const handleSignOut = async () => {
+    await signOut()
+    // App-level auth listener picks up the cleared session and routes to Welcome.
+  }
 
   return (
     <div style={{ paddingBottom: 80 }}>
       <div style={{ padding: "20px 20px 16px", borderBottom: "1px solid var(--border-s)", background: "var(--bg2)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <div style={{ width: 52, height: 52, borderRadius: "50%", background: "linear-gradient(135deg, var(--cyan) 0%, var(--violet) 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontSize: 20, fontFamily: "var(--font-display)", fontWeight: 700, color: "#07091a" }}>A</span>
+            <span style={{ fontSize: 20, fontFamily: "var(--font-display)", fontWeight: 700, color: "#07091a" }}>{initial}</span>
           </div>
           <div>
-            <div style={{ fontSize: 18, fontFamily: "var(--font-display)", fontWeight: 800, color: "var(--text)", letterSpacing: "-0.01em" }}>Alex Novak</div>
-            <div style={{ fontSize: 13, color: "var(--text2)" }}>alex.novak@gmail.com</div>
+            <div style={{ fontSize: 18, fontFamily: "var(--font-display)", fontWeight: 800, color: "var(--text)", letterSpacing: "-0.01em" }}>{displayName}</div>
+            {email && <div style={{ fontSize: 13, color: "var(--text2)" }}>{email}</div>}
           </div>
         </div>
       </div>
@@ -66,7 +74,7 @@ export default function MoreScreen() {
         <Card style={{ overflow: "hidden" }}>
           <Row icon={<IconUser size={18} />} label="Edit Profile" onClick={() => {}} />
           <Row icon={<IconLock size={18} />} label="Change Password" onClick={() => {}} />
-          <Row icon={<IconX size={18} />} label="Sign Out" onClick={() => navigate("/")} danger />
+          <Row icon={<IconX size={18} />} label="Sign Out" onClick={handleSignOut} danger />
         </Card>
       </div>
     </div>

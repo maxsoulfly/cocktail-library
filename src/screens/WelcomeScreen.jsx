@@ -2,18 +2,22 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { GlassSvg } from "@/components/GlassSvg"
 import { Btn, Card } from "@/components/primitives"
+import { clearPendingInviteCode, storePendingInviteCode } from "@/services/auth"
 
 export default function WelcomeScreen() {
   const navigate = useNavigate()
   const [code, setCode] = useState("")
-  const [state, setState] = useState("idle") // idle | invalid | expired
 
+  // Real validity (exists / not expired / not already used) can only be
+  // checked server-side, and only for an authenticated caller - the
+  // redeem_invitation() function requires auth.uid(). So this just carries
+  // the code through account creation; the actual redemption + error
+  // reporting happens in JoinScreen once a session exists.
   const handleSubmit = () => {
-    if (code.toUpperCase() === "CL-ALPHA-7X2" || code.toUpperCase() === "CL-DEMO") {
-      navigate("/signin")
-    } else if (code.trim()) {
-      setState("invalid")
-    }
+    const trimmed = code.trim()
+    if (!trimmed) return
+    storePendingInviteCode(trimmed)
+    navigate("/signin?mode=join")
   }
 
   return (
@@ -34,20 +38,18 @@ export default function WelcomeScreen() {
             <input
               placeholder="CL-XXXXX-XXX"
               value={code}
-              onChange={(e) => { setCode(e.target.value); setState("idle") }}
+              onChange={(e) => setCode(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-              style={{ background: "var(--surface2)", border: `1px solid ${state === "invalid" ? "var(--coral)" : "var(--border-s)"}`, borderRadius: "var(--r-sm)", padding: "12px 14px", color: "var(--text)", fontSize: 15, fontFamily: "var(--font-mono)", width: "100%", letterSpacing: "0.08em", textTransform: "uppercase" }}
+              style={{ background: "var(--surface2)", border: "1px solid var(--border-s)", borderRadius: "var(--r-sm)", padding: "12px 14px", color: "var(--text)", fontSize: 15, fontFamily: "var(--font-mono)", width: "100%", letterSpacing: "0.08em", textTransform: "uppercase" }}
             />
-            {state === "invalid" && <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--coral)" }}>This code is invalid or has already been used. <span style={{ opacity: 0.7 }}>(Try: CL-DEMO)</span></p>}
-            {state === "expired" && <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--coral)" }}>This invitation has expired. Please request a new one.</p>}
           </div>
-          <Btn variant="primary" full onClick={handleSubmit}>Continue with invitation</Btn>
+          <Btn variant="primary" full disabled={!code.trim()} onClick={handleSubmit}>Continue with invitation</Btn>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ flex: 1, height: 1, background: "var(--border-s)" }} />
             <span style={{ fontSize: 12, color: "var(--text3)" }}>or</span>
             <div style={{ flex: 1, height: 1, background: "var(--border-s)" }} />
           </div>
-          <Btn variant="ghost" full onClick={() => navigate("/signin")}>Sign in to existing account</Btn>
+          <Btn variant="ghost" full onClick={() => { clearPendingInviteCode(); navigate("/signin") }}>Sign in to existing account</Btn>
         </Card>
 
         <p style={{ textAlign: "center", fontSize: 12, color: "var(--text3)", margin: 0 }}>

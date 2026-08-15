@@ -8,7 +8,8 @@ import { ING_MAP } from "@/data/mockData"
 
 export default function HomeScreen() {
   const navigate = useNavigate()
-  const { computed, favorites, wantToMake } = useOutletContext()
+  const { computed, favorites, wantToMake, profile, email } = useOutletContext()
+  const firstName = (profile?.display_name || email || "there").split(/[\s@]/)[0]
 
   const perfect = computed.filter((c) => c.avail === "perfect")
   const good = computed.filter((c) => c.avail === "good")
@@ -35,7 +36,7 @@ export default function HomeScreen() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
           <div>
             <p style={{ margin: 0, fontSize: 12, color: "var(--text2)", fontFamily: "var(--font-display)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>{greeting}</p>
-            <h1 style={{ margin: "2px 0 0", fontSize: 24, fontFamily: "var(--font-display)", fontWeight: 800, color: "var(--text)", letterSpacing: "-0.02em" }}>Alex</h1>
+            <h1 style={{ margin: "2px 0 0", fontSize: 24, fontFamily: "var(--font-display)", fontWeight: 800, color: "var(--text)", letterSpacing: "-0.02em" }}>{firstName}</h1>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={() => navigate("/lists")} style={{ background: "var(--surface)", border: "1px solid var(--border-s)", borderRadius: "var(--r-sm)", padding: "6px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, color: "var(--coral)", fontSize: 12, fontFamily: "var(--font-display)", fontWeight: 600 }}>

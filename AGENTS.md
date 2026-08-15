@@ -21,17 +21,17 @@ No TypeScript in application source (`src/**`). Use `.jsx` for components, `.js`
 
 ## Repository structure & ownership
 
-Target structure, being converged on from the current monolithic `src/App.tsx` (a working TypeScript UI prototype covering every screen with mock data — decompose and migrate it, don't discard it):
-
-- `src/main.jsx` — entrypoint, mounts `src/App.jsx`.
-- `src/App.jsx` — app shell, routing, top-level providers. Should not contain screen bodies once decomposition is done.
-- `src/screens/` — one file per screen (Home, Library, Detail, MyBar, AddProduct, Editor, Lists, Settings, Admin, auth screens).
-- `src/components/` — reusable presentational components (cards, badges, nav, inputs, glass SVGs).
-- `src/services/` — Supabase data-access layer, one module per entity (recipes, inventory, invitations, ...). Components call these; never call `supabase-js` directly from a component.
+- `src/main.jsx` — entrypoint, mounts `src/App.jsx` inside `BrowserRouter`.
+- `src/App.jsx` — routing and top-level auth/membership gating (session → membership → route tree). `AppShell` here wraps every authenticated route with nav + shared app state via router `Outlet` context. Should not contain screen bodies.
+- `src/screens/` — one file per screen (Home, Library, Detail, MyBar, AddProduct, Editor, Lists, Settings, Admin, Welcome, SignIn, Join).
+- `src/components/` — reusable presentational components (cards, badges, nav, inputs, glass SVGs, icons).
+- `src/services/` — Supabase data-access layer, one module per entity (`auth.js`, `membership.js`, more as features land). Components call these; never call `supabase-js` directly from a component.
+- `src/hooks/` — React state glued to `src/services/` calls (`useSupabaseSession`, `useMembership`). Where `src/services/` ends and `src/hooks/` begins: services are plain async functions wrapping a Supabase call, hooks are the `useState`/`useEffect` plumbing that turns those into live component state.
+- `src/lib/` — shared infrastructure singletons, currently just `supabaseClient.js`.
 - `src/domain/` — pure, framework-free logic: availability engine, ml/oz conversion, recommendation ranking, import validation. Must be unit-testable without React or Supabase.
 - `src/schemas/` — runtime validation schemas (batch import payloads, recipe forms).
 - `supabase/migrations/` — versioned SQL migrations; schema source of truth, no undocumented dashboard-only changes.
-- `supabase/seed/` — minimal, clearly-labeled dev fixtures only. Never a fabricated large catalog — the real catalog enters through batch import.
+- `supabase/seed.sql` — minimal, clearly-labeled dev fixtures only. Never a fabricated large catalog — the real catalog enters through batch import. Hosted projects don't auto-apply this on `db push` — reseed with `supabase db query --linked --file supabase/seed.sql`.
 - `supabase/functions/` — Edge Functions for anything requiring elevated privilege (invitation generation/redemption, moderation actions).
 - `docs/` — product specs. Inputs, not something to edit as part of feature work.
 
@@ -51,6 +51,7 @@ If a subdirectory later needs its own `AGENTS.md`, document its scope here and k
 - Test RLS with at least: administrator, member/non-owner, and anonymous identities.
 - Never put the service-role key in browser code; elevated operations go through Edge Functions or protected database functions.
 - A product must map to an existing ingredient type; members can add products, never new ingredient types.
+- Every `SECURITY DEFINER` function needs an explicit `revoke execute ... from public, anon, authenticated` followed by a narrow `grant ... to <role>` for whatever's actually needed. `create function` grants EXECUTE to `PUBLIC` by default (plain Postgres behavior, separate from Supabase's own per-role default grants) — revoking only named roles leaves the PUBLIC grant in place, since every role inherits from PUBLIC. Verify with `npx supabase db advisors --linked --type security` after every migration that adds a function.
 
 ## Testing & verification
 
