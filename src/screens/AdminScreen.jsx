@@ -117,7 +117,9 @@ export default function AdminScreen() {
   }
 
   return (
-    <div style={{ paddingBottom: 80 }}>
+    <div
+      style={{ paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))" }}
+    >
       <TopBar title="Admin Dashboard" onBack={() => navigate(-1)} />
 
       <div

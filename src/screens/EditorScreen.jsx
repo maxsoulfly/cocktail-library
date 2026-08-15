@@ -236,7 +236,9 @@ export default function EditorScreen() {
   }
 
   return (
-    <div style={{ paddingBottom: 80 }}>
+    <div
+      style={{ paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))" }}
+    >
       <TopBar
         title={isEditing ? "Edit Recipe" : "New Recipe"}
         onBack={() => navigate(-1)}

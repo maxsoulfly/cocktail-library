@@ -41,7 +41,9 @@ export default function LibraryScreen() {
   )
 
   return (
-    <div style={{ paddingBottom: 80 }}>
+    <div
+      style={{ paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))" }}
+    >
       <div
         style={{
           padding: "16px 16px 0",

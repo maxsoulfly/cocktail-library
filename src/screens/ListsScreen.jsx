@@ -18,7 +18,9 @@ export default function ListsScreen() {
   )
 
   return (
-    <div style={{ paddingBottom: 80 }}>
+    <div
+      style={{ paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))" }}
+    >
       <div
         style={{
           background: "var(--bg2)",

@@ -49,7 +49,9 @@ export default function HomeScreen() {
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"
 
   return (
-    <div style={{ paddingBottom: 80 }}>
+    <div
+      style={{ paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))" }}
+    >
       <div
         style={{
           padding: "20px 20px 0",

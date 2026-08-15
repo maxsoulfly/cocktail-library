@@ -41,7 +41,9 @@ export default function AddProductScreen() {
   }
 
   return (
-    <div style={{ paddingBottom: 80 }}>
+    <div
+      style={{ paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))" }}
+    >
       <TopBar title="Add Product" onBack={() => navigate(-1)} />
       <div
         style={{

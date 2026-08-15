@@ -115,7 +115,9 @@ export default function DetailScreen() {
   }
 
   return (
-    <div style={{ paddingBottom: 80 }}>
+    <div
+      style={{ paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))" }}
+    >
       <TopBar
         title={c.name}
         onBack={() => navigate(-1)}
