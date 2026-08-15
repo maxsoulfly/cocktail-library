@@ -1,29 +1,55 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useNavigate, useOutletContext } from "react-router-dom"
 import { IconBottle, IconPlus, IconSearch } from "@/components/icons"
 import { Card, FilterChip, OwnedToggle } from "@/components/primitives"
-import { ING_CATEGORIES, INGS } from "@/data/mockData"
+import { useCatalog } from "@/hooks/useCatalog"
+import { useInventory } from "@/hooks/useInventory"
 
 export default function MyBarScreen() {
   const navigate = useNavigate()
-  const { owned, toggleOwned } = useOutletContext()
+  const { userId } = useOutletContext()
+  const { loading: catalogLoading, categories, types, products } = useCatalog()
+  const { loading: inventoryLoading, ownedTypeIds, ownedProductIds, toggleType } = useInventory(userId)
+
   const [query, setQuery] = useState("")
   const [cat, setCat] = useState("All")
   const [ownedOnly, setOwnedOnly] = useState(false)
 
-  const cats = ["All", ...ING_CATEGORIES]
-  const filtered = INGS.filter((i) => {
-    if (ownedOnly && !owned.has(i.id)) return false
-    if (cat !== "All" && i.category !== cat) return false
-    if (query && !i.name.toLowerCase().includes(query.toLowerCase()) && !(i.brand ?? "").toLowerCase().includes(query.toLowerCase())) return false
+  const productsByType = useMemo(() => {
+    const map = new Map()
+    products.forEach((p) => {
+      if (!ownedProductIds.has(p.id)) return
+      if (!map.has(p.ingredient_type_id)) map.set(p.ingredient_type_id, [])
+      map.get(p.ingredient_type_id).push(p)
+    })
+    return map
+  }, [products, ownedProductIds])
+
+  // "Owned" for display combines generic ownership and any owned product
+  // mapped to the type, per the spec ("owning a product satisfies its
+  // mapped generic type"). The toggle itself only ever writes the generic
+  // row - see useInventory.js.
+  const isOwned = (typeId) => ownedTypeIds.has(typeId) || productsByType.has(typeId)
+
+  const categoryNameById = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories])
+  const cats = ["All", ...categories.map((c) => c.name)]
+
+  const filtered = types.filter((t) => {
+    if (ownedOnly && !isOwned(t.id)) return false
+    if (cat !== "All" && categoryNameById.get(t.category_id) !== cat) return false
+    if (query && !t.name.toLowerCase().includes(query.toLowerCase())) return false
     return true
   })
 
-  const grouped = ING_CATEGORIES.reduce((acc, c) => {
-    const items = filtered.filter((i) => i.category === c)
-    if (items.length) acc[c] = items
+  const grouped = categories.reduce((acc, c) => {
+    const items = filtered.filter((t) => t.category_id === c.id)
+    if (items.length) acc[c.name] = items
     return acc
   }, {})
+
+  if (catalogLoading || inventoryLoading) {
+    return <div style={{ padding: "60px 24px", textAlign: "center", color: "var(--text2)", fontSize: 14 }}>Loading your bar...</div>
+  }
 
   return (
     <div style={{ paddingBottom: 80 }}>
@@ -31,7 +57,7 @@ export default function MyBarScreen() {
         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
           <div style={{ flex: 1, position: "relative" }}>
             <IconSearch size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text3)" }} />
-            <input placeholder="Search ingredients or brands..." value={query} onChange={(e) => setQuery(e.target.value)} style={{ background: "var(--surface)", border: "1px solid var(--border-s)", borderRadius: "var(--r-sm)", padding: "9px 12px 9px 36px", color: "var(--text)", fontSize: 14, fontFamily: "var(--font-body)", width: "100%" }} />
+            <input placeholder="Search ingredients..." value={query} onChange={(e) => setQuery(e.target.value)} style={{ background: "var(--surface)", border: "1px solid var(--border-s)", borderRadius: "var(--r-sm)", padding: "9px 12px 9px 36px", color: "var(--text)", fontSize: 14, fontFamily: "var(--font-body)", width: "100%" }} />
           </div>
           <button onClick={() => navigate("/bar/add")} style={{ background: "var(--cyan)", border: "none", borderRadius: "var(--r-sm)", width: 40, height: 40, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#07091a", flexShrink: 0 }} className="glow-cyan">
             <IconPlus size={18} />
@@ -46,20 +72,23 @@ export default function MyBarScreen() {
       </div>
 
       <div style={{ padding: "16px" }}>
-        {Object.entries(grouped).map(([category, ings]) => (
-          <div key={category} style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "var(--font-display)", marginBottom: 8 }}>{category}</div>
+        {Object.entries(grouped).map(([categoryName, items]) => (
+          <div key={categoryName} style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "var(--font-display)", marginBottom: 8 }}>{categoryName}</div>
             <Card>
-              {ings.map((ing, idx) => {
-                const isOwned = owned.has(ing.id)
+              {items.map((type, idx) => {
+                const owned = isOwned(type.id)
+                const ownedProducts = productsByType.get(type.id) ?? []
                 return (
-                  <div key={ing.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 14px", borderBottom: idx < ings.length - 1 ? "1px solid var(--border-s)" : "none" }}>
-                    <div style={{ width: 34, height: 34, borderRadius: 8, background: `${ing.color}25`, border: `1px solid ${ing.color}40`, flexShrink: 0 }} />
+                  <div key={type.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 14px", borderBottom: idx < items.length - 1 ? "1px solid var(--border-s)" : "none" }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 8, background: `${type.color ?? "#4e6680"}25`, border: `1px solid ${type.color ?? "#4e6680"}40`, flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontFamily: "var(--font-body)", fontWeight: 500, color: isOwned ? "var(--text)" : "var(--text3)", transition: "color 0.15s" }}>{ing.name}</div>
-                      {ing.brand && <div style={{ fontSize: 12, color: "var(--text3)" }}>{ing.brand}</div>}
+                      <div style={{ fontSize: 14, fontFamily: "var(--font-body)", fontWeight: 500, color: owned ? "var(--text)" : "var(--text3)", transition: "color 0.15s" }}>{type.name}</div>
+                      {ownedProducts.length > 0 && (
+                        <div style={{ fontSize: 12, color: "var(--text3)" }}>{ownedProducts.map((p) => p.name).join(", ")}</div>
+                      )}
                     </div>
-                    <OwnedToggle owned={isOwned} onChange={() => toggleOwned(ing.id)} />
+                    <OwnedToggle owned={owned} onChange={() => toggleType(type.id)} />
                   </div>
                 )
               })}

@@ -38,9 +38,14 @@ function LoadingScreen() {
 }
 
 // Wraps every authenticated screen: side/bottom nav plus the shared app state
-// (inventory, lists, unit/theme prefs) handed down via router Outlet context.
-// My Bar/Favorites/Want to Make are still local mock state - they move to
-// Supabase in steps 5/6/9. profile/isAdmin are real, from step 4.
+// handed down via router Outlet context. profile/isAdmin/userId are real
+// (step 4); My Bar is real too as of step 5 (see src/hooks/useCatalog.js and
+// useInventory.js, used directly by MyBarScreen/AddProductScreen rather than
+// through this context). `owned` below is a SEPARATE, still-mock Set used
+// only by the still-mock COCKTAILS recipe demo on Home/Library/Detail - it
+// is unrelated to the real user_inventory system and gets replaced once
+// step 6 wires up real recipes against real ingredient_type ids.
+// Favorites/Want to Make are still mock too - Supabase in step 9.
 function AppShell({ profile, session }) {
   const [theme, setTheme] = useState("dark")
   const [unit, setUnit] = useState("ml")
@@ -68,6 +73,7 @@ function AppShell({ profile, session }) {
     theme, setTheme,
     isAdmin,
     profile,
+    userId: session?.user?.id,
     email: session?.user?.email,
     signOut,
   }
