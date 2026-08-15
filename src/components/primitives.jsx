@@ -131,9 +131,9 @@ export function Select({ value, onChange, options, small }) {
   )
 }
 
-export function Card({ children, style, className }) {
+export function Card({ children, style, className, onClick }) {
   return (
-    <div className={className} style={{ background: "var(--surface)", border: "1px solid var(--border-s)", borderRadius: "var(--r-lg)", ...style }}>
+    <div className={className} onClick={onClick} style={{ background: "var(--surface)", border: "1px solid var(--border-s)", borderRadius: "var(--r-lg)", ...style }}>
       {children}
     </div>
   )
