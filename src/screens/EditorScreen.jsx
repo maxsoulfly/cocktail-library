@@ -1,53 +1,134 @@
-import { useState } from "react"
-import { useNavigate, useOutletContext } from "react-router-dom"
+import { useEffect, useState } from "react"
+import { useNavigate, useOutletContext, useParams } from "react-router-dom"
 import { IconPlus, IconX } from "@/components/icons"
 import { TopBar } from "@/components/Nav"
 import { Btn, FilterChip, Input, Select } from "@/components/primitives"
-import { createRecipe } from "@/services/recipes"
+import { createRecipe, updateRecipe } from "@/services/recipes"
 
 // "part" isn't in the spec's explicit semantic-unit list (§9: dash, barspoon,
 // piece, slice, wedge, top-up) but is a very common real cocktail unit for
 // ratio-based recipes ("1 part gin, 1 part vermouth") - added per user
 // request. Same mechanism as the others: a plain label shown verbatim,
 // amount=0, no ml conversion.
-const NON_VOLUME_UNITS = ["part", "dash", "barspoon", "piece", "slice", "wedge", "top-up"]
+const NON_VOLUME_UNITS = [
+  "part",
+  "dash",
+  "barspoon",
+  "piece",
+  "slice",
+  "wedge",
+  "top-up",
+]
+
+// Reverses createRecipe's amount/unitLabel encoding (see services/recipes.js)
+// so an existing component can prefill the amount+unit inputs.
+function unitLabelToForm(ri) {
+  if (ri.unitLabel === "ml") return { amount: String(ri.amount), unit: "ml" }
+  const [amount, ...rest] = ri.unitLabel.split(" ")
+  return { amount: amount ?? "", unit: rest.join(" ") || NON_VOLUME_UNITS[0] }
+}
 
 export default function EditorScreen() {
   const navigate = useNavigate()
-  const { catalog, refetchRecipes } = useOutletContext()
-  const { types, glasses, families, tasteTags, loading: catalogLoading } = catalog
+  const { id } = useParams()
+  const isEditing = Boolean(id)
+  const { catalog, computed, userId, isAdmin, refetchRecipes } =
+    useOutletContext()
+  const {
+    types,
+    glasses,
+    families,
+    tasteTags,
+    loading: catalogLoading,
+  } = catalog
+
+  const existing = isEditing ? computed.find((item) => item.id === id) : null
+  // Spec §4: owners edit their own recipe (any state); admins edit only the
+  // ownerless classic catalog. Same rule the DB now enforces (see
+  // supabase/migrations/20260815231800_tighten_recipe_edit_scope.sql) -
+  // this is just the UI-side reflection of it, not the source of truth.
+  const canEditExisting =
+    existing &&
+    (existing.ownerId === userId || (isAdmin && existing.source === "classic"))
 
   const [name, setName] = useState("")
   const [desc, setDesc] = useState("")
   const [glassName, setGlassName] = useState("")
   const [familyId, setFamilyId] = useState("")
-  const [ings, setIngs] = useState([{ ingredientName: "", amount: "", unit: "ml", role: "required" }])
+  const [ings, setIngs] = useState([
+    { ingredientName: "", amount: "", unit: "ml", role: "required" },
+  ])
   const [steps, setSteps] = useState([""])
   const [tasteTagIds, setTasteTagIds] = useState([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  const [prefilled, setPrefilled] = useState(!isEditing)
+
+  useEffect(() => {
+    if (!isEditing || prefilled || !existing || catalogLoading) return
+    setName(existing.name)
+    setDesc(existing.description ?? "")
+    setGlassName(existing.glass)
+    const family = families.find((f) => f.name === existing.family)
+    setFamilyId(family?.id ?? "")
+    setIngs(
+      existing.ings.map((ri) => ({
+        ingredientName: ri.name ?? "",
+        ...unitLabelToForm(ri),
+        role: ri.role,
+      })),
+    )
+    setSteps(existing.steps.length > 0 ? existing.steps : [""])
+    setTasteTagIds(
+      existing.taste
+        .map((name) => tasteTags.find((t) => t.name === name)?.id)
+        .filter(Boolean),
+    )
+    setPrefilled(true)
+  }, [isEditing, prefilled, existing, catalogLoading, families, tasteTags])
 
   const effectiveGlassName = glassName || glasses[0]?.name || ""
 
-  const addIng = () => setIngs([...ings, { ingredientName: "", amount: "", unit: "ml", role: "required" }])
+  const addIng = () =>
+    setIngs([
+      ...ings,
+      { ingredientName: "", amount: "", unit: "ml", role: "required" },
+    ])
   const removeIng = (i) => setIngs(ings.filter((_, idx) => idx !== i))
-  const updateIng = (i, k, v) => setIngs(ings.map((ing, idx) => (idx === i ? { ...ing, [k]: v } : ing)))
+  const updateIng = (i, k, v) =>
+    setIngs(ings.map((ing, idx) => (idx === i ? { ...ing, [k]: v } : ing)))
 
   const addStep = () => setSteps([...steps, ""])
   const removeStep = (i) => setSteps(steps.filter((_, idx) => idx !== i))
-  const updateStep = (i, v) => setSteps(steps.map((s, idx) => (idx === i ? v : s)))
+  const updateStep = (i, v) =>
+    setSteps(steps.map((s, idx) => (idx === i ? v : s)))
 
-  const toggleTaste = (tagId) => setTasteTagIds(tasteTagIds.includes(tagId) ? tasteTagIds.filter((x) => x !== tagId) : [...tasteTagIds, tagId])
+  const toggleTaste = (tagId) =>
+    setTasteTagIds(
+      tasteTagIds.includes(tagId)
+        ? tasteTagIds.filter((x) => x !== tagId)
+        : [...tasteTagIds, tagId],
+    )
 
   // Non-empty rows must match a real ingredient type - same rule as Add
   // Product, since a member can't create a new ingredient type either way.
-  const nonEmptyIngs = ings.filter((i) => i.ingredientName.trim() || i.amount.trim())
+  const nonEmptyIngs = ings.filter(
+    (i) => i.ingredientName.trim() || i.amount.trim(),
+  )
   const resolvedIngs = nonEmptyIngs.map((i) => ({
     ...i,
-    matchedType: types.find((t) => t.name.toLowerCase() === i.ingredientName.trim().toLowerCase()),
+    matchedType: types.find(
+      (t) => t.name.toLowerCase() === i.ingredientName.trim().toLowerCase(),
+    ),
   }))
   const hasUnmatchedIng = resolvedIngs.some((i) => !i.matchedType)
-  const canSave = name.trim() && effectiveGlassName && resolvedIngs.length > 0 && !hasUnmatchedIng && !saving
+  const canSave =
+    name.trim() &&
+    effectiveGlassName &&
+    resolvedIngs.length > 0 &&
+    !hasUnmatchedIng &&
+    !saving &&
+    (!isEditing || canEditExisting)
 
   const handleSave = async () => {
     setSaving(true)
@@ -63,7 +144,7 @@ export default function EditorScreen() {
           role: i.role,
         }
       })
-      const recipe = await createRecipe({
+      const payload = {
         name: name.trim(),
         description: desc.trim(),
         glassId: glass.id,
@@ -71,8 +152,11 @@ export default function EditorScreen() {
         steps: steps.map((s) => s.trim()).filter(Boolean),
         components,
         tasteTagIds,
-      })
-      await refetchRecipes() // so the new recipe is in `computed` before DetailScreen looks for it
+      }
+      const recipe = isEditing
+        ? await updateRecipe(id, payload)
+        : await createRecipe(payload)
+      await refetchRecipes() // so the change is in `computed` before DetailScreen looks for it
       navigate(`/library/${recipe.id}`)
     } catch (err) {
       setError(err.message)
@@ -80,26 +164,176 @@ export default function EditorScreen() {
     }
   }
 
-  if (catalogLoading) {
-    return <div style={{ padding: "60px 24px", textAlign: "center", color: "var(--text2)", fontSize: 14 }}>Loading...</div>
+  if (catalogLoading || (isEditing && !prefilled)) {
+    return (
+      <div
+        style={{
+          padding: "60px 24px",
+          textAlign: "center",
+          color: "var(--text2)",
+          fontSize: 14,
+        }}
+      >
+        Loading...
+      </div>
+    )
+  }
+
+  if (isEditing && !existing) {
+    return (
+      <div
+        style={{
+          padding: "60px 24px",
+          textAlign: "center",
+          color: "var(--text3)",
+        }}
+      >
+        <p
+          style={{
+            margin: "0 0 12px",
+            fontSize: 16,
+            fontFamily: "var(--font-display)",
+            fontWeight: 600,
+          }}
+        >
+          Cocktail not found
+        </p>
+        <Btn variant="ghost" small onClick={() => navigate("/library")}>
+          Back to library
+        </Btn>
+      </div>
+    )
+  }
+
+  if (isEditing && !canEditExisting) {
+    return (
+      <div
+        style={{
+          padding: "60px 24px",
+          textAlign: "center",
+          color: "var(--text3)",
+        }}
+      >
+        <p
+          style={{
+            margin: "0 0 12px",
+            fontSize: 16,
+            fontFamily: "var(--font-display)",
+            fontWeight: 600,
+          }}
+        >
+          You can't edit this recipe
+        </p>
+        <p style={{ margin: "0 0 12px", fontSize: 13 }}>
+          Only the recipe's owner, or an admin for classic recipes, can make
+          changes.
+        </p>
+        <Btn variant="ghost" small onClick={() => navigate(`/library/${id}`)}>
+          Back to recipe
+        </Btn>
+      </div>
+    )
   }
 
   return (
     <div style={{ paddingBottom: 80 }}>
-      <TopBar title="New Recipe" onBack={() => navigate(-1)} />
-      <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 20 }}>
-        <Input label="Recipe Name" placeholder="My Signature Cocktail" value={name} onChange={setName} />
+      <TopBar
+        title={isEditing ? "Edit Recipe" : "New Recipe"}
+        onBack={() => navigate(-1)}
+      />
+      <div
+        style={{
+          padding: "20px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 20,
+        }}
+      >
+        <Input
+          label="Recipe Name"
+          placeholder="My Signature Cocktail"
+          value={name}
+          onChange={setName}
+        />
 
         <div>
-          <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text2)", fontFamily: "var(--font-display)", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 6 }}>Description</label>
-          <textarea value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="What makes this cocktail special?" rows={3} style={{ background: "var(--surface)", border: "1px solid var(--border-s)", borderRadius: "var(--r-sm)", padding: "10px 14px", color: "var(--text)", fontSize: 14, fontFamily: "var(--font-body)", width: "100%", resize: "vertical" }} />
+          <label
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: "var(--text2)",
+              fontFamily: "var(--font-display)",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              display: "block",
+              marginBottom: 6,
+            }}
+          >
+            Description
+          </label>
+          <textarea
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+            placeholder="What makes this cocktail special?"
+            rows={3}
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--border-s)",
+              borderRadius: "var(--r-sm)",
+              padding: "10px 14px",
+              color: "var(--text)",
+              fontSize: 14,
+              fontFamily: "var(--font-body)",
+              width: "100%",
+              resize: "vertical",
+            }}
+          />
         </div>
 
         <div>
-          <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text2)", fontFamily: "var(--font-display)", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 8 }}>Glass</label>
+          <label
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: "var(--text2)",
+              fontFamily: "var(--font-display)",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              display: "block",
+              marginBottom: 8,
+            }}
+          >
+            Glass
+          </label>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {glasses.map((g) => (
-              <button key={g.id} onClick={() => setGlassName(g.name)} style={{ padding: "6px 14px", borderRadius: 8, border: `1px solid ${effectiveGlassName === g.name ? "var(--cyan)" : "var(--border-s)"}`, background: effectiveGlassName === g.name ? "rgba(34,211,238,0.1)" : "var(--surface)", color: effectiveGlassName === g.name ? "var(--cyan)" : "var(--text2)", cursor: "pointer", fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 500, textTransform: "capitalize", transition: "all 0.15s" }}>
+              <button
+                key={g.id}
+                onClick={() => setGlassName(g.name)}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 8,
+                  border: `1px solid ${
+                    effectiveGlassName === g.name
+                      ? "var(--cyan)"
+                      : "var(--border-s)"
+                  }`,
+                  background:
+                    effectiveGlassName === g.name
+                      ? "rgba(34,211,238,0.1)"
+                      : "var(--surface)",
+                  color:
+                    effectiveGlassName === g.name
+                      ? "var(--cyan)"
+                      : "var(--text2)",
+                  cursor: "pointer",
+                  fontSize: 13,
+                  fontFamily: "var(--font-display)",
+                  fontWeight: 500,
+                  textTransform: "capitalize",
+                  transition: "all 0.15s",
+                }}
+              >
                 {g.name}
               </button>
             ))}
@@ -107,11 +341,62 @@ export default function EditorScreen() {
         </div>
 
         <div>
-          <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text2)", fontFamily: "var(--font-display)", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 8 }}>Family (optional)</label>
+          <label
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: "var(--text2)",
+              fontFamily: "var(--font-display)",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              display: "block",
+              marginBottom: 8,
+            }}
+          >
+            Family (optional)
+          </label>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button onClick={() => setFamilyId("")} style={{ padding: "6px 14px", borderRadius: 8, border: `1px solid ${!familyId ? "var(--cyan)" : "var(--border-s)"}`, background: !familyId ? "rgba(34,211,238,0.1)" : "var(--surface)", color: !familyId ? "var(--cyan)" : "var(--text2)", cursor: "pointer", fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 500 }}>None</button>
+            <button
+              onClick={() => setFamilyId("")}
+              style={{
+                padding: "6px 14px",
+                borderRadius: 8,
+                border: `1px solid ${
+                  !familyId ? "var(--cyan)" : "var(--border-s)"
+                }`,
+                background: !familyId
+                  ? "rgba(34,211,238,0.1)"
+                  : "var(--surface)",
+                color: !familyId ? "var(--cyan)" : "var(--text2)",
+                cursor: "pointer",
+                fontSize: 13,
+                fontFamily: "var(--font-display)",
+                fontWeight: 500,
+              }}
+            >
+              None
+            </button>
             {families.map((f) => (
-              <button key={f.id} onClick={() => setFamilyId(f.id)} style={{ padding: "6px 14px", borderRadius: 8, border: `1px solid ${familyId === f.id ? "var(--cyan)" : "var(--border-s)"}`, background: familyId === f.id ? "rgba(34,211,238,0.1)" : "var(--surface)", color: familyId === f.id ? "var(--cyan)" : "var(--text2)", cursor: "pointer", fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 500 }}>
+              <button
+                key={f.id}
+                onClick={() => setFamilyId(f.id)}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 8,
+                  border: `1px solid ${
+                    familyId === f.id ? "var(--cyan)" : "var(--border-s)"
+                  }`,
+                  background:
+                    familyId === f.id
+                      ? "rgba(34,211,238,0.1)"
+                      : "var(--surface)",
+                  color: familyId === f.id ? "var(--cyan)" : "var(--text2)",
+                  cursor: "pointer",
+                  fontSize: 13,
+                  fontFamily: "var(--font-display)",
+                  fontWeight: 500,
+                }}
+              >
                 {f.name}
               </button>
             ))}
@@ -119,22 +404,88 @@ export default function EditorScreen() {
         </div>
 
         <div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text2)", fontFamily: "var(--font-display)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Ingredients</label>
-            <button onClick={addIng} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--cyan)", fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 10,
+            }}
+          >
+            <label
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: "var(--text2)",
+                fontFamily: "var(--font-display)",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+              }}
+            >
+              Ingredients
+            </label>
+            <button
+              onClick={addIng}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "var(--cyan)",
+                fontSize: 13,
+                fontFamily: "var(--font-display)",
+                fontWeight: 600,
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
               <IconPlus size={14} /> Add
             </button>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {ings.map((ing, i) => {
               const trimmedName = ing.ingredientName.trim()
-              const matched = trimmedName && types.some((t) => t.name.toLowerCase() === trimmedName.toLowerCase())
+              const matched =
+                trimmedName &&
+                types.some(
+                  (t) => t.name.toLowerCase() === trimmedName.toLowerCase(),
+                )
               return (
-                <div key={i} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <div
+                  key={i}
+                  style={{ display: "flex", flexDirection: "column", gap: 4 }}
+                >
+                  <div
+                    style={{ display: "flex", gap: 6, alignItems: "center" }}
+                  >
                     <div style={{ flex: 2, position: "relative" }}>
-                      <input list="ing-types-editor" placeholder="Ingredient type" value={ing.ingredientName} onChange={(e) => updateIng(i, "ingredientName", e.target.value)} style={{ background: "var(--surface)", border: `1px solid ${trimmedName && !matched ? "var(--coral)" : "var(--border-s)"}`, borderRadius: "var(--r-sm)", padding: "8px 10px", color: "var(--text)", fontSize: 13, fontFamily: "var(--font-body)", width: "100%" }} />
-                      <datalist id="ing-types-editor">{types.map((t) => <option key={t.id} value={t.name} />)}</datalist>
+                      <input
+                        list="ing-types-editor"
+                        placeholder="Ingredient type"
+                        value={ing.ingredientName}
+                        onChange={(e) =>
+                          updateIng(i, "ingredientName", e.target.value)
+                        }
+                        style={{
+                          background: "var(--surface)",
+                          border: `1px solid ${
+                            trimmedName && !matched
+                              ? "var(--coral)"
+                              : "var(--border-s)"
+                          }`,
+                          borderRadius: "var(--r-sm)",
+                          padding: "8px 10px",
+                          color: "var(--text)",
+                          fontSize: 13,
+                          fontFamily: "var(--font-body)",
+                          width: "100%",
+                        }}
+                      />
+                      <datalist id="ing-types-editor">
+                        {types.map((t) => (
+                          <option key={t.id} value={t.name} />
+                        ))}
+                      </datalist>
                     </div>
                     <input
                       name={`ingredient-amount-${i}`}
@@ -143,20 +494,58 @@ export default function EditorScreen() {
                       onChange={(e) => updateIng(i, "amount", e.target.value)}
                       autoComplete="off"
                       inputMode="decimal"
-                      style={{ width: 50, background: "var(--surface)", border: "1px solid var(--border-s)", borderRadius: "var(--r-sm)", padding: "8px 8px", color: "var(--text)", fontSize: 13, textAlign: "center", fontFamily: "var(--font-mono)" }}
+                      style={{
+                        width: 50,
+                        background: "var(--surface)",
+                        border: "1px solid var(--border-s)",
+                        borderRadius: "var(--r-sm)",
+                        padding: "8px 8px",
+                        color: "var(--text)",
+                        fontSize: 13,
+                        textAlign: "center",
+                        fontFamily: "var(--font-mono)",
+                      }}
                     />
                     <div style={{ width: 68, flexShrink: 0 }}>
-                      <Select small value={ing.unit} onChange={(v) => updateIng(i, "unit", v)} options={["ml", ...NON_VOLUME_UNITS]} />
+                      <Select
+                        small
+                        value={ing.unit}
+                        onChange={(v) => updateIng(i, "unit", v)}
+                        options={["ml", ...NON_VOLUME_UNITS]}
+                      />
                     </div>
                     <div style={{ width: 92, flexShrink: 0 }}>
-                      <Select small value={ing.role} onChange={(v) => updateIng(i, "role", v)} options={[{ value: "required", label: "Required" }, { value: "optional", label: "Optional" }, { value: "garnish", label: "Garnish" }]} />
+                      <Select
+                        small
+                        value={ing.role}
+                        onChange={(v) => updateIng(i, "role", v)}
+                        options={[
+                          { value: "required", label: "Required" },
+                          { value: "optional", label: "Optional" },
+                          { value: "garnish", label: "Garnish" },
+                        ]}
+                      />
                     </div>
                     {ings.length > 1 && (
-                      <button onClick={() => removeIng(i)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text3)", padding: 4 }}><IconX size={14} /></button>
+                      <button
+                        onClick={() => removeIng(i)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          color: "var(--text3)",
+                          padding: 4,
+                        }}
+                      >
+                        <IconX size={14} />
+                      </button>
                     )}
                   </div>
                   {trimmedName && !matched && (
-                    <span style={{ fontSize: 11, color: "var(--coral)" }}>Doesn't match an existing ingredient type - new types require admin approval.</span>
+                    <span style={{ fontSize: 11, color: "var(--coral)" }}>
+                      Doesn't match an existing ingredient type - new types
+                      require admin approval.
+                    </span>
                   )}
                 </div>
               )
@@ -165,37 +554,154 @@ export default function EditorScreen() {
         </div>
 
         <div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text2)", fontFamily: "var(--font-display)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Preparation Steps</label>
-            <button onClick={addStep} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--cyan)", fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 10,
+            }}
+          >
+            <label
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: "var(--text2)",
+                fontFamily: "var(--font-display)",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+              }}
+            >
+              Preparation Steps
+            </label>
+            <button
+              onClick={addStep}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "var(--cyan)",
+                fontSize: 13,
+                fontFamily: "var(--font-display)",
+                fontWeight: 600,
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
               <IconPlus size={14} /> Add
             </button>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {steps.map((step, i) => (
-              <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                <span style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--surface3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--cyan)", flexShrink: 0, marginTop: 8 }}>{i + 1}</span>
-                <textarea value={step} onChange={(e) => updateStep(i, e.target.value)} placeholder={`Step ${i + 1}`} rows={2} style={{ flex: 1, background: "var(--surface)", border: "1px solid var(--border-s)", borderRadius: "var(--r-sm)", padding: "8px 12px", color: "var(--text)", fontSize: 13, fontFamily: "var(--font-body)", resize: "vertical" }} />
-                {steps.length > 1 && <button onClick={() => removeStep(i)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text3)", padding: "8px 4px" }}><IconX size={14} /></button>}
+              <div
+                key={i}
+                style={{ display: "flex", gap: 8, alignItems: "flex-start" }}
+              >
+                <span
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: "50%",
+                    background: "var(--surface3)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 11,
+                    fontFamily: "var(--font-mono)",
+                    color: "var(--cyan)",
+                    flexShrink: 0,
+                    marginTop: 8,
+                  }}
+                >
+                  {i + 1}
+                </span>
+                <textarea
+                  value={step}
+                  onChange={(e) => updateStep(i, e.target.value)}
+                  placeholder={`Step ${i + 1}`}
+                  rows={2}
+                  style={{
+                    flex: 1,
+                    background: "var(--surface)",
+                    border: "1px solid var(--border-s)",
+                    borderRadius: "var(--r-sm)",
+                    padding: "8px 12px",
+                    color: "var(--text)",
+                    fontSize: 13,
+                    fontFamily: "var(--font-body)",
+                    resize: "vertical",
+                  }}
+                />
+                {steps.length > 1 && (
+                  <button
+                    onClick={() => removeStep(i)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      color: "var(--text3)",
+                      padding: "8px 4px",
+                    }}
+                  >
+                    <IconX size={14} />
+                  </button>
+                )}
               </div>
             ))}
           </div>
         </div>
 
         <div>
-          <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text2)", fontFamily: "var(--font-display)", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 8 }}>Taste Tags</label>
+          <label
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: "var(--text2)",
+              fontFamily: "var(--font-display)",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              display: "block",
+              marginBottom: 8,
+            }}
+          >
+            Taste Tags
+          </label>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {tasteTags.map((t) => <FilterChip key={t.id} label={t.name} active={tasteTagIds.includes(t.id)} onClick={() => toggleTaste(t.id)} />)}
+            {tasteTags.map((t) => (
+              <FilterChip
+                key={t.id}
+                label={t.name}
+                active={tasteTagIds.includes(t.id)}
+                onClick={() => toggleTaste(t.id)}
+              />
+            ))}
           </div>
         </div>
 
-        <p style={{ margin: 0, fontSize: 12, color: "var(--text3)", lineHeight: 1.5 }}>
-          Recipes you create are private to you. Publishing to the community isn't available yet.
-        </p>
+        {!isEditing && (
+          <p
+            style={{
+              margin: 0,
+              fontSize: 12,
+              color: "var(--text3)",
+              lineHeight: 1.5,
+            }}
+          >
+            New recipes start private to you. You can publish to the community
+            from the recipe page once it's saved.
+          </p>
+        )}
 
-        {error && <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>{error}</p>}
+        {error && (
+          <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
+            {error}
+          </p>
+        )}
 
-        <Btn variant="primary" full onClick={handleSave} disabled={!canSave}>Save Recipe</Btn>
+        <Btn variant="primary" full onClick={handleSave} disabled={!canSave}>
+          {isEditing ? "Save Changes" : "Save Recipe"}
+        </Btn>
       </div>
     </div>
   )

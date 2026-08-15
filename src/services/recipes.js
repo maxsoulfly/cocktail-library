@@ -4,7 +4,8 @@ import { supabase } from "@/lib/supabaseClient"
 // in the migration. Matches the source values SourceBadge already expects.
 function deriveSource(recipe) {
   if (recipe.source_type === "classic") return "classic"
-  if (recipe.visibility === "shared" && recipe.moderation_status === "active") return "community"
+  if (recipe.visibility === "shared" && recipe.moderation_status === "active")
+    return "community"
   return "private"
 }
 
@@ -24,13 +25,17 @@ function mapRecipe(row) {
     family: row.family?.name,
     liquidColor: row.liquid_color ?? "#22d3ee",
     steps: row.steps ?? [],
-    taste: (row.recipe_taste_tags ?? []).map((t) => t.taste_tags?.name).filter(Boolean),
+    taste: (row.recipe_taste_tags ?? [])
+      .map((t) => t.taste_tags?.name)
+      .filter(Boolean),
     ings: (row.recipe_components ?? [])
       .slice()
       .sort((a, b) => a.sort_order - b.sort_order)
       .map((c) => ({
         ingId: c.ingredient_type_id,
-        alternativeIds: (c.recipe_component_alternatives ?? []).map((a) => a.ingredient_type_id),
+        alternativeIds: (c.recipe_component_alternatives ?? []).map(
+          (a) => a.ingredient_type_id,
+        ),
         // numeric columns come back as strings over PostgREST
         amount: Number(c.amount),
         unitLabel: c.unit_label,
@@ -50,13 +55,20 @@ const RECIPE_SELECT = `
 `
 
 export async function fetchRecipes() {
-  const { data, error } = await supabase.from("recipes").select(RECIPE_SELECT).order("name")
+  const { data, error } = await supabase
+    .from("recipes")
+    .select(RECIPE_SELECT)
+    .order("name")
   if (error) throw error
   return data.map(mapRecipe)
 }
 
 export async function fetchRecipe(id) {
-  const { data, error } = await supabase.from("recipes").select(RECIPE_SELECT).eq("id", id).single()
+  const { data, error } = await supabase
+    .from("recipes")
+    .select(RECIPE_SELECT)
+    .eq("id", id)
+    .single()
   if (error) throw error
   return mapRecipe(data)
 }
@@ -66,7 +78,15 @@ export async function fetchRecipe(id) {
 // row in separate calls (no client-side multi-statement transaction
 // available); best-effort cleanup deletes the recipe again if a later step
 // fails.
-export async function createRecipe({ name, description, glassId, familyId, steps, components, tasteTagIds }) {
+export async function createRecipe({
+  name,
+  description,
+  glassId,
+  familyId,
+  steps,
+  components,
+  tasteTagIds,
+}) {
   const { data: recipe, error: recipeError } = await supabase
     .from("recipes")
     .insert({
@@ -84,23 +104,30 @@ export async function createRecipe({ name, description, glassId, familyId, steps
 
   try {
     if (components.length > 0) {
-      const { error: componentsError } = await supabase.from("recipe_components").insert(
-        components.map((c, index) => ({
-          recipe_id: recipe.id,
-          ingredient_type_id: c.ingredientTypeId,
-          amount: c.amount,
-          unit_label: c.unitLabel,
-          role: c.role,
-          sort_order: index,
-        })),
-      )
+      const { error: componentsError } = await supabase
+        .from("recipe_components")
+        .insert(
+          components.map((c, index) => ({
+            recipe_id: recipe.id,
+            ingredient_type_id: c.ingredientTypeId,
+            amount: c.amount,
+            unit_label: c.unitLabel,
+            role: c.role,
+            sort_order: index,
+          })),
+        )
       if (componentsError) throw componentsError
     }
 
     if (tasteTagIds.length > 0) {
       const { error: tagsError } = await supabase
         .from("recipe_taste_tags")
-        .insert(tasteTagIds.map((tagId) => ({ recipe_id: recipe.id, taste_tag_id: tagId })))
+        .insert(
+          tasteTagIds.map((tagId) => ({
+            recipe_id: recipe.id,
+            taste_tag_id: tagId,
+          })),
+        )
       if (tagsError) throw tagsError
     }
   } catch (err) {
@@ -109,6 +136,67 @@ export async function createRecipe({ name, description, glassId, familyId, steps
   }
 
   return fetchRecipe(recipe.id)
+}
+
+// Spec §4: owners can edit their own recipe (private or published), and
+// admins can edit the classic catalog (owner_id null) - enforced server-side
+// by recipe_is_editable() and the recipes/recipe_components/
+// recipe_taste_tags RLS policies, not just this client check. No
+// client-side multi-statement transaction is available, so a failure partway
+// through leaves a partial update rather than rolling back - same
+// constraint createRecipe() already lives with.
+export async function updateRecipe(
+  id,
+  { name, description, glassId, familyId, steps, components, tasteTagIds },
+) {
+  const { error: recipeError } = await supabase
+    .from("recipes")
+    .update({
+      name,
+      description: description || null,
+      glass_id: glassId,
+      family_id: familyId || null,
+      steps,
+    })
+    .eq("id", id)
+  if (recipeError) throw recipeError
+
+  const { error: delCompError } = await supabase
+    .from("recipe_components")
+    .delete()
+    .eq("recipe_id", id)
+  if (delCompError) throw delCompError
+  if (components.length > 0) {
+    const { error: compError } = await supabase
+      .from("recipe_components")
+      .insert(
+        components.map((c, index) => ({
+          recipe_id: id,
+          ingredient_type_id: c.ingredientTypeId,
+          amount: c.amount,
+          unit_label: c.unitLabel,
+          role: c.role,
+          sort_order: index,
+        })),
+      )
+    if (compError) throw compError
+  }
+
+  const { error: delTagError } = await supabase
+    .from("recipe_taste_tags")
+    .delete()
+    .eq("recipe_id", id)
+  if (delTagError) throw delTagError
+  if (tasteTagIds.length > 0) {
+    const { error: tagError } = await supabase
+      .from("recipe_taste_tags")
+      .insert(
+        tasteTagIds.map((tagId) => ({ recipe_id: id, taste_tag_id: tagId })),
+      )
+    if (tagError) throw tagError
+  }
+
+  return fetchRecipe(id)
 }
 
 export async function deleteRecipe(id) {

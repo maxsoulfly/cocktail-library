@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react"
 import { Navigate, Outlet, Route, Routes } from "react-router-dom"
 import { BottomNav, SideNav } from "@/components/Nav"
-import { computeAvail, resolveOwnedIngredientTypes } from "@/domain/availability"
+import {
+  computeAvail,
+  resolveOwnedIngredientTypes,
+} from "@/domain/availability"
 import { useCatalog } from "@/hooks/useCatalog"
 import { useInventory } from "@/hooks/useInventory"
 import { useLists } from "@/hooks/useLists"
@@ -25,7 +28,18 @@ import { updateProfile } from "@/services/membership"
 
 function LoadingScreen() {
   return (
-    <div style={{ minHeight: "100dvh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text2)", fontFamily: "var(--font-display)", fontSize: 14 }}>
+    <div
+      style={{
+        minHeight: "100dvh",
+        background: "var(--bg)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "var(--text2)",
+        fontFamily: "var(--font-display)",
+        fontSize: 14,
+      }}
+    >
       Loading...
     </div>
   )
@@ -58,7 +72,9 @@ function AppShell({ profile, session }) {
   // no OS-preference detection implemented - treat anything but an explicit
   // 'light' as dark, so the More screen's toggle always has a coherent
   // selected state instead of showing neither button active.
-  const [theme, setThemeState] = useState(() => (profile?.theme_preference === "light" ? "light" : "dark"))
+  const [theme, setThemeState] = useState(() =>
+    profile?.theme_preference === "light" ? "light" : "dark",
+  )
   const [unit, setUnitState] = useState(() => profile?.unit_preference ?? "ml")
 
   useEffect(() => {
@@ -70,38 +86,66 @@ function AppShell({ profile, session }) {
   // failed preference save isn't worth interrupting the user over.
   const setTheme = (value) => {
     setThemeState(value)
-    if (userId) updateProfile(userId, { theme_preference: value }).catch((err) => console.error("Failed to save theme preference:", err))
+    if (userId)
+      updateProfile(userId, { theme_preference: value }).catch((err) =>
+        console.error("Failed to save theme preference:", err),
+      )
   }
   const setUnit = (value) => {
     setUnitState(value)
-    if (userId) updateProfile(userId, { unit_preference: value }).catch((err) => console.error("Failed to save unit preference:", err))
+    if (userId)
+      updateProfile(userId, { unit_preference: value }).catch((err) =>
+        console.error("Failed to save unit preference:", err),
+      )
   }
 
   const catalog = useCatalog()
   const inventory = useInventory(userId)
   const lists = useLists(userId)
   const recipesQuery = useRecipes()
-  const { recipes, loading: recipesLoading, refetch: refetchRecipes } = recipesQuery
+  const {
+    recipes,
+    loading: recipesLoading,
+    refetch: refetchRecipes,
+  } = recipesQuery
 
-  const ingredientTypesById = useMemo(() => new Map(catalog.types.map((t) => [t.id, t])), [catalog.types])
+  const ingredientTypesById = useMemo(
+    () => new Map(catalog.types.map((t) => [t.id, t])),
+    [catalog.types],
+  )
 
   const resolvedOwned = useMemo(
-    () => resolveOwnedIngredientTypes({
-      ownedTypeIds: inventory.ownedTypeIds,
-      ownedProductIds: inventory.ownedProductIds,
-      products: catalog.products,
-      ingredientTypes: catalog.types,
-    }),
-    [inventory.ownedTypeIds, inventory.ownedProductIds, catalog.products, catalog.types],
+    () =>
+      resolveOwnedIngredientTypes({
+        ownedTypeIds: inventory.ownedTypeIds,
+        ownedProductIds: inventory.ownedProductIds,
+        products: catalog.products,
+        ingredientTypes: catalog.types,
+      }),
+    [
+      inventory.ownedTypeIds,
+      inventory.ownedProductIds,
+      catalog.products,
+      catalog.types,
+    ],
   )
 
   const computed = useMemo(
-    () => recipes.map((r) => ({ ...r, ...computeAvail(r, resolvedOwned, (id) => ingredientTypesById.get(id)?.name ?? id) })),
+    () =>
+      recipes.map((r) => ({
+        ...r,
+        ...computeAvail(
+          r,
+          resolvedOwned,
+          (id) => ingredientTypesById.get(id)?.name ?? id,
+        ),
+      })),
     [recipes, resolvedOwned, ingredientTypesById],
   )
 
   const isAdmin = profile?.role === "admin"
-  const isLoading = catalog.loading || inventory.loading || recipesLoading || lists.loading
+  const isLoading =
+    catalog.loading || inventory.loading || recipesLoading || lists.loading
 
   const outletContext = {
     computed,
@@ -110,10 +154,14 @@ function AppShell({ profile, session }) {
     ingredientTypesById,
     catalog,
     inventory,
-    favorites: lists.favoriteIds, toggleFav: lists.toggleFavorite,
-    wantToMake: lists.wantToMakeIds, toggleWtm: lists.toggleWantToMake,
-    unit, setUnit,
-    theme, setTheme,
+    favorites: lists.favoriteIds,
+    toggleFav: lists.toggleFavorite,
+    wantToMake: lists.wantToMakeIds,
+    toggleWtm: lists.toggleWantToMake,
+    unit,
+    setUnit,
+    theme,
+    setTheme,
     isAdmin,
     profile,
     userId,
@@ -122,7 +170,9 @@ function AppShell({ profile, session }) {
   }
 
   return (
-    <div style={{ display: "flex", minHeight: "100dvh", background: "var(--bg)" }}>
+    <div
+      style={{ display: "flex", minHeight: "100dvh", background: "var(--bg)" }}
+    >
       <div style={{ display: "none" }} className="lg-sidebar">
         <SideNav isAdmin={isAdmin} />
       </div>
@@ -149,7 +199,12 @@ function AppShell({ profile, session }) {
 export default function App() {
   const { loading: authLoading, session } = useSupabaseSession()
   const userId = session?.user?.id
-  const { loading: memberLoading, isMember, profile, refetch } = useMembership(userId)
+  const {
+    loading: memberLoading,
+    isMember,
+    profile,
+    refetch,
+  } = useMembership(userId)
 
   if (authLoading) return <LoadingScreen />
 
@@ -175,6 +230,7 @@ export default function App() {
         <Route path="/library" element={<LibraryScreen />} />
         <Route path="/library/new" element={<EditorScreen />} />
         <Route path="/library/:id" element={<DetailScreen />} />
+        <Route path="/library/:id/edit" element={<EditorScreen />} />
         <Route path="/bar" element={<MyBarScreen />} />
         <Route path="/bar/add" element={<AddProductScreen />} />
         <Route path="/lists" element={<ListsScreen />} />
