@@ -58,6 +58,7 @@ Both migrations verified clean on `db advisors --type all` (only the now-familia
 Steps 7–13. Plus, from step 6 specifically:
 - Real recipe *editing* (reopening the editor pre-filled with an existing recipe's data) isn't built — only create/read/delete. `recipes` UPDATE policy and column grant are already in place for whenever the UI catches up.
 - `substitution_groups`/`recipe_relationships` — no schema yet at all, deliberately deferred (see Last completed chunk).
+- **User-confirmed, explicitly deferred (2026-08-16)**: the ingredient-type/product-name `<datalist>` autocomplete dropdown in the recipe editor (and `AddProductScreen`) is still an unthemed native browser popup — same root cause as the unit/role `<select>`s, but `<datalist>` has no CSS styling hooks at all, so fixing it means building a real custom combobox (filtered list, keyboard nav, click-to-select), not a small swap like `Select` was. User said it's fine to leave for now.
 - No automated tests yet for anything recipe-related (candidate for step 8's test setup, same as the step-5 gaps).
 ## Blockers / open questions
 
