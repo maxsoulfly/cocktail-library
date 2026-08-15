@@ -1,6 +1,6 @@
 import { useMemo } from "react"
 import { useNavigate, useOutletContext } from "react-router-dom"
-import { IconBookmark, IconBottle, IconChevR, IconHeart, IconSearch } from "@/components/icons"
+import { IconBookmark, IconBottle, IconCheck, IconChevR, IconHeart, IconSearch } from "@/components/icons"
 import { GlassSvg } from "@/components/GlassSvg"
 import { SmallCard } from "@/components/CocktailCard"
 import { Card, SectionTitle } from "@/components/primitives"
@@ -8,7 +8,7 @@ import { rankPurchaseRecommendations } from "@/domain/recommendations"
 
 export default function HomeScreen() {
   const navigate = useNavigate()
-  const { computed, favorites, wantToMake, profile, email, ingredientTypesById } = useOutletContext()
+  const { computed, favorites, wantToMake, profile, email, ingredientTypesById, inventory } = useOutletContext()
   const firstName = (profile?.display_name || email || "there").split(/[\s@]/)[0]
 
   const perfect = computed.filter((c) => c.avail === "perfect")
@@ -101,14 +101,21 @@ export default function HomeScreen() {
                 return (
                   <Card key={candidate.ingredientTypeId} style={{ padding: "14px 16px", border: "1px solid rgba(251,191,36,0.25)", background: "rgba(251,191,36,0.05)" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div style={{ width: 36, height: 36, borderRadius: 10, background: ing ? `${ing.color}30` : "var(--surface3)", display: "flex", alignItems: "center", justifyContent: "center", border: ing ? `1px solid ${ing.color}50` : "1px solid var(--border-s)" }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 10, background: ing ? `${ing.color}30` : "var(--surface3)", display: "flex", alignItems: "center", justifyContent: "center", border: ing ? `1px solid ${ing.color}50` : "1px solid var(--border-s)", flexShrink: 0 }}>
                         <IconBottle size={18} style={{ color: ing?.color ?? "var(--text2)" }} />
                       </div>
-                      <div style={{ flex: 1 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 15, fontFamily: "var(--font-display)", fontWeight: 700, color: "var(--text)", marginBottom: 2 }}>{candidate.name}</div>
                         <div style={{ fontSize: 12, color: "var(--text2)" }}>{candidate.reason}</div>
+                        <div style={{ fontSize: 11, color: "var(--almost)", fontFamily: "var(--font-mono)", marginTop: 4 }}>+{candidate.unlockCount} {candidate.unlockCount === 1 ? "cocktail" : "cocktails"}</div>
                       </div>
-                      <span style={{ fontSize: 11, color: "var(--almost)", fontFamily: "var(--font-mono)", background: "rgba(251,191,36,0.12)", borderRadius: 6, padding: "3px 8px", whiteSpace: "nowrap" }}>+{candidate.unlockCount} {candidate.unlockCount === 1 ? "cocktail" : "cocktails"}</span>
+                      <button
+                        onClick={() => inventory.toggleType(candidate.ingredientTypeId)}
+                        title="Mark as owned in My Bar"
+                        style={{ background: "var(--surface3)", border: "1px solid var(--border-s)", borderRadius: "var(--r-sm)", width: 36, height: 36, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--green)" }}
+                      >
+                        <IconCheck size={16} />
+                      </button>
                     </div>
                   </Card>
                 )
