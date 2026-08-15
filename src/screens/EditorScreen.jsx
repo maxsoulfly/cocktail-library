@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useNavigate, useOutletContext } from "react-router-dom"
 import { IconPlus, IconX } from "@/components/icons"
 import { TopBar } from "@/components/Nav"
-import { Btn, FilterChip, Input } from "@/components/primitives"
+import { Btn, FilterChip, Input, Select } from "@/components/primitives"
 import { createRecipe } from "@/services/recipes"
 
 const NON_VOLUME_UNITS = ["dash", "barspoon", "piece", "slice", "wedge", "top-up"]
@@ -131,14 +131,21 @@ export default function EditorScreen() {
                       <input list="ing-types-editor" placeholder="Ingredient type" value={ing.ingredientName} onChange={(e) => updateIng(i, "ingredientName", e.target.value)} style={{ background: "var(--surface)", border: `1px solid ${trimmedName && !matched ? "var(--coral)" : "var(--border-s)"}`, borderRadius: "var(--r-sm)", padding: "8px 10px", color: "var(--text)", fontSize: 13, fontFamily: "var(--font-body)", width: "100%" }} />
                       <datalist id="ing-types-editor">{types.map((t) => <option key={t.id} value={t.name} />)}</datalist>
                     </div>
-                    <input placeholder="amt" value={ing.amount} onChange={(e) => updateIng(i, "amount", e.target.value)} style={{ width: 50, background: "var(--surface)", border: "1px solid var(--border-s)", borderRadius: "var(--r-sm)", padding: "8px 8px", color: "var(--text)", fontSize: 13, textAlign: "center", fontFamily: "var(--font-mono)" }} />
-                    <select value={ing.unit} onChange={(e) => updateIng(i, "unit", e.target.value)} style={{ background: "var(--surface)", border: "1px solid var(--border-s)", borderRadius: "var(--r-sm)", padding: "8px 6px", color: "var(--text2)", fontSize: 12, fontFamily: "var(--font-mono)" }}>
-                      <option value="ml">ml</option>
-                      {NON_VOLUME_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-                    </select>
-                    <select value={ing.role} onChange={(e) => updateIng(i, "role", e.target.value)} style={{ background: "var(--surface)", border: "1px solid var(--border-s)", borderRadius: "var(--r-sm)", padding: "8px 6px", color: "var(--text2)", fontSize: 12, fontFamily: "var(--font-display)" }}>
-                      <option value="required">Required</option><option value="optional">Optional</option><option value="garnish">Garnish</option>
-                    </select>
+                    <input
+                      name={`ingredient-amount-${i}`}
+                      placeholder="amt"
+                      value={ing.amount}
+                      onChange={(e) => updateIng(i, "amount", e.target.value)}
+                      autoComplete="off"
+                      inputMode="decimal"
+                      style={{ width: 50, background: "var(--surface)", border: "1px solid var(--border-s)", borderRadius: "var(--r-sm)", padding: "8px 8px", color: "var(--text)", fontSize: 13, textAlign: "center", fontFamily: "var(--font-mono)" }}
+                    />
+                    <div style={{ width: 68, flexShrink: 0 }}>
+                      <Select small value={ing.unit} onChange={(v) => updateIng(i, "unit", v)} options={["ml", ...NON_VOLUME_UNITS]} />
+                    </div>
+                    <div style={{ width: 92, flexShrink: 0 }}>
+                      <Select small value={ing.role} onChange={(v) => updateIng(i, "role", v)} options={[{ value: "required", label: "Required" }, { value: "optional", label: "Optional" }, { value: "garnish", label: "Garnish" }]} />
+                    </div>
                     {ings.length > 1 && (
                       <button onClick={() => removeIng(i)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text3)", padding: 4 }}><IconX size={14} /></button>
                     )}

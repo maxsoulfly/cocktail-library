@@ -1,4 +1,5 @@
-import { IconCheck } from "@/components/icons"
+import { useEffect, useRef, useState } from "react"
+import { IconCheck, IconChevD } from "@/components/icons"
 
 export const AVAIL_CFG = {
   perfect: { label: "Perfect", color: "var(--perfect)", icon: "✦", glow: "glow-green" },
@@ -77,6 +78,55 @@ export function Input({ placeholder, value, onChange, type = "text", label }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       {label && <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text2)", fontFamily: "var(--font-display)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</label>}
       <input type={type} placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} style={{ background: "var(--surface)", border: "1px solid var(--border-s)", borderRadius: "var(--r-sm)", padding: "10px 14px", color: "var(--text)", fontSize: 14, fontFamily: "var(--font-body)", width: "100%" }} />
+    </div>
+  )
+}
+
+// Native <select> popups render via the browser/OS, not the page's CSS, so
+// they always show up unthemed regardless of what's set on the <select>
+// element itself. This is a small custom dropdown for the handful of short,
+// fixed option lists in the app (ingredient unit/role) that need to match
+// the rest of the UI instead.
+export function Select({ value, onChange, options, small }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onClickOutside = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener("mousedown", onClickOutside)
+    return () => document.removeEventListener("mousedown", onClickOutside)
+  }, [open])
+
+  const normalized = options.map((o) => (typeof o === "string" ? { value: o, label: o } : o))
+  const current = normalized.find((o) => o.value === value)
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        style={{ background: "var(--surface)", border: "1px solid var(--border-s)", borderRadius: "var(--r-sm)", padding: small ? "8px 8px" : "10px 14px", color: "var(--text2)", fontSize: small ? 12 : 14, fontFamily: "var(--font-mono)", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap", width: "100%", justifyContent: "space-between" }}
+      >
+        {current?.label ?? value}
+        <IconChevD size={12} style={{ flexShrink: 0, opacity: 0.6 }} />
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 20, background: "var(--surface2)", border: "1px solid var(--border-s)", borderRadius: "var(--r-sm)", boxShadow: "0 8px 24px rgba(0,0,0,0.35)", minWidth: "100%", overflow: "hidden" }}>
+          {normalized.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => { onChange(o.value); setOpen(false) }}
+              style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", background: o.value === value ? "rgba(34,211,238,0.12)" : "none", border: "none", cursor: "pointer", color: o.value === value ? "var(--cyan)" : "var(--text)", fontSize: 13, fontFamily: "var(--font-body)", whiteSpace: "nowrap" }}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
