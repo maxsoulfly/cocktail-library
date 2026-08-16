@@ -54,11 +54,30 @@ Migrations for all of the above: `20260815230002_recipe_publishing.sql`, `202608
 - Admin ingredient-type insert path verified directly against the live DB (simulated admin auth, real insert/select/cleanup).
 - Ingredient request insert/read/update path verified directly against the live DB - including confirming the "owner can delete only while pending" policy correctly blocks a delete after the admin has resolved it (found via a real blocked cleanup attempt, not by reasoning alone).
 - Step 11, the loading-flash fix, and the scroll fix are all **browser-confirmed by the user**.
-- **Not yet browser-verified**: recipe editing, the taxonomy display changes, and everything in this "last completed chunk" (ingredient requests + batch import + their loading-flash fix).
 
-## Remaining / not started
+## Checks needed (not yet browser-verified)
 
-Rest of step 12: recipe batch import, product batch import, real invitation generation/revocation (a working manual-SQL path exists, documented in earlier git history), glass/taste-tag/family management UI. Step 13 entirely. Plus long-carried items: no editor UI for substitution alternatives/hierarchy, no RLS/integration test harness beyond manual smoke-testing, `<datalist>` ingredient-autocomplete theming (user-accepted deferral). No recipe yet references any of the new Garnish types (cosmetic catalog entries only, until a recipe's components use them).
+Everything below has passed `pnpm test`/`pnpm build` and, where it touches the DB, a direct DB-level check - but hasn't been clicked through in a real browser yet:
+
+- **Recipe editing**: as owner (edit your own private/community recipe) and as admin (edit a classic recipe only - confirm editing someone *else's* recipe is correctly blocked).
+- **Taxonomy display** in My Bar: Spirit sorts first, Bitters/Herb/Juice/Garnish sort last; Dark Rum/Bourbon appear indented under Rum/Whiskey; Campari/Aperol appear indented under Aperitif; the new Garnish section (Orange, Lemon, Lime, Cherry, Berries) shows up; a parent type not directly owned but with an owned child shows "Covered by \<child\>".
+- **Ingredient requests**: submit one from the "doesn't match" warning in New Recipe (or Add Product, or More → Catalog), confirm it shows up in Admin → Requests, fulfill/dismiss it, confirm the "Add to catalog" button jumps to a pre-filled Single Ingredient form.
+- **Ingredient batch import**: Admin → Batch Import → Batch Import (AI) → copy the prompt (confirm it's actually readable/selectable now, not cramped), hand it to an AI with a couple of real ingredient names, paste the JSON back in, validate, commit - confirm the new types show up immediately in My Bar (no refresh needed) in the right category/sub-group.
+- **Single Ingredient add**: confirm the Category field starts unselected (no more silent "Spirit" default), Parent Type only appears after a category is picked, and the color swatches work the same as the recipe editor's.
+- **Liquid color picker**: create or edit a recipe, confirm the swatch picker saves and the glass's liquid color actually changes on the detail page (not stuck on cyan).
+
+## Remaining / not started (what's next)
+
+**Rest of step 12** (admin catalog tools):
+
+- Recipe batch import - same validate/preview/AI-prompt approach as ingredients, but recipes need ingredient-type resolution, glass/family lookups, and component/step arrays, so likely not a trivial copy of `src/schemas/ingredientImport.js`.
+- Product batch import.
+- Real invitation generation/revocation - Invitations tab is still the original mock; needs a `SECURITY DEFINER` function following the `redeem_invitation`/`publish_recipe` pattern.
+- Glass/taste-tag/family management UI - currently only editable via migrations.
+
+**Step 13** (final phase): responsive/accessibility/security/deployment QA - not started at all yet.
+
+**Long-carried, lower-priority items**: no editor UI for substitution alternatives/hierarchy; no RLS/integration test harness beyond manual smoke-testing (this session's DB-level checks included); `<datalist>` ingredient-autocomplete theming (user-accepted deferral back in step 6). No recipe yet references any of the new Garnish types - they're real catalog entries, just not yet used as a component on any actual recipe.
 
 ## Blockers / open questions
 
@@ -85,7 +104,7 @@ Six new migrations this session (full list under "Recently completed" above), al
 
 ## Exact next recommended action
 
-Browser-verify this chunk: submit an ingredient request from the "doesn't match" warning in New Recipe, check it shows up in Admin → Requests, fulfill it; then in Admin → Batch Import, pick Ingredient Types, copy the AI prompt, hand it to an AI with a couple of real ingredient names, paste the JSON result back in, validate, and commit - confirm the new types show up immediately in My Bar (no refresh needed) in the right category/sub-group. Also worth a pass on everything from the earlier part of this session that's still unverified: recipe editing (owner and admin-on-classic) and the taxonomy display (category order, Rum/Whiskey/Aperitif/Digestif nesting, Garnish section). Once confirmed, continue step 12 with recipe/product batch import and real invitation management, or ask the user about the untracked "Juice"/"Wine" category mystery first if it's bugging them.
+Work through "Checks needed" above first, then pick up "Remaining / not started" - recipe batch import is the natural next build (same shape as the ingredient import just shipped). Ask the user about the untracked "Juice"/"Wine" category mystery whenever it's convenient - not urgent, but unresolved.
 
 ## Files/areas relevant to next action
 
