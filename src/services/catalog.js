@@ -21,6 +21,14 @@ export async function fetchIngredientTypes() {
   return data
 }
 
+// Admin-only via ingredient_types' existing "admin writes" RLS policy - no
+// new grant needed. `rows` are already-validated resolved objects from
+// src/schemas/ingredientImport.js, not raw import JSON.
+export async function createIngredientTypes(rows) {
+  const { error } = await supabase.from("ingredient_types").insert(rows)
+  if (error) throw error
+}
+
 export async function fetchProducts() {
   const { data, error } = await supabase
     .from("products")

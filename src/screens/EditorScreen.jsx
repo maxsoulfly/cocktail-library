@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react"
-import { useNavigate, useOutletContext, useParams } from "react-router-dom"
+import {
+  Link,
+  useNavigate,
+  useOutletContext,
+  useParams,
+} from "react-router-dom"
 import { IconPlus, IconX } from "@/components/icons"
 import { TopBar } from "@/components/Nav"
 import { Btn, FilterChip, Input, Select } from "@/components/primitives"
@@ -546,7 +551,13 @@ export default function EditorScreen() {
                   {trimmedName && !matched && (
                     <span style={{ fontSize: 11, color: "var(--coral)" }}>
                       Doesn't match an existing ingredient type - new types
-                      require admin approval.
+                      require admin approval.{" "}
+                      <Link
+                        to={`/request-ingredient?name=${encodeURIComponent(trimmedName)}`}
+                        style={{ color: "var(--cyan)" }}
+                      >
+                        Request it
+                      </Link>
                     </span>
                   )}
                 </div>

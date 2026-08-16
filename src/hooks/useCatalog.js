@@ -19,8 +19,11 @@ export function useCatalog() {
     families: [],
   })
 
+  // Deliberately doesn't re-set loading:true on refetch - same reasoning as
+  // useRecipes.js: AppShell unmounts the whole Outlet while catalog.loading
+  // is true, so every refetch (already triggered today by AddProductScreen
+  // after adding a product) would flash the entire app blank and back.
   const load = useCallback(() => {
-    setState((prev) => ({ ...prev, loading: true }))
     return Promise.all([
       fetchIngredientCategories(),
       fetchIngredientTypes(),

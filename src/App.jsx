@@ -21,6 +21,7 @@ import LibraryScreen from "@/screens/LibraryScreen"
 import ListsScreen from "@/screens/ListsScreen"
 import MoreScreen from "@/screens/MoreScreen"
 import MyBarScreen from "@/screens/MyBarScreen"
+import RequestIngredientScreen from "@/screens/RequestIngredientScreen"
 import SignInScreen from "@/screens/SignInScreen"
 import WelcomeScreen from "@/screens/WelcomeScreen"
 import { signOut } from "@/services/auth"
@@ -235,6 +236,10 @@ export default function App() {
         <Route path="/library/:id/edit" element={<EditorScreen />} />
         <Route path="/bar" element={<MyBarScreen />} />
         <Route path="/bar/add" element={<AddProductScreen />} />
+        <Route
+          path="/request-ingredient"
+          element={<RequestIngredientScreen />}
+        />
         <Route path="/lists" element={<ListsScreen />} />
         <Route path="/more" element={<MoreScreen />} />
         <Route path="/admin" element={<AdminScreen />} />

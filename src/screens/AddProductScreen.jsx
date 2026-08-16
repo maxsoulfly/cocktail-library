@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useNavigate, useOutletContext } from "react-router-dom"
+import { Link, useNavigate, useOutletContext } from "react-router-dom"
 import { IconAlert, IconCheck, IconInfo } from "@/components/icons"
 import { TopBar } from "@/components/Nav"
 import { Btn, Card, Input, OwnedToggle } from "@/components/primitives"
@@ -157,7 +157,13 @@ export default function AddProductScreen() {
                 <IconAlert size={14} style={{ color: "var(--amber)" }} />
                 <span style={{ fontSize: 13, color: "var(--amber)" }}>
                   Doesn't match an existing ingredient type - new types require
-                  admin approval, so this can't be added yet.
+                  admin approval, so this can't be added yet.{" "}
+                  <Link
+                    to={`/request-ingredient?name=${encodeURIComponent(ingType)}`}
+                    style={{ color: "var(--cyan)" }}
+                  >
+                    Request it
+                  </Link>
                 </span>
               </div>
             )}

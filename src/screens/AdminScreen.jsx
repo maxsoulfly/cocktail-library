@@ -1,21 +1,32 @@
 import { useEffect, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useOutletContext } from "react-router-dom"
 import {
   IconCheck,
   IconCopy,
   IconLock,
   IconPlus,
   IconTrash,
+  IconX,
 } from "@/components/icons"
 import { TopBar } from "@/components/Nav"
 import { Btn, Card } from "@/components/primitives"
-import { COCKTAILS, INGS, MOCK_INVITES } from "@/data/mockData"
+import {
+  buildIngredientImportPrompt,
+  validateIngredientImport,
+} from "@/schemas/ingredientImport"
+import { COCKTAILS, MOCK_INVITES } from "@/data/mockData"
+import { createIngredientTypes } from "@/services/catalog"
+import {
+  fetchPendingIngredientRequests,
+  resolveIngredientRequest,
+} from "@/services/ingredientRequests"
 import { fetchCommunityRecipes, unpublishRecipe } from "@/services/recipes"
 
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "invites", label: "Invitations" },
   { id: "moderation", label: "Moderation" },
+  { id: "requests", label: "Requests" },
   { id: "import", label: "Batch Import" },
 ]
 
@@ -35,16 +46,25 @@ const formatDate = (iso) =>
 
 export default function AdminScreen() {
   const navigate = useNavigate()
+  const { catalog } = useOutletContext()
   const [tab, setTab] = useState("overview")
-  // Invites and batch import are still mock UI - real admin catalog tools
-  // (invite generation/revocation, ingredient/product management, JSON
-  // import) are step 12's job, not this one (recipe publishing/unpublishing).
+  // Invites are still mock UI - real invite generation/revocation is step
+  // 12's remaining scope, not this pass (which covers ingredient batch
+  // import and ingredient requests instead).
   const [invites, setInvites] = useState(MOCK_INVITES)
   const [copied, setCopied] = useState(null)
+
+  // Batch import: only "ingredients" is real. "classics"/"products" stay
+  // visible but disabled - they're real roadmap items (recipe/product
+  // import), not something to fake a result for now that ingredients is
+  // real and the contrast would be misleading.
   const [importStep, setImportStep] = useState(0)
-  const [importType, setImportType] = useState("classics")
+  const [importType, setImportType] = useState("ingredients")
   const [importJson, setImportJson] = useState("")
   const [importResult, setImportResult] = useState(null)
+  const [importing, setImporting] = useState(false)
+  const [importSuccessMessage, setImportSuccessMessage] = useState(null)
+  const [promptCopied, setPromptCopied] = useState(false)
 
   // Moderation is real: currently-published community recipes, with an
   // Unpublish action. There's no pre-publish review queue in the spec
@@ -75,6 +95,36 @@ export default function AdminScreen() {
     } finally {
       setUnpublishing(false)
       setConfirmUnpublish(null)
+    }
+  }
+
+  // Requests: members' suggestions for missing ingredient types (see
+  // RequestIngredientScreen.jsx). Fulfilling one doesn't auto-create the
+  // type - the admin still goes through Batch Import for that, since a
+  // request is just a name/note, not a validated category+hierarchy.
+  const [pendingRequests, setPendingRequests] = useState([])
+  const [requestsLoading, setRequestsLoading] = useState(true)
+  const [resolvingRequestId, setResolvingRequestId] = useState(null)
+
+  const loadPendingRequests = () => {
+    setRequestsLoading(true)
+    fetchPendingIngredientRequests().then((data) => {
+      setPendingRequests(data)
+      setRequestsLoading(false)
+    })
+  }
+
+  useEffect(() => {
+    loadPendingRequests()
+  }, [])
+
+  const handleResolveRequest = async (id, status) => {
+    setResolvingRequestId(id)
+    try {
+      await resolveIngredientRequest(id, status)
+      loadPendingRequests()
+    } finally {
+      setResolvingRequestId(null)
     }
   }
 
@@ -111,9 +161,58 @@ export default function AdminScreen() {
       invites.map((i) => (i.code === code ? { ...i, status: "expired" } : i)),
     )
 
+  const importPrompt = buildIngredientImportPrompt({
+    categories: catalog.categories,
+    types: catalog.types,
+  })
+
+  const copyImportPrompt = () => {
+    navigator.clipboard.writeText(importPrompt).catch(() => {})
+    setPromptCopied(true)
+    setTimeout(() => setPromptCopied(false), 2000)
+  }
+
   const runImportValidation = () => {
-    setImportResult({ additions: 3, updates: 1, duplicates: 1 })
+    let parsed
+    try {
+      parsed = JSON.parse(importJson)
+      if (!Array.isArray(parsed)) throw new Error("Expected a JSON array")
+    } catch (err) {
+      setImportResult({ parseError: err.message })
+      setImportStep(3)
+      return
+    }
+    const validation = validateIngredientImport(parsed, {
+      categories: catalog.categories,
+      types: catalog.types,
+    })
+    setImportResult(validation)
     setImportStep(3)
+  }
+
+  const handleCommitImport = async () => {
+    if (!importResult?.results) return
+    const rows = importResult.results
+      .filter((r) => r.valid)
+      .map((r) => r.resolved)
+    if (rows.length === 0) return
+    setImporting(true)
+    try {
+      await createIngredientTypes(rows)
+      await catalog.refetch()
+      setImportSuccessMessage(
+        `Imported ${rows.length} ingredient type${
+          rows.length === 1 ? "" : "s"
+        }.`,
+      )
+      setImportStep(0)
+      setImportJson("")
+      setImportResult(null)
+    } catch (err) {
+      setImportResult({ ...importResult, commitError: err.message })
+    } finally {
+      setImporting(false)
+    }
   }
 
   return (
@@ -152,6 +251,9 @@ export default function AdminScreen() {
             }}
           >
             {t.label}
+            {t.id === "requests" && pendingRequests.length > 0
+              ? ` (${pendingRequests.length})`
+              : ""}
           </button>
         ))}
       </div>
@@ -182,7 +284,7 @@ export default function AdminScreen() {
                 },
                 {
                   label: "Ingredient Types",
-                  val: INGS.length,
+                  val: catalog.types.length,
                   color: "var(--green)",
                 },
                 {
@@ -219,8 +321,9 @@ export default function AdminScreen() {
               ))}
             </div>
             <p style={{ margin: 0, fontSize: 12, color: "var(--text3)" }}>
-              "Community Recipes" is real (from the Moderation tab); the other
-              three are still placeholder counts pending admin catalog tools.
+              "Community Recipes" and "Ingredient Types" are real; "Classic
+              Recipes" and "Active Invitations" are still placeholder counts
+              pending the rest of admin catalog tools.
             </p>
           </div>
         )}
@@ -445,11 +548,110 @@ export default function AdminScreen() {
           </div>
         )}
 
+        {tab === "requests" && (
+          <div
+            className="fade-in"
+            style={{ display: "flex", flexDirection: "column", gap: 12 }}
+          >
+            <p style={{ margin: 0, fontSize: 13, color: "var(--text2)" }}>
+              Ingredients members have asked for. Fulfilling one is just
+              bookkeeping - use Batch Import to actually add the type.
+            </p>
+            {requestsLoading ? (
+              <p style={{ margin: 0, fontSize: 14, color: "var(--text3)" }}>
+                Loading...
+              </p>
+            ) : pendingRequests.length === 0 ? (
+              <p style={{ margin: 0, fontSize: 14, color: "var(--text3)" }}>
+                No pending requests.
+              </p>
+            ) : (
+              pendingRequests.map((r) => (
+                <Card key={r.id} style={{ padding: "14px 16px" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 10,
+                    }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <div
+                        style={{
+                          fontSize: 15,
+                          fontFamily: "var(--font-display)",
+                          fontWeight: 700,
+                          color: "var(--text)",
+                          marginBottom: 3,
+                        }}
+                      >
+                        {r.name}
+                      </div>
+                      <div style={{ fontSize: 12, color: "var(--text3)" }}>
+                        by {r.requester?.display_name ?? "unknown"} ·{" "}
+                        {formatDate(r.created_at)}
+                      </div>
+                      {r.note && (
+                        <p
+                          style={{
+                            margin: "6px 0 0",
+                            fontSize: 13,
+                            color: "var(--text2)",
+                          }}
+                        >
+                          {r.note}
+                        </p>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                      <button
+                        onClick={() => handleResolveRequest(r.id, "fulfilled")}
+                        disabled={resolvingRequestId === r.id}
+                        title="Mark fulfilled"
+                        style={{
+                          background: "rgba(52,211,153,0.1)",
+                          border: "1px solid rgba(52,211,153,0.25)",
+                          borderRadius: 6,
+                          padding: "6px 8px",
+                          cursor: "pointer",
+                          color: "var(--green)",
+                        }}
+                      >
+                        <IconCheck size={14} />
+                      </button>
+                      <button
+                        onClick={() => handleResolveRequest(r.id, "dismissed")}
+                        disabled={resolvingRequestId === r.id}
+                        title="Dismiss"
+                        style={{
+                          background: "rgba(251,113,133,0.1)",
+                          border: "1px solid rgba(251,113,133,0.25)",
+                          borderRadius: 6,
+                          padding: "6px 8px",
+                          cursor: "pointer",
+                          color: "var(--coral)",
+                        }}
+                      >
+                        <IconX size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </Card>
+              ))
+            )}
+          </div>
+        )}
+
         {tab === "import" && (
           <div
             className="fade-in"
             style={{ display: "flex", flexDirection: "column", gap: 16 }}
           >
+            {importSuccessMessage && (
+              <p style={{ margin: 0, fontSize: 13, color: "var(--green)" }}>
+                {importSuccessMessage}
+              </p>
+            )}
             <div
               style={{
                 display: "flex",
@@ -494,23 +696,27 @@ export default function AdminScreen() {
                     id: "classics",
                     label: "Classic Recipes",
                     desc: "Shared recipe catalog",
+                    disabled: true,
                   },
                   {
                     id: "ingredients",
                     label: "Ingredient Types",
                     desc: "Generic ingredient catalog",
+                    disabled: false,
                   },
                   {
                     id: "products",
                     label: "Products",
                     desc: "Branded products and homemade items",
+                    disabled: true,
                   },
                 ].map((t) => (
                   <Card
                     key={t.id}
                     style={{
                       padding: "14px 16px",
-                      cursor: "pointer",
+                      cursor: t.disabled ? "default" : "pointer",
+                      opacity: t.disabled ? 0.5 : 1,
                       border: `1px solid ${
                         importType === t.id
                           ? "var(--violet)"
@@ -521,7 +727,7 @@ export default function AdminScreen() {
                           ? "rgba(167,139,250,0.08)"
                           : "var(--surface)",
                     }}
-                    onClick={() => setImportType(t.id)}
+                    onClick={() => !t.disabled && setImportType(t.id)}
                   >
                     <div
                       style={{ display: "flex", alignItems: "center", gap: 10 }}
@@ -563,6 +769,18 @@ export default function AdminScreen() {
                           }}
                         >
                           {t.label}
+                          {t.disabled && (
+                            <span
+                              style={{
+                                marginLeft: 8,
+                                fontSize: 11,
+                                color: "var(--text3)",
+                                fontWeight: 400,
+                              }}
+                            >
+                              Coming soon
+                            </span>
+                          )}
                         </div>
                         <div style={{ fontSize: 12, color: "var(--text3)" }}>
                           {t.desc}
@@ -571,7 +789,14 @@ export default function AdminScreen() {
                     </div>
                   </Card>
                 ))}
-                <Btn variant="primary" full onClick={() => setImportStep(1)}>
+                <Btn
+                  variant="primary"
+                  full
+                  onClick={() => {
+                    setImportSuccessMessage(null)
+                    setImportStep(1)
+                  }}
+                >
                   Next
                 </Btn>
               </div>
@@ -590,8 +815,14 @@ export default function AdminScreen() {
                     color: "var(--text)",
                   }}
                 >
-                  Paste JSON Data
+                  Format with AI, then Paste JSON
                 </h3>
+                <p style={{ margin: 0, fontSize: 13, color: "var(--text2)" }}>
+                  Copy this prompt into an AI chat along with what you want to
+                  add (e.g. "Passionfruit Juice, Yuzu, Grapefruit"), then paste
+                  its JSON output below. The prompt is generated from the live
+                  catalog, so it always lists the current categories and types.
+                </p>
                 <Card
                   style={{
                     padding: "14px",
@@ -600,10 +831,21 @@ export default function AdminScreen() {
                     fontSize: 12,
                     color: "var(--text3)",
                     lineHeight: 1.6,
+                    whiteSpace: "pre-wrap",
+                    maxHeight: 220,
+                    overflowY: "auto",
                   }}
                 >
-                  {`// Expected format for ${importType}:\n[\n  {\n    "name": "Cocktail Name",\n    "source": "classic",\n    "glass": "rocks",\n    "ingredients": [...]\n  }\n]`}
+                  {importPrompt}
                 </Card>
+                <Btn variant="ghost" small onClick={copyImportPrompt}>
+                  {promptCopied ? (
+                    <IconCheck size={14} />
+                  ) : (
+                    <IconCopy size={14} />
+                  )}{" "}
+                  {promptCopied ? "Copied" : "Copy Prompt"}
+                </Btn>
                 <textarea
                   value={importJson}
                   onChange={(e) => setImportJson(e.target.value)}
@@ -647,110 +889,114 @@ export default function AdminScreen() {
                 >
                   Validation Results
                 </h3>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(3, 1fr)",
-                    gap: 8,
-                  }}
-                >
-                  {[
-                    {
-                      label: "Additions",
-                      val: importResult.additions,
-                      color: "var(--green)",
-                    },
-                    {
-                      label: "Updates",
-                      val: importResult.updates,
-                      color: "var(--amber)",
-                    },
-                    {
-                      label: "Duplicates",
-                      val: importResult.duplicates,
-                      color: "var(--unavail)",
-                    },
-                  ].map(({ label, val, color }) => (
-                    <Card
-                      key={label}
-                      style={{ padding: "12px", textAlign: "center" }}
-                    >
-                      <div
-                        style={{
-                          fontSize: 24,
-                          fontFamily: "var(--font-display)",
-                          fontWeight: 800,
-                          color,
-                          marginBottom: 2,
-                        }}
-                      >
-                        {val}
-                      </div>
-                      <div style={{ fontSize: 11, color: "var(--text2)" }}>
-                        {label}
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-                <Card style={{ padding: "12px 14px" }}>
-                  {[
-                    { name: "Clover Club", action: "add", status: "ok" },
-                    { name: "Aviation", action: "add", status: "ok" },
-                    { name: "Sidecar", action: "add", status: "ok" },
-                    { name: "Negroni", action: "update", status: "warn" },
-                    { name: "Mojito", action: "duplicate", status: "skip" },
-                  ].map((row, i, arr) => (
+                {importResult.parseError ? (
+                  <p style={{ margin: 0, fontSize: 13, color: "var(--coral)" }}>
+                    Couldn't parse that as a JSON array:{" "}
+                    {importResult.parseError}
+                  </p>
+                ) : (
+                  <>
                     <div
-                      key={i}
                       style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        padding: "8px 0",
-                        borderBottom:
-                          i < arr.length - 1
-                            ? "1px solid var(--border-s)"
-                            : "none",
+                        display: "grid",
+                        gridTemplateColumns: "repeat(2, 1fr)",
+                        gap: 8,
                       }}
                     >
-                      <div
-                        style={{
-                          width: 6,
-                          height: 6,
-                          borderRadius: "50%",
-                          flexShrink: 0,
-                          background:
-                            row.status === "ok"
-                              ? "var(--green)"
-                              : row.status === "warn"
-                                ? "var(--amber)"
-                                : "var(--unavail)",
-                        }}
-                      />
-                      <span
-                        style={{ flex: 1, fontSize: 13, color: "var(--text)" }}
-                      >
-                        {row.name}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 11,
-                          fontFamily: "var(--font-mono)",
-                          color:
-                            row.status === "ok"
-                              ? "var(--green)"
-                              : row.status === "warn"
-                                ? "var(--amber)"
-                                : "var(--unavail)",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.04em",
-                        }}
-                      >
-                        {row.action}
-                      </span>
+                      {[
+                        {
+                          label: "Ready to import",
+                          val: importResult.validCount,
+                          color: "var(--green)",
+                        },
+                        {
+                          label: "Errors",
+                          val: importResult.errorCount,
+                          color: "var(--coral)",
+                        },
+                      ].map(({ label, val, color }) => (
+                        <Card
+                          key={label}
+                          style={{ padding: "12px", textAlign: "center" }}
+                        >
+                          <div
+                            style={{
+                              fontSize: 24,
+                              fontFamily: "var(--font-display)",
+                              fontWeight: 800,
+                              color,
+                              marginBottom: 2,
+                            }}
+                          >
+                            {val}
+                          </div>
+                          <div style={{ fontSize: 11, color: "var(--text2)" }}>
+                            {label}
+                          </div>
+                        </Card>
+                      ))}
                     </div>
-                  ))}
-                </Card>
+                    <Card style={{ padding: "12px 14px" }}>
+                      {importResult.results.map((row, i, arr) => (
+                        <div
+                          key={row.index}
+                          style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: 10,
+                            padding: "8px 0",
+                            borderBottom:
+                              i < arr.length - 1
+                                ? "1px solid var(--border-s)"
+                                : "none",
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: "50%",
+                              flexShrink: 0,
+                              marginTop: 6,
+                              background: row.valid
+                                ? "var(--green)"
+                                : "var(--coral)",
+                            }}
+                          />
+                          <div style={{ flex: 1 }}>
+                            <span
+                              style={{ fontSize: 13, color: "var(--text)" }}
+                            >
+                              {row.name ?? `Row ${row.index + 1}`}
+                            </span>
+                            {!row.valid && (
+                              <div
+                                style={{
+                                  fontSize: 11,
+                                  color: "var(--coral)",
+                                  marginTop: 2,
+                                }}
+                              >
+                                {row.errors.join("; ")}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </Card>
+                    {importResult.commitError && (
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: 12,
+                          color: "var(--coral)",
+                        }}
+                      >
+                        {importResult.commitError}
+                      </p>
+                    )}
+                  </>
+                )}
                 <div style={{ display: "flex", gap: 8 }}>
                   <Btn
                     variant="ghost"
@@ -763,17 +1009,20 @@ export default function AdminScreen() {
                   >
                     Cancel
                   </Btn>
-                  <Btn
-                    variant="primary"
-                    full
-                    onClick={() => {
-                      setImportStep(0)
-                      setImportJson("")
-                      setImportResult(null)
-                    }}
-                  >
-                    Confirm Import
-                  </Btn>
+                  {!importResult.parseError && (
+                    <Btn
+                      variant="primary"
+                      full
+                      disabled={importing || importResult.validCount === 0}
+                      onClick={handleCommitImport}
+                    >
+                      {importing
+                        ? "Importing..."
+                        : `Import ${importResult.validCount} Ingredient${
+                            importResult.validCount === 1 ? "" : "s"
+                          }`}
+                    </Btn>
+                  )}
                 </div>
               </div>
             )}

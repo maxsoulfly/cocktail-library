@@ -5,6 +5,7 @@ import {
   IconGlass,
   IconInfo,
   IconLock,
+  IconPlus,
   IconUser,
   IconX,
 } from "@/components/icons"
@@ -243,6 +244,15 @@ export default function MoreScreen() {
             </Card>
           </>
         )}
+
+        <SectionTitle>Catalog</SectionTitle>
+        <Card style={{ marginBottom: 20, overflow: "hidden" }}>
+          <Row
+            icon={<IconPlus size={18} />}
+            label="Request an Ingredient"
+            onClick={() => navigate("/request-ingredient")}
+          />
+        </Card>
 
         <SectionTitle>Account</SectionTitle>
         <Card style={{ overflow: "hidden" }}>
