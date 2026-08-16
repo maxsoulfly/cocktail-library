@@ -41,6 +41,19 @@ export default function MyBarScreen() {
   )
   const cats = ["All", ...categories.map((c) => c.name)]
 
+  // Some types are mid-level groupings for a category (e.g. "Rum", "Whiskey"
+  // under Spirit - see supabase/migrations/20260816010047) rather than
+  // things anyone would search for by name - see childrenByParentId below.
+  const childrenByParentId = useMemo(() => {
+    const map = new Map()
+    types.forEach((t) => {
+      if (!t.parent_type_id) return
+      if (!map.has(t.parent_type_id)) map.set(t.parent_type_id, [])
+      map.get(t.parent_type_id).push(t)
+    })
+    return map
+  }, [types])
+
   const filtered = types.filter((t) => {
     if (ownedOnly && !isOwned(t.id)) return false
     if (cat !== "All" && categoryNameById.get(t.category_id) !== cat)
@@ -50,9 +63,30 @@ export default function MyBarScreen() {
     return true
   })
 
+  // Renders parent types followed immediately by their (filtered) children,
+  // indented - a child whose parent didn't pass the filter (e.g. searching
+  // "dark" matches "Dark Rum" but not "Rum") still shows, just flat, so
+  // grouping never hides a real search match.
+  const buildRows = (items) => {
+    const filteredIds = new Set(items.map((t) => t.id))
+    const topLevel = items.filter((t) => !t.parent_type_id)
+    const orphanChildren = items.filter(
+      (t) => t.parent_type_id && !filteredIds.has(t.parent_type_id),
+    )
+    const rows = []
+    topLevel.forEach((t) => {
+      rows.push({ type: t, isChild: false })
+      ;(childrenByParentId.get(t.id) ?? [])
+        .filter((child) => filteredIds.has(child.id))
+        .forEach((child) => rows.push({ type: child, isChild: true }))
+    })
+    orphanChildren.forEach((t) => rows.push({ type: t, isChild: false }))
+    return rows
+  }
+
   const grouped = categories.reduce((acc, c) => {
     const items = filtered.filter((t) => t.category_id === c.id)
-    if (items.length) acc[c.name] = items
+    if (items.length) acc[c.name] = buildRows(items)
     return acc
   }, {})
 
@@ -161,7 +195,7 @@ export default function MyBarScreen() {
       </div>
 
       <div style={{ padding: "16px" }}>
-        {Object.entries(grouped).map(([categoryName, items]) => (
+        {Object.entries(grouped).map(([categoryName, rows]) => (
           <div key={categoryName} style={{ marginBottom: 20 }}>
             <div
               style={{
@@ -177,7 +211,7 @@ export default function MyBarScreen() {
               {categoryName}
             </div>
             <Card>
-              {items.map((type, idx) => {
+              {rows.map(({ type, isChild }, idx) => {
                 const owned = isOwned(type.id)
                 const ownedProducts = productsByType.get(type.id) ?? []
                 return (
@@ -187,17 +221,17 @@ export default function MyBarScreen() {
                       display: "flex",
                       alignItems: "center",
                       gap: 12,
-                      padding: "11px 14px",
+                      padding: isChild ? "9px 14px 9px 34px" : "11px 14px",
                       borderBottom:
-                        idx < items.length - 1
+                        idx < rows.length - 1
                           ? "1px solid var(--border-s)"
                           : "none",
                     }}
                   >
                     <div
                       style={{
-                        width: 34,
-                        height: 34,
+                        width: isChild ? 26 : 34,
+                        height: isChild ? 26 : 34,
                         borderRadius: 8,
                         background: `${type.color ?? "#4e6680"}25`,
                         border: `1px solid ${type.color ?? "#4e6680"}40`,
@@ -207,9 +241,9 @@ export default function MyBarScreen() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div
                         style={{
-                          fontSize: 14,
+                          fontSize: isChild ? 13 : 14,
                           fontFamily: "var(--font-body)",
-                          fontWeight: 500,
+                          fontWeight: isChild ? 400 : 500,
                           color: owned ? "var(--text)" : "var(--text3)",
                           transition: "color 0.15s",
                         }}

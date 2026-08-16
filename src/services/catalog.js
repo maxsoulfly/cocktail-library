@@ -3,7 +3,8 @@ import { supabase } from "@/lib/supabaseClient"
 export async function fetchIngredientCategories() {
   const { data, error } = await supabase
     .from("ingredient_categories")
-    .select("id, name")
+    .select("id, name, sort_order")
+    .order("sort_order")
     .order("name")
   if (error) throw error
   return data
@@ -13,7 +14,7 @@ export async function fetchIngredientTypes() {
   const { data, error } = await supabase
     .from("ingredient_types")
     .select(
-      "id, category_id, name, color, bar_priority, recommend_by_default, description",
+      "id, category_id, parent_type_id, name, color, bar_priority, recommend_by_default, description",
     )
     .order("name")
   if (error) throw error
