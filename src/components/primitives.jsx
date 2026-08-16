@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { IconCheck, IconChevD } from "@/components/icons"
+import { LIQUID_COLORS } from "@/data/constants"
 
 export const AVAIL_CFG = {
   perfect: {
@@ -355,6 +356,38 @@ export function Select({ value, onChange, options, small }) {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+// Shared between EditorScreen (recipe liquid_color) and AdminScreen (single-
+// ingredient add) - same "pick a drink-appropriate color, no hex knowledge
+// required" idea in both places.
+export function ColorSwatchPicker({ value, onChange }) {
+  return (
+    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+      {LIQUID_COLORS.map((c) => (
+        <button
+          key={c.value}
+          type="button"
+          onClick={() => onChange(c.value)}
+          title={c.label}
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: "50%",
+            background: c.value,
+            border: `2px solid ${
+              value === c.value ? "var(--text)" : "var(--border-s)"
+            }`,
+            boxShadow:
+              value === c.value
+                ? "0 0 0 2px var(--bg), 0 0 0 3px var(--cyan)"
+                : "none",
+            cursor: "pointer",
+          }}
+        />
+      ))}
     </div>
   )
 }

@@ -7,7 +7,13 @@ import {
 } from "react-router-dom"
 import { IconPlus, IconX } from "@/components/icons"
 import { TopBar } from "@/components/Nav"
-import { Btn, FilterChip, Input, Select } from "@/components/primitives"
+import {
+  Btn,
+  ColorSwatchPicker,
+  FilterChip,
+  Input,
+  Select,
+} from "@/components/primitives"
 import { LIQUID_COLORS } from "@/data/constants"
 import { createRecipe, updateRecipe } from "@/services/recipes"
 
@@ -429,29 +435,7 @@ export default function EditorScreen() {
           >
             Liquid Color
           </label>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            {LIQUID_COLORS.map((c) => (
-              <button
-                key={c.value}
-                onClick={() => setLiquidColor(c.value)}
-                title={c.label}
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: "50%",
-                  background: c.value,
-                  border: `2px solid ${
-                    liquidColor === c.value ? "var(--text)" : "var(--border-s)"
-                  }`,
-                  boxShadow:
-                    liquidColor === c.value
-                      ? "0 0 0 2px var(--bg), 0 0 0 3px var(--cyan)"
-                      : "none",
-                  cursor: "pointer",
-                }}
-              />
-            ))}
-          </div>
+          <ColorSwatchPicker value={liquidColor} onChange={setLiquidColor} />
         </div>
 
         <div>

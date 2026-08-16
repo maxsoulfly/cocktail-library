@@ -9,7 +9,13 @@ import {
   IconX,
 } from "@/components/icons"
 import { TopBar } from "@/components/Nav"
-import { Btn, Card, Input, Select } from "@/components/primitives"
+import {
+  Btn,
+  Card,
+  ColorSwatchPicker,
+  Input,
+  Select,
+} from "@/components/primitives"
 import {
   BAR_PRIORITIES,
   buildIngredientImportPrompt,
@@ -64,9 +70,12 @@ export default function AdminScreen() {
   const [importSuccessMessage, setImportSuccessMessage] = useState(null)
 
   const [singleName, setSingleName] = useState("")
-  const [singleCategoryId, setSingleCategoryId] = useState(
-    () => catalog.categories[0]?.id ?? "",
-  )
+  // No default category - defaulting to the first one (Spirit, since it
+  // sorts first) meant every ingredient silently started out mis-filed as a
+  // spirit unless you noticed and changed it. Forcing an explicit choice
+  // also means the parent-type list can't show irrelevant spirit styles
+  // while adding something like a juice or mixer.
+  const [singleCategoryId, setSingleCategoryId] = useState("")
   const [singleParentTypeId, setSingleParentTypeId] = useState("")
   const [singleBarPriority, setSingleBarPriority] = useState("common")
   const [singleColor, setSingleColor] = useState("")
@@ -807,38 +816,43 @@ export default function AdminScreen() {
                       setSingleCategoryId(v)
                       setSingleParentTypeId("")
                     }}
-                    options={catalog.categories.map((c) => ({
-                      value: c.id,
-                      label: c.name,
-                    }))}
-                  />
-                </div>
-                <div>
-                  <label
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 700,
-                      color: "var(--text2)",
-                      fontFamily: "var(--font-display)",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                      display: "block",
-                      marginBottom: 6,
-                    }}
-                  >
-                    Parent type (optional)
-                  </label>
-                  <Select
-                    value={singleParentTypeId}
-                    onChange={setSingleParentTypeId}
                     options={[
-                      { value: "", label: "None" },
-                      ...catalog.types
-                        .filter((t) => t.category_id === singleCategoryId)
-                        .map((t) => ({ value: t.id, label: t.name })),
+                      { value: "", label: "Select a category..." },
+                      ...catalog.categories.map((c) => ({
+                        value: c.id,
+                        label: c.name,
+                      })),
                     ]}
                   />
                 </div>
+                {singleCategoryId && (
+                  <div>
+                    <label
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: "var(--text2)",
+                        fontFamily: "var(--font-display)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                        display: "block",
+                        marginBottom: 6,
+                      }}
+                    >
+                      Parent type (optional)
+                    </label>
+                    <Select
+                      value={singleParentTypeId}
+                      onChange={setSingleParentTypeId}
+                      options={[
+                        { value: "", label: "None" },
+                        ...catalog.types
+                          .filter((t) => t.category_id === singleCategoryId)
+                          .map((t) => ({ value: t.id, label: t.name })),
+                      ]}
+                    />
+                  </div>
+                )}
                 <div>
                   <label
                     style={{
@@ -863,12 +877,26 @@ export default function AdminScreen() {
                     }))}
                   />
                 </div>
-                <Input
-                  label="Color (optional)"
-                  placeholder="#a1b2c3"
-                  value={singleColor}
-                  onChange={setSingleColor}
-                />
+                <div>
+                  <label
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: "var(--text2)",
+                      fontFamily: "var(--font-display)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      display: "block",
+                      marginBottom: 6,
+                    }}
+                  >
+                    Color (optional)
+                  </label>
+                  <ColorSwatchPicker
+                    value={singleColor}
+                    onChange={setSingleColor}
+                  />
+                </div>
                 <div>
                   <label
                     style={{
