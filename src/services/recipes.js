@@ -83,6 +83,7 @@ export async function createRecipe({
   description,
   glassId,
   familyId,
+  liquidColor,
   steps,
   components,
   tasteTagIds,
@@ -96,6 +97,7 @@ export async function createRecipe({
       visibility: "private",
       glass_id: glassId,
       family_id: familyId || null,
+      liquid_color: liquidColor || null,
       steps,
     })
     .select()
@@ -147,7 +149,16 @@ export async function createRecipe({
 // constraint createRecipe() already lives with.
 export async function updateRecipe(
   id,
-  { name, description, glassId, familyId, steps, components, tasteTagIds },
+  {
+    name,
+    description,
+    glassId,
+    familyId,
+    liquidColor,
+    steps,
+    components,
+    tasteTagIds,
+  },
 ) {
   const { error: recipeError } = await supabase
     .from("recipes")
@@ -156,6 +167,7 @@ export async function updateRecipe(
       description: description || null,
       glass_id: glassId,
       family_id: familyId || null,
+      liquid_color: liquidColor || null,
       steps,
     })
     .eq("id", id)

@@ -8,6 +8,7 @@ import {
 import { IconPlus, IconX } from "@/components/icons"
 import { TopBar } from "@/components/Nav"
 import { Btn, FilterChip, Input, Select } from "@/components/primitives"
+import { LIQUID_COLORS } from "@/data/constants"
 import { createRecipe, updateRecipe } from "@/services/recipes"
 
 // "part" isn't in the spec's explicit semantic-unit list (§9: dash, barspoon,
@@ -60,6 +61,7 @@ export default function EditorScreen() {
   const [desc, setDesc] = useState("")
   const [glassName, setGlassName] = useState("")
   const [familyId, setFamilyId] = useState("")
+  const [liquidColor, setLiquidColor] = useState(LIQUID_COLORS[0].value)
   const [ings, setIngs] = useState([
     { ingredientName: "", amount: "", unit: "ml", role: "required" },
   ])
@@ -74,6 +76,7 @@ export default function EditorScreen() {
     setName(existing.name)
     setDesc(existing.description ?? "")
     setGlassName(existing.glass)
+    setLiquidColor(existing.liquidColor)
     const family = families.find((f) => f.name === existing.family)
     setFamilyId(family?.id ?? "")
     setIngs(
@@ -154,6 +157,7 @@ export default function EditorScreen() {
         description: desc.trim(),
         glassId: glass.id,
         familyId: familyId || null,
+        liquidColor,
         steps: steps.map((s) => s.trim()).filter(Boolean),
         components,
         tasteTagIds,
@@ -406,6 +410,46 @@ export default function EditorScreen() {
               >
                 {f.name}
               </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: "var(--text2)",
+              fontFamily: "var(--font-display)",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              display: "block",
+              marginBottom: 8,
+            }}
+          >
+            Liquid Color
+          </label>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {LIQUID_COLORS.map((c) => (
+              <button
+                key={c.value}
+                onClick={() => setLiquidColor(c.value)}
+                title={c.label}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "50%",
+                  background: c.value,
+                  border: `2px solid ${
+                    liquidColor === c.value ? "var(--text)" : "var(--border-s)"
+                  }`,
+                  boxShadow:
+                    liquidColor === c.value
+                      ? "0 0 0 2px var(--bg), 0 0 0 3px var(--cyan)"
+                      : "none",
+                  cursor: "pointer",
+                }}
+              />
             ))}
           </div>
         </div>
