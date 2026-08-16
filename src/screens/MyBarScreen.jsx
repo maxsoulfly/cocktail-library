@@ -214,6 +214,19 @@ export default function MyBarScreen() {
               {rows.map(({ type, isChild }, idx) => {
                 const owned = isOwned(type.id)
                 const ownedProducts = productsByType.get(type.id) ?? []
+                // A parent type's own toggle only reflects direct/generic
+                // ownership of it specifically - it can show "off" even
+                // though the availability engine already treats an owned
+                // child (e.g. Dark Rum) as satisfying it, via the same
+                // parent-walk in resolveOwnedIngredientTypes(). Surface that
+                // here so the toggle being off doesn't read as a
+                // contradiction.
+                const coveringChildren =
+                  !owned && !isChild
+                    ? (childrenByParentId.get(type.id) ?? []).filter((c) =>
+                        isOwned(c.id),
+                      )
+                    : []
                 return (
                   <div
                     key={type.id}
@@ -253,6 +266,12 @@ export default function MyBarScreen() {
                       {ownedProducts.length > 0 && (
                         <div style={{ fontSize: 12, color: "var(--text3)" }}>
                           {ownedProducts.map((p) => p.name).join(", ")}
+                        </div>
+                      )}
+                      {coveringChildren.length > 0 && (
+                        <div style={{ fontSize: 12, color: "var(--cyan)" }}>
+                          Covered by{" "}
+                          {coveringChildren.map((c) => c.name).join(", ")}
                         </div>
                       )}
                     </div>
