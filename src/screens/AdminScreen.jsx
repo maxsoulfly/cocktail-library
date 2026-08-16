@@ -9,8 +9,9 @@ import {
   IconX,
 } from "@/components/icons"
 import { TopBar } from "@/components/Nav"
-import { Btn, Card } from "@/components/primitives"
+import { Btn, Card, Input, Select } from "@/components/primitives"
 import {
+  BAR_PRIORITIES,
   buildIngredientImportPrompt,
   validateIngredientImport,
 } from "@/schemas/ingredientImport"
@@ -54,16 +55,29 @@ export default function AdminScreen() {
   const [invites, setInvites] = useState(MOCK_INVITES)
   const [copied, setCopied] = useState(null)
 
-  // Batch import: only "ingredients" is real. "classics"/"products" stay
-  // visible but disabled - they're real roadmap items (recipe/product
-  // import), not something to fake a result for now that ingredients is
-  // real and the contrast would be misleading.
-  const [importStep, setImportStep] = useState(0)
-  const [importType, setImportType] = useState("ingredients")
+  // Ingredient-adding has two modes: "single" (a quick form for the common
+  // case of adding one thing) and "batch" (AI-formatted JSON, for adding
+  // several at once). Recipe/product batch import is real roadmap (step 12
+  // remaining scope), not built yet - no picker step for it since there's
+  // nothing to pick.
+  const [importMode, setImportMode] = useState("single")
+  const [importSuccessMessage, setImportSuccessMessage] = useState(null)
+
+  const [singleName, setSingleName] = useState("")
+  const [singleCategoryId, setSingleCategoryId] = useState(
+    () => catalog.categories[0]?.id ?? "",
+  )
+  const [singleParentTypeId, setSingleParentTypeId] = useState("")
+  const [singleBarPriority, setSingleBarPriority] = useState("common")
+  const [singleColor, setSingleColor] = useState("")
+  const [singleDescription, setSingleDescription] = useState("")
+  const [singleSaving, setSingleSaving] = useState(false)
+  const [singleError, setSingleError] = useState(null)
+
+  const [batchPhase, setBatchPhase] = useState("paste")
   const [importJson, setImportJson] = useState("")
   const [importResult, setImportResult] = useState(null)
   const [importing, setImporting] = useState(false)
-  const [importSuccessMessage, setImportSuccessMessage] = useState(null)
   const [promptCopied, setPromptCopied] = useState(false)
 
   // Moderation is real: currently-published community recipes, with an
@@ -128,6 +142,17 @@ export default function AdminScreen() {
     }
   }
 
+  // Jumps to the single-add form pre-filled with a request's name - doesn't
+  // resolve the request itself, since "added to the catalog" and "marked
+  // fulfilled" are separate admin actions (the admin might want to double-
+  // check the result before dismissing the request).
+  const startSingleAddFromRequest = (name) => {
+    setImportSuccessMessage(null)
+    setImportMode("single")
+    setSingleName(name)
+    setTab("import")
+  }
+
   const generateInvite = () => {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
     const seg = (n) =>
@@ -179,7 +204,7 @@ export default function AdminScreen() {
       if (!Array.isArray(parsed)) throw new Error("Expected a JSON array")
     } catch (err) {
       setImportResult({ parseError: err.message })
-      setImportStep(3)
+      setBatchPhase("results")
       return
     }
     const validation = validateIngredientImport(parsed, {
@@ -187,7 +212,7 @@ export default function AdminScreen() {
       types: catalog.types,
     })
     setImportResult(validation)
-    setImportStep(3)
+    setBatchPhase("results")
   }
 
   const handleCommitImport = async () => {
@@ -205,13 +230,58 @@ export default function AdminScreen() {
           rows.length === 1 ? "" : "s"
         }.`,
       )
-      setImportStep(0)
+      setBatchPhase("paste")
       setImportJson("")
       setImportResult(null)
     } catch (err) {
       setImportResult({ ...importResult, commitError: err.message })
     } finally {
       setImporting(false)
+    }
+  }
+
+  // Reuses the same validator batch import uses (single-item array), so a
+  // duplicate/unknown-value mistake is caught the same way in both paths
+  // instead of a separately hand-rolled check that could drift.
+  const handleAddSingle = async () => {
+    setSingleSaving(true)
+    setSingleError(null)
+    const categoryName =
+      catalog.categories.find((c) => c.id === singleCategoryId)?.name ?? ""
+    const parentTypeName = singleParentTypeId
+      ? catalog.types.find((t) => t.id === singleParentTypeId)?.name
+      : undefined
+    const { results } = validateIngredientImport(
+      [
+        {
+          name: singleName.trim(),
+          category: categoryName,
+          parentType: parentTypeName,
+          barPriority: singleBarPriority,
+          color: singleColor.trim() || undefined,
+          description: singleDescription.trim() || undefined,
+        },
+      ],
+      { categories: catalog.categories, types: catalog.types },
+    )
+    const [result] = results
+    if (!result.valid) {
+      setSingleError(result.errors.join("; "))
+      setSingleSaving(false)
+      return
+    }
+    try {
+      await createIngredientTypes([result.resolved])
+      await catalog.refetch()
+      setImportSuccessMessage(`Added "${result.resolved.name}".`)
+      setSingleName("")
+      setSingleParentTypeId("")
+      setSingleColor("")
+      setSingleDescription("")
+    } catch (err) {
+      setSingleError(err.message)
+    } finally {
+      setSingleSaving(false)
     }
   }
 
@@ -605,6 +675,20 @@ export default function AdminScreen() {
                     </div>
                     <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                       <button
+                        onClick={() => startSingleAddFromRequest(r.name)}
+                        title="Add to catalog"
+                        style={{
+                          background: "rgba(34,211,238,0.1)",
+                          border: "1px solid rgba(34,211,238,0.25)",
+                          borderRadius: 6,
+                          padding: "6px 8px",
+                          cursor: "pointer",
+                          color: "var(--cyan)",
+                        }}
+                      >
+                        <IconPlus size={14} />
+                      </button>
+                      <button
                         onClick={() => handleResolveRequest(r.id, "fulfilled")}
                         disabled={resolvingRequestId === r.id}
                         title="Mark fulfilled"
@@ -652,157 +736,190 @@ export default function AdminScreen() {
                 {importSuccessMessage}
               </p>
             )}
+
             <div
               style={{
                 display: "flex",
-                gap: 0,
                 background: "var(--surface)",
                 border: "1px solid var(--border-s)",
                 borderRadius: "var(--r-sm)",
                 overflow: "hidden",
               }}
             >
-              {[0, 1, 2, 3].map((step) => (
-                <div
-                  key={step}
+              {[
+                { id: "single", label: "Single Ingredient" },
+                { id: "batch", label: "Batch Import (AI)" },
+              ].map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => {
+                    setImportSuccessMessage(null)
+                    setImportMode(m.id)
+                  }}
                   style={{
                     flex: 1,
-                    height: 4,
+                    padding: "10px",
                     background:
-                      step <= importStep ? "var(--violet)" : "transparent",
-                    transition: "background 0.3s",
+                      importMode === m.id ? "rgba(167,139,250,0.12)" : "none",
+                    border: "none",
+                    cursor: "pointer",
+                    color:
+                      importMode === m.id ? "var(--violet)" : "var(--text2)",
+                    fontFamily: "var(--font-display)",
+                    fontWeight: importMode === m.id ? 700 : 400,
+                    fontSize: 13,
+                    transition: "all 0.15s",
                   }}
-                />
+                >
+                  {m.label}
+                </button>
               ))}
             </div>
 
-            {importStep === 0 && (
+            {importMode === "single" && (
               <div
                 style={{ display: "flex", flexDirection: "column", gap: 12 }}
               >
-                <h3
-                  style={{
-                    margin: 0,
-                    fontFamily: "var(--font-display)",
-                    fontSize: 17,
-                    fontWeight: 700,
-                    color: "var(--text)",
-                  }}
-                >
-                  Select Import Type
-                </h3>
-                {[
-                  {
-                    id: "classics",
-                    label: "Classic Recipes",
-                    desc: "Shared recipe catalog",
-                    disabled: true,
-                  },
-                  {
-                    id: "ingredients",
-                    label: "Ingredient Types",
-                    desc: "Generic ingredient catalog",
-                    disabled: false,
-                  },
-                  {
-                    id: "products",
-                    label: "Products",
-                    desc: "Branded products and homemade items",
-                    disabled: true,
-                  },
-                ].map((t) => (
-                  <Card
-                    key={t.id}
+                <Input
+                  label="Name"
+                  placeholder="e.g. Passionfruit Juice"
+                  value={singleName}
+                  onChange={setSingleName}
+                />
+                <div>
+                  <label
                     style={{
-                      padding: "14px 16px",
-                      cursor: t.disabled ? "default" : "pointer",
-                      opacity: t.disabled ? 0.5 : 1,
-                      border: `1px solid ${
-                        importType === t.id
-                          ? "var(--violet)"
-                          : "var(--border-s)"
-                      }`,
-                      background:
-                        importType === t.id
-                          ? "rgba(167,139,250,0.08)"
-                          : "var(--surface)",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: "var(--text2)",
+                      fontFamily: "var(--font-display)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      display: "block",
+                      marginBottom: 6,
                     }}
-                    onClick={() => !t.disabled && setImportType(t.id)}
                   >
-                    <div
-                      style={{ display: "flex", alignItems: "center", gap: 10 }}
-                    >
-                      <div
-                        style={{
-                          width: 18,
-                          height: 18,
-                          borderRadius: "50%",
-                          border: `2px solid ${
-                            importType === t.id
-                              ? "var(--violet)"
-                              : "var(--border-s)"
-                          }`,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
-                        }}
-                      >
-                        {importType === t.id && (
-                          <div
-                            style={{
-                              width: 8,
-                              height: 8,
-                              borderRadius: "50%",
-                              background: "var(--violet)",
-                            }}
-                          />
-                        )}
-                      </div>
-                      <div>
-                        <div
-                          style={{
-                            fontSize: 14,
-                            fontFamily: "var(--font-display)",
-                            fontWeight: 600,
-                            color: "var(--text)",
-                          }}
-                        >
-                          {t.label}
-                          {t.disabled && (
-                            <span
-                              style={{
-                                marginLeft: 8,
-                                fontSize: 11,
-                                color: "var(--text3)",
-                                fontWeight: 400,
-                              }}
-                            >
-                              Coming soon
-                            </span>
-                          )}
-                        </div>
-                        <div style={{ fontSize: 12, color: "var(--text3)" }}>
-                          {t.desc}
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
+                    Category
+                  </label>
+                  <Select
+                    value={singleCategoryId}
+                    onChange={(v) => {
+                      setSingleCategoryId(v)
+                      setSingleParentTypeId("")
+                    }}
+                    options={catalog.categories.map((c) => ({
+                      value: c.id,
+                      label: c.name,
+                    }))}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: "var(--text2)",
+                      fontFamily: "var(--font-display)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      display: "block",
+                      marginBottom: 6,
+                    }}
+                  >
+                    Parent type (optional)
+                  </label>
+                  <Select
+                    value={singleParentTypeId}
+                    onChange={setSingleParentTypeId}
+                    options={[
+                      { value: "", label: "None" },
+                      ...catalog.types
+                        .filter((t) => t.category_id === singleCategoryId)
+                        .map((t) => ({ value: t.id, label: t.name })),
+                    ]}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: "var(--text2)",
+                      fontFamily: "var(--font-display)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      display: "block",
+                      marginBottom: 6,
+                    }}
+                  >
+                    Bar priority
+                  </label>
+                  <Select
+                    value={singleBarPriority}
+                    onChange={setSingleBarPriority}
+                    options={BAR_PRIORITIES.map((p) => ({
+                      value: p,
+                      label: p[0].toUpperCase() + p.slice(1),
+                    }))}
+                  />
+                </div>
+                <Input
+                  label="Color (optional)"
+                  placeholder="#a1b2c3"
+                  value={singleColor}
+                  onChange={setSingleColor}
+                />
+                <div>
+                  <label
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: "var(--text2)",
+                      fontFamily: "var(--font-display)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      display: "block",
+                      marginBottom: 6,
+                    }}
+                  >
+                    Description (optional)
+                  </label>
+                  <textarea
+                    value={singleDescription}
+                    onChange={(e) => setSingleDescription(e.target.value)}
+                    rows={2}
+                    style={{
+                      background: "var(--surface)",
+                      border: "1px solid var(--border-s)",
+                      borderRadius: "var(--r-sm)",
+                      padding: "10px 14px",
+                      color: "var(--text)",
+                      fontSize: 14,
+                      fontFamily: "var(--font-body)",
+                      width: "100%",
+                      resize: "vertical",
+                    }}
+                  />
+                </div>
+                {singleError && (
+                  <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
+                    {singleError}
+                  </p>
+                )}
                 <Btn
                   variant="primary"
                   full
-                  onClick={() => {
-                    setImportSuccessMessage(null)
-                    setImportStep(1)
-                  }}
+                  disabled={
+                    !singleName.trim() || !singleCategoryId || singleSaving
+                  }
+                  onClick={handleAddSingle}
                 >
-                  Next
+                  {singleSaving ? "Adding..." : "Add Ingredient"}
                 </Btn>
               </div>
             )}
 
-            {importStep === 1 && (
+            {importMode === "batch" && batchPhase === "paste" && (
               <div
                 style={{ display: "flex", flexDirection: "column", gap: 12 }}
               >
@@ -823,21 +940,24 @@ export default function AdminScreen() {
                   its JSON output below. The prompt is generated from the live
                   catalog, so it always lists the current categories and types.
                 </p>
-                <Card
+                <textarea
+                  readOnly
+                  value={importPrompt}
+                  rows={14}
+                  onFocus={(e) => e.target.select()}
                   style={{
-                    padding: "14px",
                     background: "var(--surface2)",
-                    fontFamily: "var(--font-mono)",
+                    border: "1px solid var(--border-s)",
+                    borderRadius: "var(--r-sm)",
+                    padding: "14px",
+                    color: "var(--text2)",
                     fontSize: 12,
-                    color: "var(--text3)",
+                    fontFamily: "var(--font-mono)",
                     lineHeight: 1.6,
-                    whiteSpace: "pre-wrap",
-                    maxHeight: 220,
-                    overflowY: "auto",
+                    resize: "vertical",
+                    width: "100%",
                   }}
-                >
-                  {importPrompt}
-                </Card>
+                />
                 <Btn variant="ghost" small onClick={copyImportPrompt}>
                   {promptCopied ? (
                     <IconCheck size={14} />
@@ -863,169 +983,170 @@ export default function AdminScreen() {
                     width: "100%",
                   }}
                 />
-                <div style={{ display: "flex", gap: 8 }}>
-                  <Btn variant="ghost" small onClick={() => setImportStep(0)}>
-                    Back
-                  </Btn>
-                  <Btn variant="primary" full onClick={runImportValidation}>
-                    Validate
-                  </Btn>
-                </div>
+                <Btn variant="primary" full onClick={runImportValidation}>
+                  Validate
+                </Btn>
               </div>
             )}
 
-            {importStep === 3 && importResult && (
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: 12 }}
-              >
-                <h3
-                  style={{
-                    margin: 0,
-                    fontFamily: "var(--font-display)",
-                    fontSize: 17,
-                    fontWeight: 700,
-                    color: "var(--text)",
-                  }}
+            {importMode === "batch" &&
+              batchPhase === "results" &&
+              importResult && (
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 12 }}
                 >
-                  Validation Results
-                </h3>
-                {importResult.parseError ? (
-                  <p style={{ margin: 0, fontSize: 13, color: "var(--coral)" }}>
-                    Couldn't parse that as a JSON array:{" "}
-                    {importResult.parseError}
-                  </p>
-                ) : (
-                  <>
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(2, 1fr)",
-                        gap: 8,
-                      }}
-                    >
-                      {[
-                        {
-                          label: "Ready to import",
-                          val: importResult.validCount,
-                          color: "var(--green)",
-                        },
-                        {
-                          label: "Errors",
-                          val: importResult.errorCount,
-                          color: "var(--coral)",
-                        },
-                      ].map(({ label, val, color }) => (
-                        <Card
-                          key={label}
-                          style={{ padding: "12px", textAlign: "center" }}
-                        >
-                          <div
-                            style={{
-                              fontSize: 24,
-                              fontFamily: "var(--font-display)",
-                              fontWeight: 800,
-                              color,
-                              marginBottom: 2,
-                            }}
-                          >
-                            {val}
-                          </div>
-                          <div style={{ fontSize: 11, color: "var(--text2)" }}>
-                            {label}
-                          </div>
-                        </Card>
-                      ))}
-                    </div>
-                    <Card style={{ padding: "12px 14px" }}>
-                      {importResult.results.map((row, i, arr) => (
-                        <div
-                          key={row.index}
-                          style={{
-                            display: "flex",
-                            alignItems: "flex-start",
-                            gap: 10,
-                            padding: "8px 0",
-                            borderBottom:
-                              i < arr.length - 1
-                                ? "1px solid var(--border-s)"
-                                : "none",
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: 6,
-                              height: 6,
-                              borderRadius: "50%",
-                              flexShrink: 0,
-                              marginTop: 6,
-                              background: row.valid
-                                ? "var(--green)"
-                                : "var(--coral)",
-                            }}
-                          />
-                          <div style={{ flex: 1 }}>
-                            <span
-                              style={{ fontSize: 13, color: "var(--text)" }}
-                            >
-                              {row.name ?? `Row ${row.index + 1}`}
-                            </span>
-                            {!row.valid && (
-                              <div
-                                style={{
-                                  fontSize: 11,
-                                  color: "var(--coral)",
-                                  marginTop: 2,
-                                }}
-                              >
-                                {row.errors.join("; ")}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </Card>
-                    {importResult.commitError && (
-                      <p
-                        style={{
-                          margin: 0,
-                          fontSize: 12,
-                          color: "var(--coral)",
-                        }}
-                      >
-                        {importResult.commitError}
-                      </p>
-                    )}
-                  </>
-                )}
-                <div style={{ display: "flex", gap: 8 }}>
-                  <Btn
-                    variant="ghost"
-                    small
-                    onClick={() => {
-                      setImportStep(0)
-                      setImportJson("")
-                      setImportResult(null)
+                  <h3
+                    style={{
+                      margin: 0,
+                      fontFamily: "var(--font-display)",
+                      fontSize: 17,
+                      fontWeight: 700,
+                      color: "var(--text)",
                     }}
                   >
-                    Cancel
-                  </Btn>
-                  {!importResult.parseError && (
-                    <Btn
-                      variant="primary"
-                      full
-                      disabled={importing || importResult.validCount === 0}
-                      onClick={handleCommitImport}
+                    Validation Results
+                  </h3>
+                  {importResult.parseError ? (
+                    <p
+                      style={{ margin: 0, fontSize: 13, color: "var(--coral)" }}
                     >
-                      {importing
-                        ? "Importing..."
-                        : `Import ${importResult.validCount} Ingredient${
-                            importResult.validCount === 1 ? "" : "s"
-                          }`}
-                    </Btn>
+                      Couldn't parse that as a JSON array:{" "}
+                      {importResult.parseError}
+                    </p>
+                  ) : (
+                    <>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(2, 1fr)",
+                          gap: 8,
+                        }}
+                      >
+                        {[
+                          {
+                            label: "Ready to import",
+                            val: importResult.validCount,
+                            color: "var(--green)",
+                          },
+                          {
+                            label: "Errors",
+                            val: importResult.errorCount,
+                            color: "var(--coral)",
+                          },
+                        ].map(({ label, val, color }) => (
+                          <Card
+                            key={label}
+                            style={{ padding: "12px", textAlign: "center" }}
+                          >
+                            <div
+                              style={{
+                                fontSize: 24,
+                                fontFamily: "var(--font-display)",
+                                fontWeight: 800,
+                                color,
+                                marginBottom: 2,
+                              }}
+                            >
+                              {val}
+                            </div>
+                            <div
+                              style={{ fontSize: 11, color: "var(--text2)" }}
+                            >
+                              {label}
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                      <Card style={{ padding: "12px 14px" }}>
+                        {importResult.results.map((row, i, arr) => (
+                          <div
+                            key={row.index}
+                            style={{
+                              display: "flex",
+                              alignItems: "flex-start",
+                              gap: 10,
+                              padding: "8px 0",
+                              borderBottom:
+                                i < arr.length - 1
+                                  ? "1px solid var(--border-s)"
+                                  : "none",
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: 6,
+                                height: 6,
+                                borderRadius: "50%",
+                                flexShrink: 0,
+                                marginTop: 6,
+                                background: row.valid
+                                  ? "var(--green)"
+                                  : "var(--coral)",
+                              }}
+                            />
+                            <div style={{ flex: 1 }}>
+                              <span
+                                style={{ fontSize: 13, color: "var(--text)" }}
+                              >
+                                {row.name ?? `Row ${row.index + 1}`}
+                              </span>
+                              {!row.valid && (
+                                <div
+                                  style={{
+                                    fontSize: 11,
+                                    color: "var(--coral)",
+                                    marginTop: 2,
+                                  }}
+                                >
+                                  {row.errors.join("; ")}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </Card>
+                      {importResult.commitError && (
+                        <p
+                          style={{
+                            margin: 0,
+                            fontSize: 12,
+                            color: "var(--coral)",
+                          }}
+                        >
+                          {importResult.commitError}
+                        </p>
+                      )}
+                    </>
                   )}
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <Btn
+                      variant="ghost"
+                      small
+                      onClick={() => {
+                        setBatchPhase("paste")
+                        setImportJson("")
+                        setImportResult(null)
+                      }}
+                    >
+                      Cancel
+                    </Btn>
+                    {!importResult.parseError && (
+                      <Btn
+                        variant="primary"
+                        full
+                        disabled={importing || importResult.validCount === 0}
+                        onClick={handleCommitImport}
+                      >
+                        {importing
+                          ? "Importing..."
+                          : `Import ${importResult.validCount} Ingredient${
+                              importResult.validCount === 1 ? "" : "s"
+                            }`}
+                      </Btn>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
           </div>
         )}
       </div>
