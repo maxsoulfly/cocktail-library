@@ -170,9 +170,11 @@ function AppShell({ profile, session }) {
   }
 
   return (
-    <div
-      style={{ display: "flex", minHeight: "100dvh", background: "var(--bg)" }}
-    >
+    <div style={{ display: "flex", height: "100dvh", background: "var(--bg)" }}>
+      {/* height (not minHeight) is required here: a flex row with only
+          minHeight has no definite height, so the overflowY:auto child below
+          can never establish a bounded box to scroll within - it just grows
+          to fit its content instead, and nothing ever scrolls. */}
       <div style={{ display: "none" }} className="lg-sidebar">
         <SideNav isAdmin={isAdmin} />
       </div>
