@@ -12,6 +12,7 @@ import {
 import {
   Btn,
   Card,
+  CategoryPicker,
   ColorSwatchPicker,
   FilterChip,
   Input,
@@ -446,7 +447,8 @@ export default function MyBarScreen() {
                             setEditingType({ ...editingType, name: v })
                           }
                         />
-                        <Select
+                        <CategoryPicker
+                          categories={categories}
                           value={editingType.categoryId}
                           onChange={(v) =>
                             setEditingType({
@@ -455,10 +457,6 @@ export default function MyBarScreen() {
                               parentTypeId: "",
                             })
                           }
-                          options={categories.map((c) => ({
-                            value: c.id,
-                            label: c.name,
-                          }))}
                         />
                         <Select
                           value={editingType.parentTypeId}

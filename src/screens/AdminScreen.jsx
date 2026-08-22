@@ -13,6 +13,7 @@ import { TopBar } from "@/components/Nav"
 import {
   Btn,
   Card,
+  CategoryPicker,
   ColorSwatchPicker,
   Input,
   Select,
@@ -1805,19 +1806,13 @@ export default function AdminScreen() {
                       >
                         Category
                       </label>
-                      <Select
+                      <CategoryPicker
+                        categories={catalog.categories}
                         value={singleCategoryId}
                         onChange={(v) => {
                           setSingleCategoryId(v)
                           setSingleParentTypeId("")
                         }}
-                        options={[
-                          { value: "", label: "Select a category..." },
-                          ...catalog.categories.map((c) => ({
-                            value: c.id,
-                            label: c.name,
-                          })),
-                        ]}
                       />
                     </div>
                     {singleCategoryId && (
@@ -2485,23 +2480,33 @@ export default function AdminScreen() {
                                 })
                               }
                             />
-                            <Select
-                              value={addIngredientDraft.categoryId}
-                              onChange={(v) =>
-                                setAddIngredientDraft({
-                                  ...addIngredientDraft,
-                                  categoryId: v,
-                                  parentTypeId: "",
-                                })
-                              }
-                              options={[
-                                { value: "", label: "Select a category..." },
-                                ...catalog.categories.map((c) => ({
-                                  value: c.id,
-                                  label: c.name,
-                                })),
-                              ]}
-                            />
+                            <div>
+                              <label
+                                style={{
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  color: "var(--text2)",
+                                  fontFamily: "var(--font-display)",
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.06em",
+                                  display: "block",
+                                  marginBottom: 6,
+                                }}
+                              >
+                                Category
+                              </label>
+                              <CategoryPicker
+                                categories={catalog.categories}
+                                value={addIngredientDraft.categoryId}
+                                onChange={(v) =>
+                                  setAddIngredientDraft({
+                                    ...addIngredientDraft,
+                                    categoryId: v,
+                                    parentTypeId: "",
+                                  })
+                                }
+                              />
+                            </div>
                             {addIngredientDraft.categoryId && (
                               <Select
                                 value={addIngredientDraft.parentTypeId}

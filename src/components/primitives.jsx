@@ -360,6 +360,40 @@ export function Select({ value, onChange, options, small }) {
   )
 }
 
+// Ingredient categories (~10-12 options) are chosen rarely enough per-flow
+// that a visible chip grid beats hiding them behind the Select's closed
+// button - on mobile a collapsed dropdown reads as inert label text rather
+// than something tappable, and the option list should be discoverable
+// without a second tap.
+export function CategoryPicker({ categories, value, onChange }) {
+  return (
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      {categories.map((c) => (
+        <button
+          key={c.id}
+          type="button"
+          onClick={() => onChange(c.id)}
+          style={{
+            padding: "8px 12px",
+            borderRadius: "var(--r-sm)",
+            border: `1px solid ${
+              value === c.id ? "var(--cyan)" : "var(--border-s)"
+            }`,
+            background:
+              value === c.id ? "rgba(34,211,238,0.12)" : "var(--surface)",
+            color: value === c.id ? "var(--cyan)" : "var(--text2)",
+            fontSize: 13,
+            fontFamily: "var(--font-body)",
+            cursor: "pointer",
+          }}
+        >
+          {c.name}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 // Shared between EditorScreen (recipe liquid_color) and AdminScreen (single-
 // ingredient add) - same "pick a drink-appropriate color, no hex knowledge
 // required" idea in both places.
