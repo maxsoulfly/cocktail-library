@@ -404,8 +404,14 @@ export default function MyBarScreen() {
             >
               {categoryName}
             </div>
-            <Card>
-              {rows.map(({ type, isChild }, idx) => {
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(104px, 1fr))",
+                gap: 8,
+              }}
+            >
+              {rows.map(({ type, isChild }) => {
                 const owned = isOwned(type.id)
                 const ownedProducts = productsByType.get(type.id) ?? []
                 const allProducts = allProductsByType.get(type.id) ?? []
@@ -424,17 +430,16 @@ export default function MyBarScreen() {
                       )
                     : []
                 return (
-                  <div key={type.id}>
+                  // display:"contents" makes this wrapper invisible to the
+                  // grid, so the card and (if expanded) its full-width
+                  // product panel both participate as direct grid items
+                  // instead of being nested inside one grid cell.
+                  <div key={type.id} style={{ display: "contents" }}>
                     {editingType?.id === type.id ? (
-                      <div
+                      <Card
                         style={{
-                          padding: isChild
-                            ? "10px 14px 10px 34px"
-                            : "10px 14px",
-                          borderBottom:
-                            idx < rows.length - 1 && !expanded
-                              ? "1px solid var(--border-s)"
-                              : "none",
+                          gridColumn: "1 / -1",
+                          padding: 14,
                           display: "flex",
                           flexDirection: "column",
                           gap: 8,
@@ -522,359 +527,393 @@ export default function MyBarScreen() {
                             Cancel
                           </Btn>
                         </div>
-                      </div>
+                      </Card>
                     ) : (
-                      <div
+                      <Card
+                        onClick={() => toggleType(type.id)}
                         style={{
+                          position: "relative",
+                          padding: "10px 8px 8px",
+                          cursor: "pointer",
                           display: "flex",
+                          flexDirection: "column",
                           alignItems: "center",
-                          gap: 12,
-                          padding: isChild ? "9px 14px 9px 34px" : "11px 14px",
-                          borderBottom:
-                            idx < rows.length - 1 && !expanded
-                              ? "1px solid var(--border-s)"
-                              : "none",
+                          textAlign: "center",
+                          gap: 4,
+                          border: `1px solid ${
+                            owned ? "var(--cyan)" : "var(--border-s)"
+                          }`,
+                          background: owned
+                            ? "rgba(34,211,238,0.08)"
+                            : "var(--surface)",
                         }}
                       >
                         <div
                           style={{
-                            width: isChild ? 26 : 34,
-                            height: isChild ? 26 : 34,
-                            borderRadius: 8,
+                            position: "absolute",
+                            top: 4,
+                            right: 4,
+                            display: "flex",
+                            gap: 2,
+                          }}
+                        >
+                          {allProducts.length > 0 && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                toggleExpanded(type.id)
+                              }}
+                              title={`${allProducts.length} product(s)`}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                padding: 2,
+                                color: "var(--text3)",
+                                display: "flex",
+                                alignItems: "center",
+                              }}
+                            >
+                              {expanded ? (
+                                <IconChevD size={12} />
+                              ) : (
+                                <IconChevR size={12} />
+                              )}
+                            </button>
+                          )}
+                          {isAdmin && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                startEditType(type)
+                              }}
+                              title="Edit ingredient type"
+                              style={{
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                padding: 2,
+                                color: "var(--text3)",
+                                display: "flex",
+                                alignItems: "center",
+                              }}
+                            >
+                              <IconEdit size={12} />
+                            </button>
+                          )}
+                        </div>
+                        <div
+                          style={{
+                            width: isChild ? 30 : 38,
+                            height: isChild ? 30 : 38,
+                            borderRadius: 10,
                             background: `${type.color ?? "#4e6680"}25`,
                             border: `1px solid ${type.color ?? "#4e6680"}40`,
                             flexShrink: 0,
                           }}
                         />
-                        <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontSize: isChild ? 12 : 13,
+                            fontFamily: "var(--font-body)",
+                            fontWeight: isChild ? 400 : 500,
+                            color: owned ? "var(--text)" : "var(--text3)",
+                            transition: "color 0.15s",
+                            width: "100%",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {type.name}
+                        </div>
+                        {ownedProducts.length > 0 && (
                           <div
                             style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 6,
+                              fontSize: 10,
+                              color: "var(--text3)",
+                              width: "100%",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
                             }}
                           >
-                            <div
-                              style={{
-                                fontSize: isChild ? 13 : 14,
-                                fontFamily: "var(--font-body)",
-                                fontWeight: isChild ? 400 : 500,
-                                color: owned ? "var(--text)" : "var(--text3)",
-                                transition: "color 0.15s",
-                              }}
-                            >
-                              {type.name}
-                            </div>
-                            {allProducts.length > 0 && (
-                              <button
-                                onClick={() => toggleExpanded(type.id)}
-                                style={{
-                                  background: "none",
-                                  border: "none",
-                                  cursor: "pointer",
-                                  padding: 2,
-                                  color: "var(--text3)",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 3,
-                                  fontSize: 11,
-                                }}
-                              >
-                                {expanded ? (
-                                  <IconChevD size={12} />
-                                ) : (
-                                  <IconChevR size={12} />
-                                )}
-                                {allProducts.length}
-                              </button>
-                            )}
-                            {isAdmin && (
-                              <button
-                                onClick={() => startEditType(type)}
-                                title="Edit ingredient type"
-                                style={{
-                                  background: "none",
-                                  border: "none",
-                                  cursor: "pointer",
-                                  padding: 2,
-                                  color: "var(--text3)",
-                                  display: "flex",
-                                  alignItems: "center",
-                                }}
-                              >
-                                <IconEdit size={12} />
-                              </button>
-                            )}
+                            {ownedProducts.map((p) => p.name).join(", ")}
                           </div>
-                          {ownedProducts.length > 0 && (
-                            <div
-                              style={{ fontSize: 12, color: "var(--text3)" }}
-                            >
-                              {ownedProducts.map((p) => p.name).join(", ")}
-                            </div>
-                          )}
-                          {coveringChildren.length > 0 && (
-                            <div style={{ fontSize: 12, color: "var(--cyan)" }}>
-                              Covered by{" "}
-                              {coveringChildren.map((c) => c.name).join(", ")}
-                            </div>
-                          )}
-                        </div>
-                        <OwnedToggle
-                          owned={owned}
-                          onChange={() => toggleType(type.id)}
-                        />
-                      </div>
+                        )}
+                        {coveringChildren.length > 0 && (
+                          <div
+                            style={{
+                              fontSize: 10,
+                              color: "var(--cyan)",
+                              width: "100%",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            via {coveringChildren.map((c) => c.name).join(", ")}
+                          </div>
+                        )}
+                      </Card>
                     )}
-                    {expanded &&
-                      allProducts.map((p, pIdx) => {
-                        const rowBorder =
-                          idx < rows.length - 1 || pIdx < allProducts.length - 1
-                            ? "1px solid var(--border-s)"
-                            : "none"
-                        if (editingProduct?.id === p.id) {
-                          return (
-                            <div
-                              key={p.id}
-                              style={{
-                                padding: isChild
-                                  ? "10px 14px 10px 58px"
-                                  : "10px 14px 10px 38px",
-                                borderBottom: rowBorder,
-                                background: "var(--bg2)",
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 8,
-                              }}
-                            >
-                              <Input
-                                label="Name"
-                                value={editingProduct.name}
-                                onChange={(v) =>
-                                  setEditingProduct({
-                                    ...editingProduct,
-                                    name: v,
-                                  })
-                                }
-                              />
-                              <div>
-                                <label
-                                  style={{
-                                    fontSize: 11,
-                                    fontWeight: 700,
-                                    color: "var(--text2)",
-                                    fontFamily: "var(--font-display)",
-                                    textTransform: "uppercase",
-                                    letterSpacing: "0.06em",
-                                    display: "block",
-                                    marginBottom: 4,
-                                  }}
-                                >
-                                  Ingredient Type
-                                </label>
-                                <input
-                                  list={`edit-ing-types-${p.id}`}
-                                  value={editingProduct.ingredientTypeName}
-                                  onChange={(e) =>
+                    {expanded && (
+                      <Card
+                        style={{
+                          gridColumn: "1 / -1",
+                          padding: 0,
+                          overflow: "hidden",
+                        }}
+                      >
+                        {allProducts.map((p, pIdx) => {
+                          const rowBorder =
+                            pIdx < allProducts.length - 1
+                              ? "1px solid var(--border-s)"
+                              : "none"
+                          if (editingProduct?.id === p.id) {
+                            return (
+                              <div
+                                key={p.id}
+                                style={{
+                                  padding: "10px 14px",
+                                  borderBottom: rowBorder,
+                                  background: "var(--bg2)",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: 8,
+                                }}
+                              >
+                                <Input
+                                  label="Name"
+                                  value={editingProduct.name}
+                                  onChange={(v) =>
                                     setEditingProduct({
                                       ...editingProduct,
-                                      ingredientTypeName: e.target.value,
+                                      name: v,
                                     })
                                   }
-                                  style={{
-                                    background: "var(--surface)",
-                                    border: "1px solid var(--border-s)",
-                                    borderRadius: "var(--r-sm)",
-                                    padding: "8px 10px",
-                                    color: "var(--text)",
-                                    fontSize: 13,
-                                    fontFamily: "var(--font-body)",
-                                    width: "100%",
-                                  }}
                                 />
-                                <datalist id={`edit-ing-types-${p.id}`}>
-                                  {types.map((t) => (
-                                    <option key={t.id} value={t.name} />
-                                  ))}
-                                  {aliases.map((a) => (
-                                    <option key={a.id} value={a.alias} />
-                                  ))}
-                                </datalist>
-                                {editingProduct.ingredientTypeName.trim() &&
-                                  !editMatchedType && (
-                                    <p
-                                      style={{
-                                        margin: "4px 0 0",
-                                        fontSize: 11,
-                                        color: "var(--amber)",
-                                      }}
-                                    >
-                                      Doesn't match an existing ingredient type.
-                                    </p>
-                                  )}
+                                <div>
+                                  <label
+                                    style={{
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      color: "var(--text2)",
+                                      fontFamily: "var(--font-display)",
+                                      textTransform: "uppercase",
+                                      letterSpacing: "0.06em",
+                                      display: "block",
+                                      marginBottom: 4,
+                                    }}
+                                  >
+                                    Ingredient Type
+                                  </label>
+                                  <input
+                                    list={`edit-ing-types-${p.id}`}
+                                    value={editingProduct.ingredientTypeName}
+                                    onChange={(e) =>
+                                      setEditingProduct({
+                                        ...editingProduct,
+                                        ingredientTypeName: e.target.value,
+                                      })
+                                    }
+                                    style={{
+                                      background: "var(--surface)",
+                                      border: "1px solid var(--border-s)",
+                                      borderRadius: "var(--r-sm)",
+                                      padding: "8px 10px",
+                                      color: "var(--text)",
+                                      fontSize: 13,
+                                      fontFamily: "var(--font-body)",
+                                      width: "100%",
+                                    }}
+                                  />
+                                  <datalist id={`edit-ing-types-${p.id}`}>
+                                    {types.map((t) => (
+                                      <option key={t.id} value={t.name} />
+                                    ))}
+                                    {aliases.map((a) => (
+                                      <option key={a.id} value={a.alias} />
+                                    ))}
+                                  </datalist>
+                                  {editingProduct.ingredientTypeName.trim() &&
+                                    !editMatchedType && (
+                                      <p
+                                        style={{
+                                          margin: "4px 0 0",
+                                          fontSize: 11,
+                                          color: "var(--amber)",
+                                        }}
+                                      >
+                                        Doesn't match an existing ingredient
+                                        type.
+                                      </p>
+                                    )}
+                                </div>
+                                <Input
+                                  label="Brand (optional)"
+                                  value={editingProduct.brand}
+                                  onChange={(v) =>
+                                    setEditingProduct({
+                                      ...editingProduct,
+                                      brand: v,
+                                    })
+                                  }
+                                />
+                                {editError && (
+                                  <p
+                                    style={{
+                                      margin: 0,
+                                      fontSize: 12,
+                                      color: "var(--coral)",
+                                    }}
+                                  >
+                                    {editError}
+                                  </p>
+                                )}
+                                <div style={{ display: "flex", gap: 8 }}>
+                                  <Btn
+                                    variant="primary"
+                                    small
+                                    disabled={
+                                      editSaving ||
+                                      !editingProduct.name.trim() ||
+                                      !editMatchedType
+                                    }
+                                    onClick={handleSaveEditProduct}
+                                  >
+                                    {editSaving ? "Saving..." : "Save"}
+                                  </Btn>
+                                  <Btn
+                                    variant="ghost"
+                                    small
+                                    onClick={() => setEditingProduct(null)}
+                                  >
+                                    Cancel
+                                  </Btn>
+                                </div>
                               </div>
-                              <Input
-                                label="Brand (optional)"
-                                value={editingProduct.brand}
-                                onChange={(v) =>
-                                  setEditingProduct({
-                                    ...editingProduct,
-                                    brand: v,
-                                  })
-                                }
-                              />
-                              {editError && (
-                                <p
+                            )
+                          }
+                          if (confirmDeleteProductId === p.id) {
+                            return (
+                              <div
+                                key={p.id}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 10,
+                                  padding: "7px 14px",
+                                  borderBottom: rowBorder,
+                                  background: "var(--bg2)",
+                                }}
+                              >
+                                <span
                                   style={{
-                                    margin: 0,
+                                    flex: 1,
                                     fontSize: 12,
                                     color: "var(--coral)",
                                   }}
                                 >
-                                  {editError}
-                                </p>
-                              )}
-                              <div style={{ display: "flex", gap: 8 }}>
+                                  Delete "{p.name}"? This can't be undone.
+                                </span>
                                 <Btn
-                                  variant="primary"
+                                  variant="danger"
                                   small
-                                  disabled={
-                                    editSaving ||
-                                    !editingProduct.name.trim() ||
-                                    !editMatchedType
-                                  }
-                                  onClick={handleSaveEditProduct}
+                                  disabled={deletingProduct}
+                                  onClick={() => handleDeleteProduct(p.id)}
                                 >
-                                  {editSaving ? "Saving..." : "Save"}
+                                  Delete
                                 </Btn>
                                 <Btn
                                   variant="ghost"
                                   small
-                                  onClick={() => setEditingProduct(null)}
+                                  onClick={() =>
+                                    setConfirmDeleteProductId(null)
+                                  }
                                 >
                                   Cancel
                                 </Btn>
                               </div>
-                            </div>
-                          )
-                        }
-                        if (confirmDeleteProductId === p.id) {
+                            )
+                          }
                           return (
                             <div
                               key={p.id}
                               style={{
                                 display: "flex",
                                 alignItems: "center",
-                                gap: 10,
-                                padding: isChild
-                                  ? "7px 14px 7px 58px"
-                                  : "7px 14px 7px 38px",
+                                gap: 12,
+                                padding: "7px 14px",
                                 borderBottom: rowBorder,
                                 background: "var(--bg2)",
                               }}
                             >
-                              <span
-                                style={{
-                                  flex: 1,
-                                  fontSize: 12,
-                                  color: "var(--coral)",
-                                }}
-                              >
-                                Delete "{p.name}"? This can't be undone.
-                              </span>
-                              <Btn
-                                variant="danger"
-                                small
-                                disabled={deletingProduct}
-                                onClick={() => handleDeleteProduct(p.id)}
-                              >
-                                Delete
-                              </Btn>
-                              <Btn
-                                variant="ghost"
-                                small
-                                onClick={() => setConfirmDeleteProductId(null)}
-                              >
-                                Cancel
-                              </Btn>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div
+                                  style={{
+                                    fontSize: 12,
+                                    color: ownedProductIds.has(p.id)
+                                      ? "var(--text)"
+                                      : "var(--text3)",
+                                  }}
+                                >
+                                  {p.name}
+                                  {p.brand && p.brand !== p.name
+                                    ? ` · ${p.brand}`
+                                    : ""}
+                                  {p.is_homemade ? " · homemade" : ""}
+                                </div>
+                              </div>
+                              {isAdmin && (
+                                <button
+                                  onClick={() => startEditProduct(p)}
+                                  title="Edit product"
+                                  style={{
+                                    background: "none",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    padding: 4,
+                                    color: "var(--text3)",
+                                    display: "flex",
+                                    alignItems: "center",
+                                  }}
+                                >
+                                  <IconEdit size={14} />
+                                </button>
+                              )}
+                              {isAdmin && (
+                                <button
+                                  onClick={() =>
+                                    setConfirmDeleteProductId(p.id)
+                                  }
+                                  title="Delete product"
+                                  style={{
+                                    background: "none",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    padding: 4,
+                                    color: "var(--text3)",
+                                    display: "flex",
+                                    alignItems: "center",
+                                  }}
+                                >
+                                  <IconTrash size={14} />
+                                </button>
+                              )}
+                              <OwnedToggle
+                                owned={ownedProductIds.has(p.id)}
+                                onChange={() => toggleProduct(p.id)}
+                              />
                             </div>
                           )
-                        }
-                        return (
-                          <div
-                            key={p.id}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 12,
-                              padding: isChild
-                                ? "7px 14px 7px 58px"
-                                : "7px 14px 7px 38px",
-                              borderBottom: rowBorder,
-                              background: "var(--bg2)",
-                            }}
-                          >
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div
-                                style={{
-                                  fontSize: 12,
-                                  color: ownedProductIds.has(p.id)
-                                    ? "var(--text)"
-                                    : "var(--text3)",
-                                }}
-                              >
-                                {p.name}
-                                {p.brand && p.brand !== p.name
-                                  ? ` · ${p.brand}`
-                                  : ""}
-                                {p.is_homemade ? " · homemade" : ""}
-                              </div>
-                            </div>
-                            {isAdmin && (
-                              <button
-                                onClick={() => startEditProduct(p)}
-                                title="Edit product"
-                                style={{
-                                  background: "none",
-                                  border: "none",
-                                  cursor: "pointer",
-                                  padding: 4,
-                                  color: "var(--text3)",
-                                  display: "flex",
-                                  alignItems: "center",
-                                }}
-                              >
-                                <IconEdit size={14} />
-                              </button>
-                            )}
-                            {isAdmin && (
-                              <button
-                                onClick={() => setConfirmDeleteProductId(p.id)}
-                                title="Delete product"
-                                style={{
-                                  background: "none",
-                                  border: "none",
-                                  cursor: "pointer",
-                                  padding: 4,
-                                  color: "var(--text3)",
-                                  display: "flex",
-                                  alignItems: "center",
-                                }}
-                              >
-                                <IconTrash size={14} />
-                              </button>
-                            )}
-                            <OwnedToggle
-                              owned={ownedProductIds.has(p.id)}
-                              onChange={() => toggleProduct(p.id)}
-                            />
-                          </div>
-                        )
-                      })}
+                        })}
+                      </Card>
+                    )}
                   </div>
                 )
               })}
-            </Card>
+            </div>
           </div>
         ))}
         {filtered.length === 0 && (

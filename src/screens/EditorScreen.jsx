@@ -6,6 +6,8 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom"
+import { FamilyIcon } from "@/components/FamilyIcon"
+import { GlassSvg } from "@/components/GlassSvg"
 import { IconCheck, IconCopy, IconPlus, IconX } from "@/components/icons"
 import { TopBar } from "@/components/Nav"
 import {
@@ -570,7 +572,7 @@ export default function EditorScreen() {
                     key={g.id}
                     onClick={() => setGlassName(g.name)}
                     style={{
-                      padding: "6px 14px",
+                      padding: "8px 14px 6px",
                       borderRadius: 8,
                       border: `1px solid ${
                         effectiveGlassName === g.name
@@ -591,8 +593,21 @@ export default function EditorScreen() {
                       fontWeight: 500,
                       textTransform: "capitalize",
                       transition: "all 0.15s",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 2,
                     }}
                   >
+                    <GlassSvg
+                      type={g.name.toLowerCase()}
+                      size={28}
+                      color={
+                        effectiveGlassName === g.name
+                          ? "var(--cyan)"
+                          : "var(--text2)"
+                      }
+                    />
                     {g.name}
                   </button>
                 ))}
@@ -618,7 +633,7 @@ export default function EditorScreen() {
                 <button
                   onClick={() => setFamilyId("")}
                   style={{
-                    padding: "6px 14px",
+                    padding: "8px 14px 6px",
                     borderRadius: 8,
                     border: `1px solid ${
                       !familyId ? "var(--cyan)" : "var(--border-s)"
@@ -640,7 +655,7 @@ export default function EditorScreen() {
                     key={f.id}
                     onClick={() => setFamilyId(f.id)}
                     style={{
-                      padding: "6px 14px",
+                      padding: "8px 14px 6px",
                       borderRadius: 8,
                       border: `1px solid ${
                         familyId === f.id ? "var(--cyan)" : "var(--border-s)"
@@ -654,8 +669,13 @@ export default function EditorScreen() {
                       fontSize: 13,
                       fontFamily: "var(--font-display)",
                       fontWeight: 500,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 2,
                     }}
                   >
+                    <FamilyIcon family={f.name} size={24} />
                     {f.name}
                   </button>
                 ))}

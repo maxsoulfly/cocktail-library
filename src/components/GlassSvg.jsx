@@ -1,7 +1,13 @@
 // Flat glass silhouette with a liquid-color fill — the spec's stand-in for
 // recipe photography. Fill opacity drops when the cocktail is unavailable.
 
-export function GlassSvg({ type, liquidColor, size = 64, avail = "unavail" }) {
+export function GlassSvg({
+  type,
+  liquidColor,
+  size = 64,
+  avail = "unavail",
+  color = "var(--text2)",
+}) {
   const liqOp = avail === "unavail" ? 0.2 : 0.72
   const stk = {
     stroke: "currentColor",
@@ -18,7 +24,7 @@ export function GlassSvg({ type, liquidColor, size = 64, avail = "unavail" }) {
         height={size}
         viewBox="0 0 56 56"
         fill="none"
-        style={{ color: "var(--text2)" }}
+        style={{ color }}
       >
         <rect
           x="11"
@@ -61,7 +67,7 @@ export function GlassSvg({ type, liquidColor, size = 64, avail = "unavail" }) {
         height={size}
         viewBox="0 0 56 56"
         fill="none"
-        style={{ color: "var(--text2)" }}
+        style={{ color }}
       >
         <rect
           x="15"
@@ -104,7 +110,7 @@ export function GlassSvg({ type, liquidColor, size = 64, avail = "unavail" }) {
         height={size}
         viewBox="0 0 56 56"
         fill="none"
-        style={{ color: "var(--text2)" }}
+        style={{ color }}
       >
         <path
           d="M10 10 Q10 30 28 34 Q46 30 46 10 Z"
@@ -124,7 +130,7 @@ export function GlassSvg({ type, liquidColor, size = 64, avail = "unavail" }) {
         height={size}
         viewBox="0 0 56 56"
         fill="none"
-        style={{ color: "var(--text2)" }}
+        style={{ color }}
       >
         <path
           d="M16 6 Q13 22 18 30 Q22 36 28 38 Q34 36 38 30 Q43 22 40 6 Z"
@@ -146,7 +152,7 @@ export function GlassSvg({ type, liquidColor, size = 64, avail = "unavail" }) {
       height={size}
       viewBox="0 0 56 56"
       fill="none"
-      style={{ color: "var(--text2)" }}
+      style={{ color }}
     >
       <polygon
         points="10,10 46,10 28,34"
