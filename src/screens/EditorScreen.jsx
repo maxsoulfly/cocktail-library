@@ -32,11 +32,46 @@ function unitLabelToForm(ri) {
   return { amount: amount ?? "", unit: rest.join(" ") || NON_VOLUME_UNITS[0] }
 }
 
+// New-recipe drafts (see the isDraftable block in the component below) used
+// a single localStorage slot per user - starting a second in-progress
+// recipe silently overwrote the first one, which read as "my draft got
+// deleted" the moment someone had two blocked recipes going at once. Each
+// draft now gets its own id (reflected in the URL as ?draft=<id> so a
+// refresh/return-from-ingredient-request keeps pointing at the same one),
+// with a small index tracking id/name/updatedAt for all of them. Capped at
+// MAX_DRAFTS, oldest evicted first, so this can't grow without bound.
+const MAX_DRAFTS = 5
+const draftIndexKeyFor = (userId) => `recipe-drafts:${userId}`
+const draftContentKeyFor = (userId, draftId) =>
+  `recipe-draft:${userId}:${draftId}`
+function readDraftIndex(userId) {
+  if (!userId) return []
+  try {
+    return JSON.parse(localStorage.getItem(draftIndexKeyFor(userId))) ?? []
+  } catch {
+    return []
+  }
+}
+function upsertDraftIndexEntry(userId, entry) {
+  const list = readDraftIndex(userId).filter((d) => d.id !== entry.id)
+  list.unshift(entry)
+  while (list.length > MAX_DRAFTS) {
+    const evicted = list.pop()
+    localStorage.removeItem(draftContentKeyFor(userId, evicted.id))
+  }
+  localStorage.setItem(draftIndexKeyFor(userId), JSON.stringify(list))
+}
+function removeDraftIndexEntry(userId, draftId) {
+  const list = readDraftIndex(userId).filter((d) => d.id !== draftId)
+  localStorage.setItem(draftIndexKeyFor(userId), JSON.stringify(list))
+  localStorage.removeItem(draftContentKeyFor(userId, draftId))
+}
+
 export default function EditorScreen() {
   const navigate = useNavigate()
   const location = useLocation()
   const { id } = useParams()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const isEditing = Boolean(id)
   // Cloning (?clone=<id>, linked from DetailScreen's "Clone as My Own
   // Recipe") is a plain new-recipe creation, not editing - it prefills the
@@ -91,37 +126,64 @@ export default function EditorScreen() {
   // new-recipe creation only, not editing or cloning - both of those already
   // have their own prefill source and a saved copy to fall back to.
   const isDraftable = !isEditing && !cloneSourceId
-  const draftKey = isDraftable && userId ? `recipe-draft:${userId}` : null
+  const draftId = isDraftable ? searchParams.get("draft") : null
+  const draftKey =
+    isDraftable && userId && draftId
+      ? draftContentKeyFor(userId, draftId)
+      : null
   const [draftBanner, setDraftBanner] = useState(null)
+  // Shown instead of draftBanner when landing on a genuinely blank New
+  // Recipe (no ?draft= yet) and other drafts already exist on this browser -
+  // picking one navigates to the same page with ?draft=<id>, which then
+  // shows draftBanner for that specific one on the next check below.
+  const [otherDrafts, setOtherDrafts] = useState([])
 
   useEffect(() => {
-    if (!draftKey) return
-    const raw = localStorage.getItem(draftKey)
-    if (!raw) return
-    try {
-      const draft = JSON.parse(raw)
-      if (draft?.name?.trim()) setDraftBanner(draft)
-      else localStorage.removeItem(draftKey)
-    } catch {
-      localStorage.removeItem(draftKey)
+    if (!isDraftable || !userId) return
+    if (draftId) {
+      const raw = localStorage.getItem(draftKey)
+      if (!raw) return
+      try {
+        const draft = JSON.parse(raw)
+        if (draft?.name?.trim()) setDraftBanner(draft)
+        else removeDraftIndexEntry(userId, draftId)
+      } catch {
+        removeDraftIndexEntry(userId, draftId)
+      }
+    } else {
+      setOtherDrafts(readDraftIndex(userId))
     }
     // Only ever check once, right after mount - restoring/discarding is a
     // one-time user decision, not something to re-run as the form changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draftKey])
+  }, [isDraftable, userId, draftId])
 
   useEffect(() => {
-    if (!draftKey || draftBanner) return
+    if (!isDraftable || !userId || draftBanner) return
     const hasContent =
       name.trim() ||
       ings.some((i) => i.ingredientName.trim()) ||
       steps.some((s) => s.trim())
     if (!hasContent) {
-      localStorage.removeItem(draftKey)
+      if (draftId) removeDraftIndexEntry(userId, draftId)
       return
     }
+    const id =
+      draftId ??
+      (() => {
+        const newId = crypto.randomUUID()
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev)
+            next.set("draft", newId)
+            return next
+          },
+          { replace: true },
+        )
+        return newId
+      })()
     localStorage.setItem(
-      draftKey,
+      draftContentKeyFor(userId, id),
       JSON.stringify({
         name,
         desc,
@@ -133,9 +195,16 @@ export default function EditorScreen() {
         tasteTagIds,
       }),
     )
+    upsertDraftIndexEntry(userId, {
+      id,
+      name: name.trim() || "Untitled draft",
+      updatedAt: Date.now(),
+    })
   }, [
-    draftKey,
+    isDraftable,
+    userId,
     draftBanner,
+    draftId,
     name,
     desc,
     glassName,
@@ -144,6 +213,7 @@ export default function EditorScreen() {
     ings,
     steps,
     tasteTagIds,
+    setSearchParams,
   ])
 
   const restoreDraft = () => {
@@ -162,8 +232,29 @@ export default function EditorScreen() {
     setDraftBanner(null)
   }
   const discardDraft = () => {
-    if (draftKey) localStorage.removeItem(draftKey)
+    if (userId && draftId) removeDraftIndexEntry(userId, draftId)
     setDraftBanner(null)
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete("draft")
+        return next
+      },
+      { replace: true },
+    )
+  }
+  const continueOtherDraft = (id) =>
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.set("draft", id)
+        return next
+      },
+      { replace: true },
+    )
+  const discardOtherDraft = (id) => {
+    if (userId) removeDraftIndexEntry(userId, id)
+    setOtherDrafts((prev) => prev.filter((d) => d.id !== id))
   }
 
   useEffect(() => {
@@ -396,7 +487,7 @@ export default function EditorScreen() {
       const recipe = isEditing
         ? await updateRecipe(id, payload)
         : await createRecipe(payload)
-      if (draftKey) localStorage.removeItem(draftKey)
+      if (userId && draftId) removeDraftIndexEntry(userId, draftId)
       await refetchRecipes() // so the change is in `computed` before DetailScreen looks for it
       navigate(`/library/${recipe.id}`)
     } catch (err) {
@@ -520,6 +611,59 @@ export default function EditorScreen() {
             <Btn variant="ghost" small onClick={discardDraft}>
               Discard
             </Btn>
+          </div>
+        )}
+        {!draftBanner && otherDrafts.length > 0 && (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+              background: "rgba(34,211,238,0.08)",
+              border: "1px solid rgba(34,211,238,0.25)",
+              borderRadius: "var(--r-sm)",
+              padding: "10px 14px",
+            }}
+          >
+            <span style={{ fontSize: 12, color: "var(--text2)" }}>
+              You have {otherDrafts.length} unsaved draft
+              {otherDrafts.length === 1 ? "" : "s"} on this browser (max{" "}
+              {MAX_DRAFTS}) - continue one, or just start typing below for a new
+              one.
+            </span>
+            {otherDrafts.map((d) => (
+              <div
+                key={d.id}
+                style={{ display: "flex", alignItems: "center", gap: 8 }}
+              >
+                <span
+                  style={{
+                    flex: 1,
+                    fontSize: 13,
+                    color: "var(--text)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {d.name}
+                </span>
+                <Btn
+                  variant="primary"
+                  small
+                  onClick={() => continueOtherDraft(d.id)}
+                >
+                  Continue
+                </Btn>
+                <Btn
+                  variant="ghost"
+                  small
+                  onClick={() => discardOtherDraft(d.id)}
+                >
+                  Discard
+                </Btn>
+              </div>
+            ))}
           </div>
         )}
         {showPasteOption && (
