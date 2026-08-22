@@ -30,6 +30,17 @@ export async function fetchPendingIngredientRequests() {
   return data
 }
 
+// Own-while-pending only, per the "ingredient_requests: owner deletes while
+// pending" RLS policy - once an admin has resolved a request, the record
+// belongs to their review history and this will correctly fail.
+export async function deleteMyIngredientRequest(id) {
+  const { error } = await supabase
+    .from("ingredient_requests")
+    .delete()
+    .eq("id", id)
+  if (error) throw error
+}
+
 export async function resolveIngredientRequest(id, status, adminNote) {
   const { error } = await supabase
     .from("ingredient_requests")
