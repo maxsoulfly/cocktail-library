@@ -15,14 +15,24 @@ Agreed phase plan (revised by user on 2026-08-15 — private recipe CRUD moved i
 9. ~~Library browsing, filters, Favorites, Want to Make (Phase 4)~~ — **done, 2026-08-16 — verified**
 10. ~~Purchase recommendations, tested (Phase 4)~~ — **done, 2026-08-16 — verified**
 11. ~~Recipe publishing + admin unpublishing (Phase 5)~~ — **done, 2026-08-16 — browser-verified**
-12. Admin catalog tools + JSON import preview/validation (Phase 5) — **in progress**: ingredient-type batch import (AI-prompt-assisted) and a member ingredient-request queue are done; recipe/product import, real invitation generation, and glass/taste-tag/family management are not started.
+12. Admin catalog tools + JSON import preview/validation (Phase 5) — **in progress**: ingredient-type batch import (AI-prompt-assisted), a member ingredient-request queue, and real invitation generation/revocation are done; recipe/product import and glass/taste-tag/family management are not started.
 13. Responsive/accessibility/security/deployment QA (Phase 6)
 
 Each numbered step is a development chunk boundary for this file.
 
 ## Last completed chunk
 
-Step 12, first slice: real ingredient-type batch import with an AI-formatting-prompt generator, plus a lightweight member-facing ingredient-request queue. Both were user-requested mid-session, growing out of the taxonomy conversation below.
+Step 12, third slice: real invitation generation/revocation, replacing the Admin → Invitations tab's client-only mock. Triggered directly by the user hitting the bug this mock caused: they tried to sign in as a second test user and got "This invitation code is not valid" for a code the Admin panel listed as "active" - because that code (`CL-ALPHA-7X2` from `MOCK_INVITES`) had never actually been written to the `invitations` table; `generateInvite` was pure `useState`, never touching Supabase, while the real "Invitation needed" screen's `redeem_invitation` RPC correctly checked the real (empty) table.
+
+**Fix**: migration `20260822090000_invitation_generation.sql` adds `create_invitation(expires_in_days default 60)`, a `SECURITY DEFINER` function (admin-gated via `is_admin()` inside the function body, matching AGENTS.md's rule that generation must run in protected backend logic, not client-side trust) that generates a `CL-XXXXX-XXX` code with a 5-attempt unique-collision retry and inserts the row server-side. Also fixes `invitations.redeemed_by`'s FK to point at `public.profiles` instead of `auth.users` (matching `created_by` and `ingredient_requests.requested_by`), so the admin UI can embed the redeemer's `display_name` via a normal PostgREST select instead of a second round-trip. Revocation deliberately does **not** get a matching function - admins already have full RLS access to `invitations` ("invitations: admin manages"), so `revokeInvitation()` in the new `src/services/invitations.js` is a direct guarded update (`revoked_at is null and redeemed_at is null`), following the same precedent as `resolveIngredientRequest`/`createIngredientTypes` (SECURITY DEFINER is reserved for cases where RLS genuinely can't grant the caller access, like redemption-by-a-non-member). `AdminScreen.jsx`'s Invitations tab now loads/generates/revokes for real; status (active/redeemed/expired/**revoked** - a state the old mock never modeled) is derived client-side from timestamps via `deriveInvitationStatus()`, matching the table's own "no stored status column" design. `MOCK_INVITES` deleted from `src/data/mockData.js` (no longer referenced anywhere).
+
+Verified directly against the live DB before considering this done (simulated admin and non-admin JWT claims via `supabase db query`): `create_invitation()` succeeds for an admin (returned a real row, `created_by` correctly set, `expires_at` ~60 days out) and raises `"Only administrators can generate invitations."` for a non-admin, exactly as the function requires. The new PostgREST embed (`profiles!invitations_redeemed_by_fkey`) sanity-checked via a real REST call per AGENTS.md's embed-testing guidance (200, empty due to anon RLS denial - confirms the select shape is valid). Test invitation revoked as cleanup after verification. `pnpm test` (45/45) and `pnpm build` both clean; `db advisors --type security` shows only the same long-familiar accepted WARNs (every admin `SECURITY DEFINER` function in this codebase produces the same "callable by authenticated" WARN by design).
+
+**Not yet browser-clicked**: generate a real invitation via the Admin UI button, copy it, redeem it from a second account's "Invitation needed" screen, confirm it shows "redeemed" with the right display name, and confirm Revoke correctly blocks redemption of a revoked code.
+
+## Earlier chunk (step 12, first slice)
+
+Real ingredient-type batch import with an AI-formatting-prompt generator, plus a lightweight member-facing ingredient-request queue. Both were user-requested mid-session, growing out of the taxonomy conversation below.
 
 **Ingredient requests** (migration `20260816013526_ingredient_requests.sql`): members can't create ingredient types (spec §4), but had no way to flag a gap. New `ingredient_requests` table (name, note, status pending/fulfilled/dismissed) - members insert/read their own and can delete while still pending, admin reads/resolves all. `RequestIngredientScreen.jsx` (`/request-ingredient`, linked from More → Catalog and from the "doesn't match an existing ingredient type" warnings in `EditorScreen.jsx`/`AddProductScreen.jsx`, pre-filled with whatever name didn't match) is the submission form. `AdminScreen.jsx` gained a "Requests" tab (badge-counted in the tab bar) to fulfill/dismiss.
 
@@ -54,17 +64,27 @@ Migrations for all of the above: `20260815230002_recipe_publishing.sql`, `202608
 - Admin ingredient-type insert path verified directly against the live DB (simulated admin auth, real insert/select/cleanup).
 - Ingredient request insert/read/update path verified directly against the live DB - including confirming the "owner can delete only while pending" policy correctly blocks a delete after the admin has resolved it (found via a real blocked cleanup attempt, not by reasoning alone).
 - Step 11, the loading-flash fix, and the scroll fix are all **browser-confirmed by the user**.
+- `create_invitation()` verified directly against the live DB with simulated admin and non-admin JWT claims (admin succeeds with a real row, non-admin correctly rejected); the new `profiles!invitations_redeemed_by_fkey` PostgREST embed sanity-checked via a real REST call (200, empty due to anon RLS denial).
 
-## Checks needed (not yet browser-verified)
+## Browser walkthrough, 2026-08-22 - results
 
-Everything below has passed `pnpm test`/`pnpm build` and, where it touches the DB, a direct DB-level check - but hasn't been clicked through in a real browser yet:
+User worked through the full "Checks needed" list from the previous chunk:
 
-- **Recipe editing**: as owner (edit your own private/community recipe) and as admin (edit a classic recipe only - confirm editing someone *else's* recipe is correctly blocked).
-- **Taxonomy display** in My Bar: Spirit sorts first, Bitters/Herb/Juice/Garnish sort last; Dark Rum/Bourbon appear indented under Rum/Whiskey; Campari/Aperol appear indented under Aperitif; the new Garnish section (Orange, Lemon, Lime, Cherry, Berries) shows up; a parent type not directly owned but with an owned child shows "Covered by \<child\>".
-- **Ingredient requests**: submit one from the "doesn't match" warning in New Recipe (or Add Product, or More → Catalog), confirm it shows up in Admin → Requests, fulfill/dismiss it, confirm the "Add to catalog" button jumps to a pre-filled Single Ingredient form.
-- **Ingredient batch import**: Admin → Batch Import → Batch Import (AI) → copy the prompt (confirm it's actually readable/selectable now, not cramped), hand it to an AI with a couple of real ingredient names, paste the JSON back in, validate, commit - confirm the new types show up immediately in My Bar (no refresh needed) in the right category/sub-group.
-- **Single Ingredient add**: confirm the Category field starts unselected (no more silent "Spirit" default), Parent Type only appears after a category is picked, and the color swatches work the same as the recipe editor's.
-- **Liquid color picker**: create or edit a recipe, confirm the swatch picker saves and the glass's liquid color actually changes on the detail page (not stuck on cyan).
+- **Recipe editing**: admin-edit-a-classic confirmed working. Owner-editing-their-own-community-recipe still **not checked** (only got to test as admin).
+- **Taxonomy display in My Bar**: all five sub-checks (sort order, Rum/Whiskey indentation, Aperitif indentation, Garnish section, "Covered by ‹child›") **confirmed working**. Follow-up request (deferred, polish backlog): pictogram+text per ingredient type in My Bar, with the on/off toggle living on the pictogram itself rather than a separate switch.
+- **Ingredient requests**: flow wasn't clear from the checklist wording alone - walked the user through the exact screens/buttons (More → Catalog → "Request an Ingredient", or the "Request it" link in New Recipe/Add Product's "doesn't match" warning; admin resolves via Admin → Requests). Not yet actually clicked through.
+- **Ingredient batch import**: **confirmed working end-to-end** - user generated the AI prompt, got real JSON back for Mezcal + Crema di Pistacchio, pasted/validated/committed successfully.
+- **Single Ingredient add**: user flagged "no color picker in My Bar" as a possible gap - confirmed this is correct behavior, not a bug: the color picker only exists where a *new ingredient type* is defined (Admin → Batch Import → Single Ingredient), because `AddProductScreen` (My Bar's add-product flow) only ever attaches a product to an *existing* ingredient type, which already has a color.
+- **Liquid color picker**: **confirmed working** (swatch picker saves, detail-page glass color updates). Two follow-up requests (deferred, polish backlog): pictogram+text glass picker (replacing the current text-label buttons in `EditorScreen.jsx`), and an admin-facing way to add custom colors to `LIQUID_COLORS` beyond the current 10 fixed swatches.
+- **User also asked** whether classic/community/private recipes are visually distinguished - they already are, via the existing `SourceBadge` component (`src/components/primitives.jsx`) shown on Library cards and the Detail screen, plus a Library filter-chip row. Nothing to build there; just wasn't obvious from the UI alone.
+- **Real bug found this session, now fixed** (see "Last completed chunk" above): Admin → Invitations was a client-only mock disconnected from the real `invitations` table - the user hit this directly trying to test with a second account. Real invitation generation/revocation now shipped; generating and redeeming a real invitation end-to-end through the browser is the one still-open item from this fix.
+
+## Checks still needed (not yet browser-verified)
+
+- Recipe editing as the **owner** of a private/community recipe (not just as admin on a classic).
+- Confirm editing someone *else's* recipe is correctly blocked.
+- Ingredient request flow, now that the exact screens/buttons have been explained.
+- Real invitation generation → copy → redeem-from-a-second-account end-to-end through the browser UI (the underlying function is DB-verified; the UI path itself isn't yet).
 
 ## Remaining / not started (what's next)
 
@@ -72,12 +92,13 @@ Everything below has passed `pnpm test`/`pnpm build` and, where it touches the D
 
 - Recipe batch import - same validate/preview/AI-prompt approach as ingredients, but recipes need ingredient-type resolution, glass/family lookups, and component/step arrays, so likely not a trivial copy of `src/schemas/ingredientImport.js`.
 - Product batch import.
-- Real invitation generation/revocation - Invitations tab is still the original mock; needs a `SECURITY DEFINER` function following the `redeem_invitation`/`publish_recipe` pattern.
 - Glass/taste-tag/family management UI - currently only editable via migrations.
 
 **Step 13** (final phase): responsive/accessibility/security/deployment QA - not started at all yet.
 
 **Long-carried, lower-priority items**: no editor UI for substitution alternatives/hierarchy; no RLS/integration test harness beyond manual smoke-testing (this session's DB-level checks included); `<datalist>` ingredient-autocomplete theming (user-accepted deferral back in step 6). No recipe yet references any of the new Garnish types - they're real catalog entries, just not yet used as a component on any actual recipe.
+
+**Polish backlog (user-requested, explicitly deferred, 2026-08-22)**: pictogram+text treatment for ingredient types in My Bar with the toggle on the pictogram itself; pictogram+text glass picker in the recipe editor (replacing the current text-label buttons); an admin-facing way to add custom colors to the `LIQUID_COLORS` swatch set beyond the current 10 fixed values.
 
 ## Blockers / open questions
 
@@ -91,21 +112,23 @@ An untracked "Juice"/"Wine" ingredient-category pair was found live in the datab
 - **The AI-formatting-prompt is generated from the same catalog data the validator checks against**, not hand-written separately - this was flagged as a requirement while planning step 12, specifically to prevent the prompt's instructions and the validator's actual rules from silently drifting apart over time.
 - **Classic/product import options are shown but disabled ("Coming soon") rather than left as the old fake-success mock.** Once one import path is real, faking success for the other two would be actively misleading rather than merely incomplete.
 - **Ingredient requests don't auto-create anything.** Fulfilling a request is bookkeeping (marks it resolved); the admin still goes through Batch Import to actually add the type, since a request is just a name + optional note, not a validated category/hierarchy/color.
+- **Invitation generation is a `SECURITY DEFINER` function; revocation is a direct RLS-gated update, not a matching function.** AGENTS.md is explicit that invitation *generation* must run in protected backend logic, not client-side trust - but admins already have a full RLS grant on `invitations` ("invitations: admin manages"), so revocation (and reading the list) go through that grant directly, same precedent as `resolveIngredientRequest`/`createIngredientTypes`. SECURITY DEFINER is reserved for cases RLS genuinely can't cover, like a not-yet-a-member redeeming a code.
+- **`invitations.redeemed_by` now references `profiles`, not `auth.users`.** Matches `created_by` and `ingredient_requests.requested_by`, and lets the admin UI embed the redeemer's `display_name` in one PostgREST select instead of a second query.
 
 Earlier decisions (still standing, trimmed here - see git history for step 2-10 and earlier step-11 notes): JS-only in `src/**` with `vite.config.ts` exempted; hosted Supabase; repo at `github.com/maxsoulfly/cocktail-library`; RLS policy shape (one policy per command, `to authenticated` explicit, `(select auth.uid())` wrapped, `coalesce(..., false)` around any comparison against a nullable column used in an authorization check); every `SECURITY DEFINER` function needs `revoke ... from public, anon, authenticated` explicitly; `useCatalog`/`useInventory`/`useRecipes`/`useLists` called exactly once in `AppShell` and shared via context, and none of their `refetch()`s should re-enter a blocking `loading:true` state; `Card` forwards `onClick`; `AppShell`'s root wrapper needs `height`, not `minHeight`.
 
 ## Migrations / environment changes
 
-Six new migrations this session (full list under "Recently completed" above), all applied via `supabase db push`. No new environment variables.
+Seven migrations total across this session's work (six from the earlier "Recently completed" list, plus `20260822090000_invitation_generation.sql` for real invitation generation), all applied via `supabase db push`. No new environment variables.
 
 ## Tests / build checks last run
 
-2026-08-16: `pnpm test` — 45/45 passing. `pnpm build` — no errors (checked after every chunk, including after `pnpm format`). `npx supabase db push` — all six migrations applied (one required a fix-forward after a unique-constraint collision with a pre-existing untracked "Juice" category). `npx supabase db advisors --linked --type all`/`--type security` — clean after every migration. Ingredient-type insert and ingredient-request insert/update/delete paths verified directly against the live DB with simulated auth contexts.
+2026-08-22: `pnpm test` — 45/45 passing. `pnpm build` — no errors. `pnpm format` — clean. `npx supabase db push` — `20260822090000_invitation_generation.sql` applied cleanly. `npx supabase db advisors --linked --type security` — only the same long-familiar accepted WARNs (every admin `SECURITY DEFINER` function shows as "callable by authenticated" by design; leaked-password-protection still disabled). `create_invitation()` verified directly against the live DB with simulated admin (success) and non-admin (correctly rejected) JWT claims; the new `profiles!invitations_redeemed_by_fkey` embed sanity-checked via a real REST call (200, empty due to anon RLS denial). Test invitation revoked as cleanup.
 
 ## Exact next recommended action
 
-Work through "Checks needed" above first, then pick up "Remaining / not started" - recipe batch import is the natural next build (same shape as the ingredient import just shipped). Ask the user about the untracked "Juice"/"Wine" category mystery whenever it's convenient - not urgent, but unresolved.
+Work through "Checks still needed" above - particularly generating and redeeming a real invitation through the actual browser UI (the DB-level logic is verified, the click-through isn't), plus recipe-editing-as-owner and the ingredient-request flow now that it's been explained. After that, recipe batch import is the natural next build (same shape as the ingredient import already shipped). Ask the user about the untracked "Juice"/"Wine" category mystery whenever convenient - not urgent, still unresolved.
 
 ## Files/areas relevant to next action
 
-`src/schemas/ingredientImport.js` (extend/generalize for recipe import - likely a similar validate+prompt pair, but recipes need ingredient-type resolution, glass/family lookups, and component/step arrays, so probably not a trivial copy-paste). `src/screens/AdminScreen.jsx` (Invitations tab still fully mock - real generation needs a `SECURITY DEFINER` function following the same pattern as `redeem_invitation`/`publish_recipe`). `docs/Cocktail_Library_Development_Spec.md` §12 for the full batch-import requirements this is progressively fulfilling.
+`src/schemas/ingredientImport.js` (extend/generalize for recipe import - likely a similar validate+prompt pair, but recipes need ingredient-type resolution, glass/family lookups, and component/step arrays, so probably not a trivial copy-paste). `src/services/invitations.js` and `src/screens/AdminScreen.jsx`'s Invitations tab (now real - just needs the browser click-through). `docs/Cocktail_Library_Development_Spec.md` §12 for the full batch-import requirements this is progressively fulfilling.

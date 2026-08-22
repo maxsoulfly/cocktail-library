@@ -572,34 +572,6 @@ export const COCKTAILS = [
   },
 ]
 
-export const MOCK_INVITES = [
-  {
-    code: "CL-ALPHA-7X2",
-    status: "active",
-    created: "12 Jul 2026",
-    expires: "12 Sep 2026",
-  },
-  {
-    code: "CL-BETA-3K9",
-    status: "redeemed",
-    created: "15 Jul 2026",
-    expires: "15 Sep 2026",
-    redeemedBy: "j.kim@gmail.com",
-  },
-  {
-    code: "CL-GAMMA-5P1",
-    status: "expired",
-    created: "1 Jun 2026",
-    expires: "1 Aug 2026",
-  },
-  {
-    code: "CL-DELTA-2M4",
-    status: "active",
-    created: "1 Aug 2026",
-    expires: "1 Oct 2026",
-  },
-]
-
 export const MOCK_COMMUNITY = [
   {
     id: "c1",
