@@ -278,11 +278,459 @@ export default function MyBarScreen() {
     return rows
   }
 
+  // Groups buildRows()'s flat [{type, isChild}] list into
+  // [{parent, children}] clusters, one per top-level type - lets the render
+  // below box a parent + its children together (a "family" cluster) instead
+  // of relying on card size alone to suggest the relationship, which tested
+  // as too subtle to notice.
+  const buildClusters = (items) => {
+    const clusters = []
+    buildRows(items).forEach(({ type, isChild }) => {
+      if (!isChild) clusters.push({ parent: type, children: [] })
+      else clusters[clusters.length - 1].children.push(type)
+    })
+    return clusters
+  }
+
   const grouped = categories.reduce((acc, c) => {
     const items = filtered.filter((t) => t.category_id === c.id)
-    if (items.length) acc[c.name] = buildRows(items)
+    if (items.length) acc[c.name] = buildClusters(items)
     return acc
   }, {})
+
+  const renderTypeCard = (type, isChild) => {
+    const owned = isOwned(type.id)
+    const ownedProducts = productsByType.get(type.id) ?? []
+    const allProducts = allProductsByType.get(type.id) ?? []
+    const expanded = expandedTypeIds.has(type.id)
+    // A parent type's own toggle only reflects direct/generic ownership of
+    // it specifically - it can show "off" even though the availability
+    // engine already treats an owned child (e.g. Dark Rum) as satisfying
+    // it, via the same parent-walk in resolveOwnedIngredientTypes(). Surface
+    // that here so the toggle being off doesn't read as a contradiction.
+    const coveringChildren =
+      !owned && !isChild
+        ? (childrenByParentId.get(type.id) ?? []).filter((c) => isOwned(c.id))
+        : []
+    return (
+      <Card
+        onClick={() => toggleType(type.id)}
+        style={{
+          position: "relative",
+          padding: "10px 8px 8px",
+          cursor: "pointer",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          textAlign: "center",
+          gap: 4,
+          border: `1px solid ${owned ? "var(--cyan)" : "var(--border-s)"}`,
+          background: owned ? "rgba(34,211,238,0.08)" : "var(--surface)",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            top: 4,
+            right: 4,
+            display: "flex",
+            gap: 2,
+          }}
+        >
+          {allProducts.length > 0 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                toggleExpanded(type.id)
+              }}
+              title={`${allProducts.length} product(s)`}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: 2,
+                color: "var(--text3)",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              {expanded ? <IconChevD size={12} /> : <IconChevR size={12} />}
+            </button>
+          )}
+          {isAdmin && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                startEditType(type)
+              }}
+              title="Edit ingredient type"
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: 2,
+                color: "var(--text3)",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              <IconEdit size={12} />
+            </button>
+          )}
+        </div>
+        <div
+          style={{
+            width: isChild ? 30 : 38,
+            height: isChild ? 30 : 38,
+            borderRadius: 10,
+            background: `${type.color ?? "#4e6680"}25`,
+            border: `1px solid ${type.color ?? "#4e6680"}40`,
+            flexShrink: 0,
+          }}
+        />
+        <div
+          style={{
+            fontSize: isChild ? 12 : 13,
+            fontFamily: "var(--font-body)",
+            fontWeight: isChild ? 400 : 500,
+            color: owned ? "var(--text)" : "var(--text3)",
+            transition: "color 0.15s",
+            width: "100%",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {type.name}
+        </div>
+        {ownedProducts.length > 0 && (
+          <div
+            style={{
+              fontSize: 10,
+              color: "var(--text3)",
+              width: "100%",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {ownedProducts.map((p) => p.name).join(", ")}
+          </div>
+        )}
+        {coveringChildren.length > 0 && (
+          <div
+            style={{
+              fontSize: 10,
+              color: "var(--cyan)",
+              width: "100%",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            via {coveringChildren.map((c) => c.name).join(", ")}
+          </div>
+        )}
+      </Card>
+    )
+  }
+
+  const renderEditTypeForm = (type, fullWidthStyle) => (
+    <Card
+      style={{
+        ...fullWidthStyle,
+        padding: 14,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+      }}
+    >
+      <Input
+        label="Name"
+        value={editingType.name}
+        onChange={(v) => setEditingType({ ...editingType, name: v })}
+      />
+      <CategoryPicker
+        categories={categories}
+        value={editingType.categoryId}
+        onChange={(v) =>
+          setEditingType({ ...editingType, categoryId: v, parentTypeId: "" })
+        }
+      />
+      <Select
+        value={editingType.parentTypeId}
+        onChange={(v) => setEditingType({ ...editingType, parentTypeId: v })}
+        options={[
+          { value: "", label: "No parent type" },
+          ...types
+            .filter(
+              (t) =>
+                t.category_id === editingType.categoryId &&
+                t.id !== editingType.id,
+            )
+            .map((t) => ({ value: t.id, label: t.name })),
+        ]}
+      />
+      <Select
+        value={editingType.barPriority}
+        onChange={(v) => setEditingType({ ...editingType, barPriority: v })}
+        options={BAR_PRIORITIES.map((p) => ({
+          value: p,
+          label: p[0].toUpperCase() + p.slice(1),
+        }))}
+      />
+      <ColorSwatchPicker
+        value={editingType.color}
+        onChange={(v) => setEditingType({ ...editingType, color: v })}
+      />
+      {editTypeError && (
+        <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
+          {editTypeError}
+        </p>
+      )}
+      <div style={{ display: "flex", gap: 8 }}>
+        <Btn
+          variant="primary"
+          small
+          disabled={
+            editTypeSaving ||
+            !editingType.name.trim() ||
+            !editingType.categoryId
+          }
+          onClick={handleSaveEditType}
+        >
+          {editTypeSaving ? "Saving..." : "Save"}
+        </Btn>
+        <Btn variant="ghost" small onClick={() => setEditingType(null)}>
+          Cancel
+        </Btn>
+      </div>
+    </Card>
+  )
+
+  const renderExpandedProducts = (type, fullWidthStyle) => {
+    const allProducts = allProductsByType.get(type.id) ?? []
+    return (
+      <Card style={{ ...fullWidthStyle, padding: 0, overflow: "hidden" }}>
+        {allProducts.map((p, pIdx) => {
+          const rowBorder =
+            pIdx < allProducts.length - 1 ? "1px solid var(--border-s)" : "none"
+          if (editingProduct?.id === p.id) {
+            return (
+              <div
+                key={p.id}
+                style={{
+                  padding: "10px 14px",
+                  borderBottom: rowBorder,
+                  background: "var(--bg2)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                }}
+              >
+                <Input
+                  label="Name"
+                  value={editingProduct.name}
+                  onChange={(v) =>
+                    setEditingProduct({ ...editingProduct, name: v })
+                  }
+                />
+                <div>
+                  <label
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "var(--text2)",
+                      fontFamily: "var(--font-display)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      display: "block",
+                      marginBottom: 4,
+                    }}
+                  >
+                    Ingredient Type
+                  </label>
+                  <input
+                    list={`edit-ing-types-${p.id}`}
+                    value={editingProduct.ingredientTypeName}
+                    onChange={(e) =>
+                      setEditingProduct({
+                        ...editingProduct,
+                        ingredientTypeName: e.target.value,
+                      })
+                    }
+                    style={{
+                      background: "var(--surface)",
+                      border: "1px solid var(--border-s)",
+                      borderRadius: "var(--r-sm)",
+                      padding: "8px 10px",
+                      color: "var(--text)",
+                      fontSize: 13,
+                      fontFamily: "var(--font-body)",
+                      width: "100%",
+                    }}
+                  />
+                  <datalist id={`edit-ing-types-${p.id}`}>
+                    {types.map((t) => (
+                      <option key={t.id} value={t.name} />
+                    ))}
+                    {aliases.map((a) => (
+                      <option key={a.id} value={a.alias} />
+                    ))}
+                  </datalist>
+                  {editingProduct.ingredientTypeName.trim() &&
+                    !editMatchedType && (
+                      <p
+                        style={{
+                          margin: "4px 0 0",
+                          fontSize: 11,
+                          color: "var(--amber)",
+                        }}
+                      >
+                        Doesn't match an existing ingredient type.
+                      </p>
+                    )}
+                </div>
+                <Input
+                  label="Brand (optional)"
+                  value={editingProduct.brand}
+                  onChange={(v) =>
+                    setEditingProduct({ ...editingProduct, brand: v })
+                  }
+                />
+                {editError && (
+                  <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
+                    {editError}
+                  </p>
+                )}
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Btn
+                    variant="primary"
+                    small
+                    disabled={
+                      editSaving ||
+                      !editingProduct.name.trim() ||
+                      !editMatchedType
+                    }
+                    onClick={handleSaveEditProduct}
+                  >
+                    {editSaving ? "Saving..." : "Save"}
+                  </Btn>
+                  <Btn
+                    variant="ghost"
+                    small
+                    onClick={() => setEditingProduct(null)}
+                  >
+                    Cancel
+                  </Btn>
+                </div>
+              </div>
+            )
+          }
+          if (confirmDeleteProductId === p.id) {
+            return (
+              <div
+                key={p.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "7px 14px",
+                  borderBottom: rowBorder,
+                  background: "var(--bg2)",
+                }}
+              >
+                <span style={{ flex: 1, fontSize: 12, color: "var(--coral)" }}>
+                  Delete "{p.name}"? This can't be undone.
+                </span>
+                <Btn
+                  variant="danger"
+                  small
+                  disabled={deletingProduct}
+                  onClick={() => handleDeleteProduct(p.id)}
+                >
+                  Delete
+                </Btn>
+                <Btn
+                  variant="ghost"
+                  small
+                  onClick={() => setConfirmDeleteProductId(null)}
+                >
+                  Cancel
+                </Btn>
+              </div>
+            )
+          }
+          return (
+            <div
+              key={p.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "7px 14px",
+                borderBottom: rowBorder,
+                background: "var(--bg2)",
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: ownedProductIds.has(p.id)
+                      ? "var(--text)"
+                      : "var(--text3)",
+                  }}
+                >
+                  {p.name}
+                  {p.brand && p.brand !== p.name ? ` · ${p.brand}` : ""}
+                  {p.is_homemade ? " · homemade" : ""}
+                </div>
+              </div>
+              {isAdmin && (
+                <button
+                  onClick={() => startEditProduct(p)}
+                  title="Edit product"
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: 4,
+                    color: "var(--text3)",
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
+                  <IconEdit size={14} />
+                </button>
+              )}
+              {isAdmin && (
+                <button
+                  onClick={() => setConfirmDeleteProductId(p.id)}
+                  title="Delete product"
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: 4,
+                    color: "var(--text3)",
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
+                  <IconTrash size={14} />
+                </button>
+              )}
+              <OwnedToggle
+                owned={ownedProductIds.has(p.id)}
+                onChange={() => toggleProduct(p.id)}
+              />
+            </div>
+          )
+        })}
+      </Card>
+    )
+  }
 
   if (catalogLoading || inventoryLoading) {
     return (
@@ -389,7 +837,7 @@ export default function MyBarScreen() {
       </div>
 
       <div style={{ padding: "16px" }}>
-        {Object.entries(grouped).map(([categoryName, rows]) => (
+        {Object.entries(grouped).map(([categoryName, clusters]) => (
           <div key={categoryName} style={{ marginBottom: 20 }}>
             <div
               style={{
@@ -411,504 +859,83 @@ export default function MyBarScreen() {
                 gap: 8,
               }}
             >
-              {rows.map(({ type, isChild }) => {
-                const owned = isOwned(type.id)
-                const ownedProducts = productsByType.get(type.id) ?? []
-                const allProducts = allProductsByType.get(type.id) ?? []
-                const expanded = expandedTypeIds.has(type.id)
-                // A parent type's own toggle only reflects direct/generic
-                // ownership of it specifically - it can show "off" even
-                // though the availability engine already treats an owned
-                // child (e.g. Dark Rum) as satisfying it, via the same
-                // parent-walk in resolveOwnedIngredientTypes(). Surface that
-                // here so the toggle being off doesn't read as a
-                // contradiction.
-                const coveringChildren =
-                  !owned && !isChild
-                    ? (childrenByParentId.get(type.id) ?? []).filter((c) =>
-                        isOwned(c.id),
-                      )
-                    : []
-                return (
-                  // display:"contents" makes this wrapper invisible to the
-                  // grid, so the card and (if expanded) its full-width
-                  // product panel both participate as direct grid items
-                  // instead of being nested inside one grid cell.
-                  <div key={type.id} style={{ display: "contents" }}>
-                    {editingType?.id === type.id ? (
-                      <Card
-                        style={{
+              {clusters.map(({ parent, children }) => {
+                if (children.length === 0)
+                  return (
+                    // display:"contents" makes this wrapper invisible to the
+                    // grid, so the card and (if expanded) its full-width
+                    // product panel both participate as direct grid items
+                    // instead of being nested inside one grid cell.
+                    <div key={parent.id} style={{ display: "contents" }}>
+                      {editingType?.id === parent.id
+                        ? renderEditTypeForm(parent, { gridColumn: "1 / -1" })
+                        : renderTypeCard(parent, false)}
+                      {expandedTypeIds.has(parent.id) &&
+                        renderExpandedProducts(parent, {
                           gridColumn: "1 / -1",
-                          padding: 14,
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 8,
-                        }}
-                      >
-                        <Input
-                          label="Name"
-                          value={editingType.name}
-                          onChange={(v) =>
-                            setEditingType({ ...editingType, name: v })
-                          }
-                        />
-                        <CategoryPicker
-                          categories={categories}
-                          value={editingType.categoryId}
-                          onChange={(v) =>
-                            setEditingType({
-                              ...editingType,
-                              categoryId: v,
-                              parentTypeId: "",
-                            })
-                          }
-                        />
-                        <Select
-                          value={editingType.parentTypeId}
-                          onChange={(v) =>
-                            setEditingType({ ...editingType, parentTypeId: v })
-                          }
-                          options={[
-                            { value: "", label: "No parent type" },
-                            ...types
-                              .filter(
-                                (t) =>
-                                  t.category_id === editingType.categoryId &&
-                                  t.id !== editingType.id,
-                              )
-                              .map((t) => ({ value: t.id, label: t.name })),
-                          ]}
-                        />
-                        <Select
-                          value={editingType.barPriority}
-                          onChange={(v) =>
-                            setEditingType({ ...editingType, barPriority: v })
-                          }
-                          options={BAR_PRIORITIES.map((p) => ({
-                            value: p,
-                            label: p[0].toUpperCase() + p.slice(1),
-                          }))}
-                        />
-                        <ColorSwatchPicker
-                          value={editingType.color}
-                          onChange={(v) =>
-                            setEditingType({ ...editingType, color: v })
-                          }
-                        />
-                        {editTypeError && (
-                          <p
-                            style={{
-                              margin: 0,
-                              fontSize: 12,
-                              color: "var(--coral)",
-                            }}
-                          >
-                            {editTypeError}
-                          </p>
-                        )}
-                        <div style={{ display: "flex", gap: 8 }}>
-                          <Btn
-                            variant="primary"
-                            small
-                            disabled={
-                              editTypeSaving ||
-                              !editingType.name.trim() ||
-                              !editingType.categoryId
-                            }
-                            onClick={handleSaveEditType}
-                          >
-                            {editTypeSaving ? "Saving..." : "Save"}
-                          </Btn>
-                          <Btn
-                            variant="ghost"
-                            small
-                            onClick={() => setEditingType(null)}
-                          >
-                            Cancel
-                          </Btn>
-                        </div>
-                      </Card>
-                    ) : (
-                      <Card
-                        onClick={() => toggleType(type.id)}
-                        style={{
-                          position: "relative",
-                          padding: "10px 8px 8px",
-                          cursor: "pointer",
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          textAlign: "center",
-                          gap: 4,
-                          border: `1px solid ${
-                            owned ? "var(--cyan)" : "var(--border-s)"
-                          }`,
-                          background: owned
-                            ? "rgba(34,211,238,0.08)"
-                            : "var(--surface)",
-                        }}
-                      >
-                        <div
-                          style={{
-                            position: "absolute",
-                            top: 4,
-                            right: 4,
-                            display: "flex",
-                            gap: 2,
-                          }}
-                        >
-                          {allProducts.length > 0 && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                toggleExpanded(type.id)
-                              }}
-                              title={`${allProducts.length} product(s)`}
-                              style={{
-                                background: "none",
-                                border: "none",
-                                cursor: "pointer",
-                                padding: 2,
-                                color: "var(--text3)",
-                                display: "flex",
-                                alignItems: "center",
-                              }}
-                            >
-                              {expanded ? (
-                                <IconChevD size={12} />
-                              ) : (
-                                <IconChevR size={12} />
-                              )}
-                            </button>
-                          )}
-                          {isAdmin && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                startEditType(type)
-                              }}
-                              title="Edit ingredient type"
-                              style={{
-                                background: "none",
-                                border: "none",
-                                cursor: "pointer",
-                                padding: 2,
-                                color: "var(--text3)",
-                                display: "flex",
-                                alignItems: "center",
-                              }}
-                            >
-                              <IconEdit size={12} />
-                            </button>
-                          )}
-                        </div>
-                        <div
-                          style={{
-                            width: isChild ? 30 : 38,
-                            height: isChild ? 30 : 38,
-                            borderRadius: 10,
-                            background: `${type.color ?? "#4e6680"}25`,
-                            border: `1px solid ${type.color ?? "#4e6680"}40`,
-                            flexShrink: 0,
-                          }}
-                        />
-                        <div
-                          style={{
-                            fontSize: isChild ? 12 : 13,
-                            fontFamily: "var(--font-body)",
-                            fontWeight: isChild ? 400 : 500,
-                            color: owned ? "var(--text)" : "var(--text3)",
-                            transition: "color 0.15s",
-                            width: "100%",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {type.name}
-                        </div>
-                        {ownedProducts.length > 0 && (
-                          <div
-                            style={{
-                              fontSize: 10,
-                              color: "var(--text3)",
-                              width: "100%",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {ownedProducts.map((p) => p.name).join(", ")}
-                          </div>
-                        )}
-                        {coveringChildren.length > 0 && (
-                          <div
-                            style={{
-                              fontSize: 10,
-                              color: "var(--cyan)",
-                              width: "100%",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            via {coveringChildren.map((c) => c.name).join(", ")}
-                          </div>
-                        )}
-                      </Card>
-                    )}
-                    {expanded && (
-                      <Card
-                        style={{
-                          gridColumn: "1 / -1",
-                          padding: 0,
-                          overflow: "hidden",
-                        }}
-                      >
-                        {allProducts.map((p, pIdx) => {
-                          const rowBorder =
-                            pIdx < allProducts.length - 1
-                              ? "1px solid var(--border-s)"
-                              : "none"
-                          if (editingProduct?.id === p.id) {
-                            return (
-                              <div
-                                key={p.id}
-                                style={{
-                                  padding: "10px 14px",
-                                  borderBottom: rowBorder,
-                                  background: "var(--bg2)",
-                                  display: "flex",
-                                  flexDirection: "column",
-                                  gap: 8,
-                                }}
-                              >
-                                <Input
-                                  label="Name"
-                                  value={editingProduct.name}
-                                  onChange={(v) =>
-                                    setEditingProduct({
-                                      ...editingProduct,
-                                      name: v,
-                                    })
-                                  }
-                                />
-                                <div>
-                                  <label
-                                    style={{
-                                      fontSize: 11,
-                                      fontWeight: 700,
-                                      color: "var(--text2)",
-                                      fontFamily: "var(--font-display)",
-                                      textTransform: "uppercase",
-                                      letterSpacing: "0.06em",
-                                      display: "block",
-                                      marginBottom: 4,
-                                    }}
-                                  >
-                                    Ingredient Type
-                                  </label>
-                                  <input
-                                    list={`edit-ing-types-${p.id}`}
-                                    value={editingProduct.ingredientTypeName}
-                                    onChange={(e) =>
-                                      setEditingProduct({
-                                        ...editingProduct,
-                                        ingredientTypeName: e.target.value,
-                                      })
-                                    }
-                                    style={{
-                                      background: "var(--surface)",
-                                      border: "1px solid var(--border-s)",
-                                      borderRadius: "var(--r-sm)",
-                                      padding: "8px 10px",
-                                      color: "var(--text)",
-                                      fontSize: 13,
-                                      fontFamily: "var(--font-body)",
-                                      width: "100%",
-                                    }}
-                                  />
-                                  <datalist id={`edit-ing-types-${p.id}`}>
-                                    {types.map((t) => (
-                                      <option key={t.id} value={t.name} />
-                                    ))}
-                                    {aliases.map((a) => (
-                                      <option key={a.id} value={a.alias} />
-                                    ))}
-                                  </datalist>
-                                  {editingProduct.ingredientTypeName.trim() &&
-                                    !editMatchedType && (
-                                      <p
-                                        style={{
-                                          margin: "4px 0 0",
-                                          fontSize: 11,
-                                          color: "var(--amber)",
-                                        }}
-                                      >
-                                        Doesn't match an existing ingredient
-                                        type.
-                                      </p>
-                                    )}
-                                </div>
-                                <Input
-                                  label="Brand (optional)"
-                                  value={editingProduct.brand}
-                                  onChange={(v) =>
-                                    setEditingProduct({
-                                      ...editingProduct,
-                                      brand: v,
-                                    })
-                                  }
-                                />
-                                {editError && (
-                                  <p
-                                    style={{
-                                      margin: 0,
-                                      fontSize: 12,
-                                      color: "var(--coral)",
-                                    }}
-                                  >
-                                    {editError}
-                                  </p>
-                                )}
-                                <div style={{ display: "flex", gap: 8 }}>
-                                  <Btn
-                                    variant="primary"
-                                    small
-                                    disabled={
-                                      editSaving ||
-                                      !editingProduct.name.trim() ||
-                                      !editMatchedType
-                                    }
-                                    onClick={handleSaveEditProduct}
-                                  >
-                                    {editSaving ? "Saving..." : "Save"}
-                                  </Btn>
-                                  <Btn
-                                    variant="ghost"
-                                    small
-                                    onClick={() => setEditingProduct(null)}
-                                  >
-                                    Cancel
-                                  </Btn>
-                                </div>
-                              </div>
-                            )
-                          }
-                          if (confirmDeleteProductId === p.id) {
-                            return (
-                              <div
-                                key={p.id}
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 10,
-                                  padding: "7px 14px",
-                                  borderBottom: rowBorder,
-                                  background: "var(--bg2)",
-                                }}
-                              >
-                                <span
-                                  style={{
-                                    flex: 1,
-                                    fontSize: 12,
-                                    color: "var(--coral)",
-                                  }}
-                                >
-                                  Delete "{p.name}"? This can't be undone.
-                                </span>
-                                <Btn
-                                  variant="danger"
-                                  small
-                                  disabled={deletingProduct}
-                                  onClick={() => handleDeleteProduct(p.id)}
-                                >
-                                  Delete
-                                </Btn>
-                                <Btn
-                                  variant="ghost"
-                                  small
-                                  onClick={() =>
-                                    setConfirmDeleteProductId(null)
-                                  }
-                                >
-                                  Cancel
-                                </Btn>
-                              </div>
-                            )
-                          }
-                          return (
-                            <div
-                              key={p.id}
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 12,
-                                padding: "7px 14px",
-                                borderBottom: rowBorder,
-                                background: "var(--bg2)",
-                              }}
-                            >
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div
-                                  style={{
-                                    fontSize: 12,
-                                    color: ownedProductIds.has(p.id)
-                                      ? "var(--text)"
-                                      : "var(--text3)",
-                                  }}
-                                >
-                                  {p.name}
-                                  {p.brand && p.brand !== p.name
-                                    ? ` · ${p.brand}`
-                                    : ""}
-                                  {p.is_homemade ? " · homemade" : ""}
-                                </div>
-                              </div>
-                              {isAdmin && (
-                                <button
-                                  onClick={() => startEditProduct(p)}
-                                  title="Edit product"
-                                  style={{
-                                    background: "none",
-                                    border: "none",
-                                    cursor: "pointer",
-                                    padding: 4,
-                                    color: "var(--text3)",
-                                    display: "flex",
-                                    alignItems: "center",
-                                  }}
-                                >
-                                  <IconEdit size={14} />
-                                </button>
-                              )}
-                              {isAdmin && (
-                                <button
-                                  onClick={() =>
-                                    setConfirmDeleteProductId(p.id)
-                                  }
-                                  title="Delete product"
-                                  style={{
-                                    background: "none",
-                                    border: "none",
-                                    cursor: "pointer",
-                                    padding: 4,
-                                    color: "var(--text3)",
-                                    display: "flex",
-                                    alignItems: "center",
-                                  }}
-                                >
-                                  <IconTrash size={14} />
-                                </button>
-                              )}
-                              <OwnedToggle
-                                owned={ownedProductIds.has(p.id)}
-                                onChange={() => toggleProduct(p.id)}
-                              />
-                            </div>
-                          )
                         })}
-                      </Card>
+                    </div>
+                  )
+                // A parent with children renders as its own bordered
+                // "family" cluster spanning the full grid width, instead of
+                // relying on card size alone to suggest the relationship -
+                // that read as too subtle once there were 10+ cards in a row.
+                return (
+                  <div
+                    key={parent.id}
+                    style={{
+                      gridColumn: "1 / -1",
+                      border: "1px solid var(--border-s)",
+                      borderRadius: "var(--r-lg)",
+                      background: "rgba(255,255,255,0.02)",
+                      padding: "10px 10px 12px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 8,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: "var(--text3)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                        fontFamily: "var(--font-display)",
+                      }}
+                    >
+                      {parent.name} family
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      {editingType?.id !== parent.id && (
+                        <div style={{ width: 104 }}>
+                          {renderTypeCard(parent, false)}
+                        </div>
+                      )}
+                      {children.map(
+                        (child) =>
+                          editingType?.id !== child.id && (
+                            <div key={child.id} style={{ width: 96 }}>
+                              {renderTypeCard(child, true)}
+                            </div>
+                          ),
+                      )}
+                    </div>
+                    {[parent, ...children].map(
+                      (t) =>
+                        editingType?.id === t.id && (
+                          <div key={`edit-${t.id}`}>
+                            {renderEditTypeForm(t, { width: "100%" })}
+                          </div>
+                        ),
+                    )}
+                    {[parent, ...children].map(
+                      (t) =>
+                        expandedTypeIds.has(t.id) && (
+                          <div key={`expanded-${t.id}`}>
+                            {renderExpandedProducts(t, { width: "100%" })}
+                          </div>
+                        ),
                     )}
                   </div>
                 )
