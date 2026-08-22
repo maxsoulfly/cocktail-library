@@ -91,6 +91,9 @@ export default function EditorScreen() {
         ingredientName: ri.name ?? "",
         ...unitLabelToForm(ri),
         role: ri.role,
+        alternativeNames: (ri.alternativeIds ?? [])
+          .map((altId) => types.find((t) => t.id === altId)?.name)
+          .filter(Boolean),
       })),
     )
     setSteps(source.steps.length > 0 ? source.steps : [""])
@@ -108,6 +111,7 @@ export default function EditorScreen() {
     catalogLoading,
     families,
     tasteTags,
+    types,
   ])
 
   // Member-facing "paste a recipe, app fills in the form" - only offered
@@ -183,6 +187,56 @@ export default function EditorScreen() {
   const updateIng = (i, k, v) =>
     setIngs(ings.map((ing, idx) => (idx === i ? { ...ing, [k]: v } : ing)))
 
+  // Substitution groups ("gin OR vodka") - the availability engine already
+  // treats any one owned alternative as satisfying the slot
+  // (src/domain/availability.js), this is just the first UI that can ever
+  // create one. Resolved the same way the main ingredient field is (exact
+  // name or alias, no fuzzy matching) - committed as a chip only once it
+  // resolves to a real type, so the stored list is always valid ids by the
+  // time Save runs.
+  const commitAlternativeDraft = (i) => {
+    const ing = ings[i]
+    const draft = (ing.altDraft ?? "").trim()
+    if (!draft) return
+    const resolved = resolveIngredientType(draft, {
+      types,
+      aliases: catalog.aliases,
+    })
+    if (!resolved) return
+    const existing = ing.alternativeNames ?? []
+    if (
+      resolved.name.toLowerCase() === ing.ingredientName.trim().toLowerCase() ||
+      existing.some((n) => n.toLowerCase() === resolved.name.toLowerCase())
+    ) {
+      updateIng(i, "altDraft", "")
+      return
+    }
+    setIngs(
+      ings.map((row, idx) =>
+        idx === i
+          ? {
+              ...row,
+              alternativeNames: [...existing, resolved.name],
+              altDraft: "",
+            }
+          : row,
+      ),
+    )
+  }
+  const removeAlternative = (i, altIndex) =>
+    setIngs(
+      ings.map((row, idx) =>
+        idx === i
+          ? {
+              ...row,
+              alternativeNames: (row.alternativeNames ?? []).filter(
+                (_, ai) => ai !== altIndex,
+              ),
+            }
+          : row,
+      ),
+    )
+
   const addStep = () => setSteps([...steps, ""])
   const removeStep = (i) => setSteps(steps.filter((_, idx) => idx !== i))
   const updateStep = (i, v) =>
@@ -223,11 +277,21 @@ export default function EditorScreen() {
       const glass = glasses.find((g) => g.name === effectiveGlassName)
       const components = resolvedIngs.map((i) => {
         const isVolume = i.unit === "ml"
+        const alternativeIds = (i.alternativeNames ?? [])
+          .map(
+            (altName) =>
+              resolveIngredientType(altName, {
+                types,
+                aliases: catalog.aliases,
+              })?.id,
+          )
+          .filter(Boolean)
         return {
           ingredientTypeId: i.matchedType.id,
           amount: isVolume ? Number(i.amount) || 0 : 0,
           unitLabel: isVolume ? "ml" : `${i.amount} ${i.unit}`.trim(),
           role: i.role,
+          alternativeIds,
         }
       })
       const payload = {
@@ -661,11 +725,13 @@ export default function EditorScreen() {
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {ings.map((ing, i) => {
                   const trimmedName = ing.ingredientName.trim()
-                  const matched =
-                    trimmedName &&
-                    types.some(
-                      (t) => t.name.toLowerCase() === trimmedName.toLowerCase(),
-                    )
+                  const matchedType = trimmedName
+                    ? resolveIngredientType(trimmedName, {
+                        types,
+                        aliases: catalog.aliases,
+                      })
+                    : null
+                  const matched = Boolean(matchedType)
                   return (
                     <div
                       key={i}
@@ -781,6 +847,77 @@ export default function EditorScreen() {
                             Request it
                           </Link>
                         </span>
+                      )}
+                      {matched && (
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: 6,
+                            alignItems: "center",
+                            paddingLeft: 2,
+                          }}
+                        >
+                          <span style={{ fontSize: 11, color: "var(--text3)" }}>
+                            Substitutes:
+                          </span>
+                          {(ing.alternativeNames ?? []).map((altName, ai) => (
+                            <span
+                              key={altName}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 4,
+                                background: "var(--surface2)",
+                                border: "1px solid var(--border-s)",
+                                borderRadius: 12,
+                                padding: "2px 6px 2px 10px",
+                                fontSize: 11,
+                                color: "var(--text2)",
+                              }}
+                            >
+                              {altName}
+                              <button
+                                onClick={() => removeAlternative(i, ai)}
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  cursor: "pointer",
+                                  color: "var(--text3)",
+                                  padding: 2,
+                                  display: "flex",
+                                }}
+                              >
+                                <IconX size={9} />
+                              </button>
+                            </span>
+                          ))}
+                          <input
+                            list="ing-types-editor"
+                            placeholder="+ add substitute"
+                            value={ing.altDraft ?? ""}
+                            onChange={(e) =>
+                              updateIng(i, "altDraft", e.target.value)
+                            }
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault()
+                                commitAlternativeDraft(i)
+                              }
+                            }}
+                            onBlur={() => commitAlternativeDraft(i)}
+                            style={{
+                              width: 130,
+                              background: "var(--surface)",
+                              border: "1px solid var(--border-s)",
+                              borderRadius: 6,
+                              padding: "3px 8px",
+                              fontSize: 11,
+                              color: "var(--text)",
+                              fontFamily: "var(--font-body)",
+                            }}
+                          />
+                        </div>
                       )}
                     </div>
                   )

@@ -73,11 +73,58 @@ export async function fetchRecipe(id) {
   return mapRecipe(data)
 }
 
+// Shared by createRecipe(), createClassicRecipes(), and updateRecipe():
+// inserts recipe_components, then recipe_component_alternatives for
+// whichever components carry them ("gin OR vodka" - src/domain/
+// availability.js already treats any one owned alternative as satisfying
+// the slot; this is the write side of that). Alternatives reference the
+// component row's own id, which only exists after the components insert
+// returns - correlated back to the right component via sort_order (unique
+// per recipe) rather than trusting the returned rows' array order to match
+// the input order.
+async function insertComponentsWithAlternatives(recipeId, components) {
+  if (components.length === 0) return
+  const { data: insertedComponents, error: componentsError } = await supabase
+    .from("recipe_components")
+    .insert(
+      components.map((c, index) => ({
+        recipe_id: recipeId,
+        ingredient_type_id: c.ingredientTypeId,
+        amount: c.amount,
+        unit_label: c.unitLabel,
+        role: c.role,
+        sort_order: index,
+      })),
+    )
+    .select()
+  if (componentsError) throw componentsError
+
+  const alternativeRows = []
+  components.forEach((c, index) => {
+    if (!c.alternativeIds?.length) return
+    const componentRow = insertedComponents.find((r) => r.sort_order === index)
+    if (!componentRow) return
+    c.alternativeIds.forEach((altId) => {
+      alternativeRows.push({
+        recipe_id: recipeId,
+        recipe_component_id: componentRow.id,
+        ingredient_type_id: altId,
+      })
+    })
+  })
+  if (alternativeRows.length > 0) {
+    const { error: altError } = await supabase
+      .from("recipe_component_alternatives")
+      .insert(alternativeRows)
+    if (altError) throw altError
+  }
+}
+
 // Shared by createRecipe() and createClassicRecipes(): inserts the recipe
-// row, then its components/taste tags in separate calls (no client-side
-// multi-statement transaction available); best-effort cleanup deletes the
-// recipe again if a later step fails, so a partial write can't leave an
-// empty/broken recipe behind.
+// row, then its components/alternatives/taste tags in separate calls (no
+// client-side multi-statement transaction available); best-effort cleanup
+// deletes the recipe again if a later step fails, so a partial write can't
+// leave an empty/broken recipe behind.
 async function insertRecipeWithRelations(
   recipeInsert,
   { components, tasteTagIds },
@@ -90,21 +137,7 @@ async function insertRecipeWithRelations(
   if (recipeError) throw recipeError
 
   try {
-    if (components.length > 0) {
-      const { error: componentsError } = await supabase
-        .from("recipe_components")
-        .insert(
-          components.map((c, index) => ({
-            recipe_id: recipe.id,
-            ingredient_type_id: c.ingredientTypeId,
-            amount: c.amount,
-            unit_label: c.unitLabel,
-            role: c.role,
-            sort_order: index,
-          })),
-        )
-      if (componentsError) throw componentsError
-    }
+    await insertComponentsWithAlternatives(recipe.id, components)
 
     if (tasteTagIds.length > 0) {
       const { error: tagsError } = await supabase
@@ -225,26 +258,15 @@ export async function updateRecipe(
     .eq("id", id)
   if (recipeError) throw recipeError
 
+  // recipe_component_alternatives.recipe_component_id is `on delete cascade`,
+  // so deleting the old components already cleans up their alternatives -
+  // no separate delete needed before re-inserting both fresh.
   const { error: delCompError } = await supabase
     .from("recipe_components")
     .delete()
     .eq("recipe_id", id)
   if (delCompError) throw delCompError
-  if (components.length > 0) {
-    const { error: compError } = await supabase
-      .from("recipe_components")
-      .insert(
-        components.map((c, index) => ({
-          recipe_id: id,
-          ingredient_type_id: c.ingredientTypeId,
-          amount: c.amount,
-          unit_label: c.unitLabel,
-          role: c.role,
-          sort_order: index,
-        })),
-      )
-    if (compError) throw compError
-  }
+  await insertComponentsWithAlternatives(id, components)
 
   const { error: delTagError } = await supabase
     .from("recipe_taste_tags")
