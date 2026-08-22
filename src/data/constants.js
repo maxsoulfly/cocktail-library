@@ -36,6 +36,14 @@ export const NON_VOLUME_UNITS = [
   "g",
 ]
 
+// The fixed set of pictograms GlassSvg.jsx actually knows how to draw - a
+// glass row's `shape` column must be one of these (DB check constraint
+// mirrors it). Admin picks a shape when creating/renaming a glass instead of
+// the icon being tied 1:1 to the glass's name, so a brand-new glass name
+// (e.g. "Nick and Nora") can still render a sensible pictogram (coupe)
+// without a code change - only a genuinely novel silhouette needs one.
+export const GLASS_SHAPES = ["rocks", "highball", "coupe", "wine", "martini"]
+
 // Preset swatches for a recipe's liquid_color (see GlassSvg.jsx) - a plain
 // hex field would need color-theory knowledge nobody creating a recipe
 // should have to have; picking "looks about right" from a small curated

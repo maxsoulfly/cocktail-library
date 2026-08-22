@@ -9,6 +9,7 @@ import {
   IconTrash,
   IconX,
 } from "@/components/icons"
+import { GlassSvg } from "@/components/GlassSvg"
 import { TopBar } from "@/components/Nav"
 import {
   Btn,
@@ -19,6 +20,7 @@ import {
   Select,
   SectionTitle,
 } from "@/components/primitives"
+import { GLASS_SHAPES } from "@/data/constants"
 import { resolveIngredientType } from "@/domain/ingredientResolution"
 import {
   BAR_PRIORITIES,
@@ -111,18 +113,21 @@ function NamedRowManager({
   singular,
   items,
   showSortOrder,
+  showShapePicker,
   onCreate,
   onUpdate,
   onDelete,
 }) {
   const [newName, setNewName] = useState("")
   const [newSortOrder, setNewSortOrder] = useState("0")
+  const [newShape, setNewShape] = useState("martini")
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState(null)
 
   const [editingId, setEditingId] = useState(null)
   const [editName, setEditName] = useState("")
   const [editSortOrder, setEditSortOrder] = useState("0")
+  const [editShape, setEditShape] = useState("martini")
   const [saving, setSaving] = useState(false)
   const [editError, setEditError] = useState(null)
 
@@ -135,13 +140,19 @@ function NamedRowManager({
     setCreating(true)
     setCreateError(null)
     try {
-      await onCreate(
-        showSortOrder
-          ? { name: newName.trim(), sortOrder: Number(newSortOrder) || 0 }
-          : newName.trim(),
-      )
+      if (showSortOrder) {
+        await onCreate({
+          name: newName.trim(),
+          sortOrder: Number(newSortOrder) || 0,
+        })
+      } else if (showShapePicker) {
+        await onCreate({ name: newName.trim(), shape: newShape })
+      } else {
+        await onCreate(newName.trim())
+      }
       setNewName("")
       setNewSortOrder("0")
+      setNewShape("martini")
     } catch (err) {
       setCreateError(err.message)
     } finally {
@@ -154,6 +165,7 @@ function NamedRowManager({
     setEditingId(item.id)
     setEditName(item.name)
     setEditSortOrder(String(item.sort_order ?? 0))
+    setEditShape(item.shape ?? "martini")
   }
 
   const handleSaveEdit = async () => {
@@ -161,12 +173,16 @@ function NamedRowManager({
     setSaving(true)
     setEditError(null)
     try {
-      await onUpdate(
-        editingId,
-        showSortOrder
-          ? { name: editName.trim(), sortOrder: Number(editSortOrder) || 0 }
-          : editName.trim(),
-      )
+      if (showSortOrder) {
+        await onUpdate(editingId, {
+          name: editName.trim(),
+          sortOrder: Number(editSortOrder) || 0,
+        })
+      } else if (showShapePicker) {
+        await onUpdate(editingId, { name: editName.trim(), shape: editShape })
+      } else {
+        await onUpdate(editingId, editName.trim())
+      }
       setEditingId(null)
     } catch (err) {
       setEditError(err.message)
@@ -242,6 +258,9 @@ function NamedRowManager({
                       />
                     )}
                   </div>
+                  {showShapePicker && (
+                    <ShapePicker value={editShape} onChange={setEditShape} />
+                  )}
                   {editError && (
                     <p
                       style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}
@@ -304,6 +323,13 @@ function NamedRowManager({
                     gap: 10,
                   }}
                 >
+                  {showShapePicker && (
+                    <GlassSvg
+                      type={item.shape ?? "martini"}
+                      size={22}
+                      color="var(--text2)"
+                    />
+                  )}
                   <span
                     style={{
                       flex: 1,
@@ -365,6 +391,9 @@ function NamedRowManager({
           ))
         )}
       </Card>
+      {showShapePicker && (
+        <ShapePicker value={newShape} onChange={setNewShape} />
+      )}
       <div style={{ display: "flex", gap: 8 }}>
         <div style={{ flex: 1 }}>
           <Input
@@ -405,6 +434,52 @@ function NamedRowManager({
           {createError}
         </p>
       )}
+    </div>
+  )
+}
+
+// Which built-in GlassSvg pictogram a glass row uses - see GLASS_SHAPES'
+// comment for why this exists instead of the icon being tied to the name.
+function ShapePicker({ value, onChange }) {
+  return (
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      {GLASS_SHAPES.map((shape) => (
+        <button
+          key={shape}
+          type="button"
+          onClick={() => onChange(shape)}
+          title={shape}
+          style={{
+            padding: "6px 10px 4px",
+            borderRadius: "var(--r-sm)",
+            border: `1px solid ${
+              value === shape ? "var(--cyan)" : "var(--border-s)"
+            }`,
+            background:
+              value === shape ? "rgba(34,211,238,0.12)" : "var(--surface)",
+            cursor: "pointer",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 2,
+          }}
+        >
+          <GlassSvg
+            type={shape}
+            size={24}
+            color={value === shape ? "var(--cyan)" : "var(--text2)"}
+          />
+          <span
+            style={{
+              fontSize: 10,
+              color: value === shape ? "var(--cyan)" : "var(--text2)",
+              textTransform: "capitalize",
+            }}
+          >
+            {shape}
+          </span>
+        </button>
+      ))}
     </div>
   )
 }
@@ -2916,22 +2991,22 @@ export default function AdminScreen() {
               database rejects it); rename or add new ones instead.
             </p>
             <p style={{ margin: 0, fontSize: 12, color: "var(--text3)" }}>
-              A new glass works immediately for matching/availability, but{" "}
-              <code>GlassSvg.jsx</code> only draws a real shape for the names it
-              already knows (rocks, highball/collins, coupe, wine) - anything
-              else renders as a generic martini silhouette until a matching
-              shape is added in code.
+              Every glass picks one of a handful of built-in pictograms
+              (whichever one looks closest) - a new glass name works
+              immediately, no code change needed. A genuinely new silhouette
+              none of these resemble still needs a developer to draw it.
             </p>
             <NamedRowManager
               title="Glasses"
               singular="glass"
               items={catalog.glasses}
-              onCreate={async (name) => {
-                await createGlass(name)
+              showShapePicker
+              onCreate={async ({ name, shape }) => {
+                await createGlass(name, shape)
                 await catalog.refetch()
               }}
-              onUpdate={async (id, name) => {
-                await updateGlass(id, name)
+              onUpdate={async (id, { name, shape }) => {
+                await updateGlass(id, name, shape)
                 await catalog.refetch()
               }}
               onDelete={async (id) => {

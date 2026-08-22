@@ -174,7 +174,7 @@ export async function createProducts(rows) {
 export async function fetchGlasses() {
   const { data, error } = await supabase
     .from("glasses")
-    .select("id, name")
+    .select("id, name, shape")
     .order("name")
   if (error) throw error
   return data
@@ -239,8 +239,32 @@ function deleteNamedRow(table, id) {
     })
 }
 
-export const createGlass = (name) => createNamedRow("glasses", name)
-export const updateGlass = (id, name) => updateNamedRow("glasses", id, name)
+// Glasses carry a `shape` (which GlassSvg pictogram to draw) alongside
+// `name`, unlike the other three lookup tables - can't reuse
+// createNamedRow/updateNamedRow as-is.
+export function createGlass(name, shape) {
+  return supabase
+    .from("glasses")
+    .insert({ name, shape })
+    .select()
+    .single()
+    .then(({ data, error }) => {
+      if (error) throw error
+      return data
+    })
+}
+export function updateGlass(id, name, shape) {
+  return supabase
+    .from("glasses")
+    .update({ name, shape })
+    .eq("id", id)
+    .select()
+    .single()
+    .then(({ data, error }) => {
+      if (error) throw error
+      return data
+    })
+}
 export const deleteGlass = (id) => deleteNamedRow("glasses", id)
 
 export const createTasteTag = (name) => createNamedRow("taste_tags", name)

@@ -21,7 +21,7 @@ function mapRecipe(row) {
     source: deriveSource(row),
     ownerId: row.owner_id,
     author: row.owner?.display_name ?? undefined,
-    glass: row.glass?.name ?? "rocks",
+    glass: row.glass?.shape ?? "rocks",
     family: row.family?.name,
     liquidColor: row.liquid_color ?? "#22d3ee",
     steps: row.steps ?? [],
@@ -47,7 +47,7 @@ function mapRecipe(row) {
 
 const RECIPE_SELECT = `
   id, name, description, source_type, visibility, moderation_status, owner_id, liquid_color, steps,
-  glass:glasses(name),
+  glass:glasses(shape),
   family:cocktail_families(name),
   owner:profiles(display_name),
   recipe_components(id, ingredient_type_id, amount, unit_label, role, sort_order, ingredient_types(name, color), recipe_component_alternatives(ingredient_type_id)),

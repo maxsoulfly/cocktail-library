@@ -600,7 +600,7 @@ export default function EditorScreen() {
                     }}
                   >
                     <GlassSvg
-                      type={g.name.toLowerCase()}
+                      type={g.shape ?? g.name.toLowerCase()}
                       size={28}
                       color={
                         effectiveGlassName === g.name
