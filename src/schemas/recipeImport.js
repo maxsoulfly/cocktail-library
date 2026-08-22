@@ -12,6 +12,7 @@
 // recipe.
 
 import { NON_VOLUME_UNITS } from "@/data/constants"
+import { resolveIngredientType } from "@/domain/ingredientResolution"
 
 export const RECIPE_ROLES = ["required", "optional", "garnish"]
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
@@ -23,14 +24,21 @@ const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
  *   glasses: {id: string, name: string}[],
  *   families: {id: string, name: string}[],
  *   tasteTags: {id: string, name: string}[],
+ *   aliases?: {alias: string, ingredient_type_id: string}[],
  *   existingRecipeNames?: string[],
  * }} catalog
  */
 export function validateRecipeImport(
   rawItems,
-  { types, glasses, families, tasteTags, existingRecipeNames = [] },
+  {
+    types,
+    glasses,
+    families,
+    tasteTags,
+    aliases = [],
+    existingRecipeNames = [],
+  },
 ) {
-  const typeByName = new Map(types.map((t) => [t.name.toLowerCase(), t]))
   const glassByName = new Map(glasses.map((g) => [g.name.toLowerCase(), g]))
   const familyByName = new Map(families.map((f) => [f.name.toLowerCase(), f]))
   const tagByName = new Map(tasteTags.map((t) => [t.name.toLowerCase(), t]))
@@ -132,7 +140,10 @@ export function validateRecipeImport(
 
       const ingredientName =
         typeof rawComp.ingredient === "string" ? rawComp.ingredient.trim() : ""
-      const matchedType = typeByName.get(ingredientName.toLowerCase())
+      const matchedType = resolveIngredientType(ingredientName, {
+        types,
+        aliases,
+      })
       if (!ingredientName) {
         errors.push(`${label}: missing ingredient name`)
         return
@@ -224,8 +235,22 @@ export function buildRecipeImportPrompt({
   glasses,
   families,
   tasteTags,
+  aliases = [],
 }) {
-  const typeNames = types.map((t) => t.name).sort()
+  const aliasesByTypeId = new Map()
+  aliases.forEach((a) => {
+    if (!aliasesByTypeId.has(a.ingredient_type_id))
+      aliasesByTypeId.set(a.ingredient_type_id, [])
+    aliasesByTypeId.get(a.ingredient_type_id).push(a.alias)
+  })
+  const typeNames = types
+    .map((t) => {
+      const known = aliasesByTypeId.get(t.id) ?? []
+      return known.length > 0
+        ? `${t.name} (also known as: ${known.join(", ")})`
+        : t.name
+    })
+    .sort()
   const glassNames = glasses.map((g) => g.name).sort()
   const familyNames = families.map((f) => f.name).sort()
   const tagNames = tasteTags.map((t) => t.name).sort()
@@ -241,7 +266,7 @@ Return ONLY a JSON array (no markdown fences, no commentary) where each item has
 - "tasteTags": optional array of strings, each exactly one of: ${tagNames.join(", ") || "(none defined yet - omit this field)"}.
 - "steps": array of strings, required, one instruction per step, in order.
 - "components": array of objects, required - list EVERY ingredient the recipe uses here, including ones not in the existing list below, each with:
-  - "ingredient": string, required. If it matches one of the existing ingredient types below, spell it EXACTLY as listed there - never guess a close match. If it does NOT exist yet, still put it here: use only the plain, common name a shopper would recognize (e.g. "Pineapple", "Salt") - never append quantity, unit, preparation, or notes to this name (NOT "Fresh pineapple - 50 g", NOT "Salt - optional tiny pinch"). Never invent a new ingredient type name that's a variant of an existing one - use the plain generic name instead.
+  - "ingredient": string, required. If it matches one of the existing ingredient types below (or one of its known aliases, shown in parentheses), spell it EXACTLY as ONE of those names - either the main name or a single alias by itself, never the whole "Name (also known as: ...)" line - never guess a close match. If it does NOT exist yet, still put it here: use only the plain, common name a shopper would recognize (e.g. "Pineapple", "Salt") - never append quantity, unit, preparation, or notes to this name (NOT "Fresh pineapple - 50 g", NOT "Salt - optional tiny pinch"). Never invent a new ingredient type name that's a variant of an existing one - use the plain generic name instead.
   - "amount": number. Use canonical ml values for volume; for weight, use grams; for other non-volume units, use a plain count (e.g. 2 for "2 dashes"); omit for a unit like "top-up" that has no count.
   - "unit": either "ml" (canonical volume unit - always convert to ml, never oz or cl), "g" (grams, for weight-based solids), or one of: ${NON_VOLUME_UNITS.filter((u) => u !== "g").join(", ")}.
   - "role": one of "required", "optional", "garnish". Defaults to "required" if omitted. An ingredient the recipe calls optional (e.g. "optional: a pinch of salt") is still a real component - set "role" to "optional", don't move it out of components or bury that detail in the ingredient name.
@@ -249,7 +274,7 @@ Return ONLY a JSON array (no markdown fences, no commentary) where each item has
 
 Never invent a new ingredient type, glass, family, or taste tag name - only use the exact names listed below.
 
-Existing ingredient types (use EXACTLY these names):
+Existing ingredient types (use EXACTLY one of these names or aliases - names in parentheses are known aliases, already covered, not gaps to fill):
 ${typeNames.join(", ") || "(none yet)"}
 
 Existing glasses: ${glassNames.join(", ") || "(none yet)"}

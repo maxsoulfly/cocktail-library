@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import {
   fetchCocktailFamilies,
   fetchGlasses,
+  fetchIngredientAliases,
   fetchIngredientCategories,
   fetchIngredientTypes,
   fetchProducts,
@@ -13,6 +14,7 @@ export function useCatalog() {
     loading: true,
     categories: [],
     types: [],
+    aliases: [],
     products: [],
     glasses: [],
     tasteTags: [],
@@ -27,23 +29,35 @@ export function useCatalog() {
     return Promise.all([
       fetchIngredientCategories(),
       fetchIngredientTypes(),
+      fetchIngredientAliases(),
       fetchProducts(),
       fetchGlasses(),
       fetchTasteTags(),
       fetchCocktailFamilies(),
-    ]).then(([categories, types, products, glasses, tasteTags, families]) => {
-      const next = {
-        loading: false,
+    ]).then(
+      ([
         categories,
         types,
+        aliases,
         products,
         glasses,
         tasteTags,
         families,
-      }
-      setState(next)
-      return next
-    })
+      ]) => {
+        const next = {
+          loading: false,
+          categories,
+          types,
+          aliases,
+          products,
+          glasses,
+          tasteTags,
+          families,
+        }
+        setState(next)
+        return next
+      },
+    )
   }, [])
 
   useEffect(() => {

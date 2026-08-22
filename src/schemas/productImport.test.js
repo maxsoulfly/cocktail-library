@@ -109,6 +109,18 @@ describe("validateProductImport", () => {
     expect(results[0].valid).toBe(false)
     expect(results[0].errors).toContain("Missing name")
   })
+
+  it("resolves ingredientType given as a known alias", () => {
+    const { results } = validateProductImport(
+      [{ name: "Tanqueray", ingredientType: "London Dry" }],
+      {
+        ...catalog,
+        aliases: [{ alias: "London Dry", ingredient_type_id: "type-gin" }],
+      },
+    )
+    expect(results[0].valid).toBe(true)
+    expect(results[0].resolved.ingredient_type_id).toBe("type-gin")
+  })
 })
 
 describe("buildProductImportPrompt", () => {
@@ -116,5 +128,13 @@ describe("buildProductImportPrompt", () => {
     const prompt = buildProductImportPrompt(catalog)
     expect(prompt).toContain("Gin")
     expect(prompt).toContain("Vodka")
+  })
+
+  it("annotates a type with its known aliases", () => {
+    const prompt = buildProductImportPrompt({
+      ...catalog,
+      aliases: [{ alias: "London Dry", ingredient_type_id: "type-gin" }],
+    })
+    expect(prompt).toContain("Gin (also known as: London Dry)")
   })
 })

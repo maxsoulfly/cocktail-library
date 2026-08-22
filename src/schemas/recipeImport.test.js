@@ -206,6 +206,23 @@ describe("validateRecipeImport", () => {
     expect(results[0].errors[0]).toMatch(/unresolved ingredient "Gyn"/)
   })
 
+  it("resolves a component ingredient given as a known alias", () => {
+    const { results } = validateRecipeImport(
+      [
+        {
+          ...validItem,
+          components: [{ ingredient: "London Dry", amount: 60, unit: "ml" }],
+        },
+      ],
+      {
+        ...catalog,
+        aliases: [{ alias: "London Dry", ingredient_type_id: "type-gin" }],
+      },
+    )
+    expect(results[0].valid).toBe(true)
+    expect(results[0].resolved.components[0].ingredientTypeId).toBe("type-gin")
+  })
+
   it("rejects a component with an invalid unit", () => {
     const { results } = validateRecipeImport(
       [
@@ -306,5 +323,13 @@ describe("buildRecipeImportPrompt", () => {
   it("tells the AI to keep ingredient names bare, no quantity or notes", () => {
     const prompt = buildRecipeImportPrompt(catalog)
     expect(prompt).toMatch(/never append quantity/i)
+  })
+
+  it("annotates an ingredient type with its known aliases", () => {
+    const prompt = buildRecipeImportPrompt({
+      ...catalog,
+      aliases: [{ alias: "London Dry", ingredient_type_id: "type-gin" }],
+    })
+    expect(prompt).toContain("Gin (also known as: London Dry)")
   })
 })

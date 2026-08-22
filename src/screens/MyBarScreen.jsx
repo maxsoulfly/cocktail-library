@@ -18,6 +18,7 @@ import {
   OwnedToggle,
   Select,
 } from "@/components/primitives"
+import { resolveIngredientType } from "@/domain/ingredientResolution"
 import {
   BAR_PRIORITIES,
   validateIngredientImport,
@@ -31,7 +32,13 @@ import {
 export default function MyBarScreen() {
   const navigate = useNavigate()
   const { catalog, inventory, isAdmin } = useOutletContext()
-  const { loading: catalogLoading, categories, types, products } = catalog
+  const {
+    loading: catalogLoading,
+    categories,
+    types,
+    products,
+    aliases,
+  } = catalog
   const {
     loading: inventoryLoading,
     ownedTypeIds,
@@ -72,11 +79,10 @@ export default function MyBarScreen() {
   }
 
   const editMatchedType = editingProduct
-    ? types.find(
-        (t) =>
-          t.name.toLowerCase() ===
-          editingProduct.ingredientTypeName.trim().toLowerCase(),
-      )
+    ? resolveIngredientType(editingProduct.ingredientTypeName, {
+        types,
+        aliases,
+      })
     : null
 
   const handleSaveEditProduct = async () => {
@@ -154,7 +160,7 @@ export default function MyBarScreen() {
           description: editingType.description.trim() || undefined,
         },
       ],
-      { categories, types: otherTypes },
+      { categories, types: otherTypes, aliases },
     )
     const [result] = results
     if (!result.valid) {
@@ -691,6 +697,9 @@ export default function MyBarScreen() {
                                 <datalist id={`edit-ing-types-${p.id}`}>
                                   {types.map((t) => (
                                     <option key={t.id} value={t.name} />
+                                  ))}
+                                  {aliases.map((a) => (
+                                    <option key={a.id} value={a.alias} />
                                   ))}
                                 </datalist>
                                 {editingProduct.ingredientTypeName.trim() &&

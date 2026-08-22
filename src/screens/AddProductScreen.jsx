@@ -3,12 +3,13 @@ import { Link, useNavigate, useOutletContext } from "react-router-dom"
 import { IconAlert, IconCheck, IconInfo } from "@/components/icons"
 import { TopBar } from "@/components/Nav"
 import { Btn, Card, Input, OwnedToggle } from "@/components/primitives"
+import { resolveIngredientType } from "@/domain/ingredientResolution"
 import { createProduct } from "@/services/catalog"
 
 export default function AddProductScreen() {
   const navigate = useNavigate()
   const { catalog, inventory } = useOutletContext()
-  const { types } = catalog
+  const { types, aliases } = catalog
   const [name, setName] = useState("")
   const [ingType, setIngType] = useState("")
   const [brand, setBrand] = useState("")
@@ -16,9 +17,7 @@ export default function AddProductScreen() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
-  const matchedType = types.find(
-    (t) => t.name.toLowerCase() === ingType.toLowerCase(),
-  )
+  const matchedType = resolveIngredientType(ingType, { types, aliases })
 
   const handleAdd = async () => {
     if (!matchedType) return
@@ -120,6 +119,9 @@ export default function AddProductScreen() {
               <datalist id="ing-types">
                 {types.map((t) => (
                   <option key={t.id} value={t.name} />
+                ))}
+                {aliases.map((a) => (
+                  <option key={a.id} value={a.alias} />
                 ))}
               </datalist>
             </div>

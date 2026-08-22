@@ -132,6 +132,32 @@ describe("validateIngredientImport", () => {
     expect(results[0].valid).toBe(false)
     expect(results[0].errors).toContain("Missing name")
   })
+
+  it("rejects a name that already resolves to an existing type via an alias", () => {
+    const { results } = validateIngredientImport(
+      [{ name: "Cachaca", category: "Spirit" }],
+      {
+        ...catalog,
+        aliases: [{ alias: "Cachaca", ingredient_type_id: "type-rum" }],
+      },
+    )
+    expect(results[0].valid).toBe(false)
+    expect(results[0].errors[0]).toMatch(
+      /already resolves to "Rum" via an existing alias/,
+    )
+  })
+
+  it("resolves a parentType given as a known alias", () => {
+    const { results } = validateIngredientImport(
+      [{ name: "Spiced Rum", category: "Spirit", parentType: "Ron" }],
+      {
+        ...catalog,
+        aliases: [{ alias: "Ron", ingredient_type_id: "type-rum" }],
+      },
+    )
+    expect(results[0].valid).toBe(true)
+    expect(results[0].resolved.parent_type_id).toBe("type-rum")
+  })
 })
 
 describe("buildIngredientImportPrompt", () => {
@@ -146,5 +172,13 @@ describe("buildIngredientImportPrompt", () => {
   it("names all allowed bar priorities", () => {
     const prompt = buildIngredientImportPrompt(catalog)
     expect(prompt).toContain("essential, common, specialized, niche")
+  })
+
+  it("annotates a type with its known aliases", () => {
+    const prompt = buildIngredientImportPrompt({
+      ...catalog,
+      aliases: [{ alias: "Ron", ingredient_type_id: "type-rum" }],
+    })
+    expect(prompt).toContain("Rum (also known as: Ron)")
   })
 })

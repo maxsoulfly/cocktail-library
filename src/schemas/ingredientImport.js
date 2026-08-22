@@ -5,18 +5,26 @@
 // apart is exactly what the spec's "reject unknown units/values" and this
 // project's no-fuzzy-matching rule are meant to prevent).
 
+import { resolveIngredientType } from "@/domain/ingredientResolution"
+
 export const BAR_PRIORITIES = ["essential", "common", "specialized", "niche"]
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
 
 /**
  * @param {unknown[]} rawItems - parsed JSON array, not yet validated
- * @param {{ categories: {id: string, name: string}[], types: {id: string, name: string, category_id: string}[] }} catalog
+ * @param {{
+ *   categories: {id: string, name: string}[],
+ *   types: {id: string, name: string, category_id: string}[],
+ *   aliases?: {alias: string, ingredient_type_id: string}[],
+ * }} catalog
  */
-export function validateIngredientImport(rawItems, { categories, types }) {
+export function validateIngredientImport(
+  rawItems,
+  { categories, types, aliases = [] },
+) {
   const categoryByName = new Map(
     categories.map((c) => [c.name.toLowerCase(), c]),
   )
-  const typeByName = new Map(types.map((t) => [t.name.toLowerCase(), t]))
   const seenNames = new Set()
 
   const results = rawItems.map((item, index) => {
@@ -24,9 +32,16 @@ export function validateIngredientImport(rawItems, { categories, types }) {
     const raw = item && typeof item === "object" ? item : {}
 
     const name = typeof raw.name === "string" ? raw.name.trim() : ""
+    const existingViaName = name
+      ? resolveIngredientType(name, { types, aliases })
+      : null
     if (!name) errors.push("Missing name")
-    else if (typeByName.has(name.toLowerCase()))
-      errors.push(`"${name}" already exists in the catalog`)
+    else if (existingViaName)
+      errors.push(
+        existingViaName.name.toLowerCase() === name.toLowerCase()
+          ? `"${name}" already exists in the catalog`
+          : `"${name}" already resolves to "${existingViaName.name}" via an existing alias`,
+      )
     else if (seenNames.has(name.toLowerCase()))
       errors.push(`Duplicate "${name}" earlier in this import`)
     if (name) seenNames.add(name.toLowerCase())
@@ -40,7 +55,7 @@ export function validateIngredientImport(rawItems, { categories, types }) {
     let parent = null
     if (raw.parentType) {
       const parentName = String(raw.parentType).trim()
-      parent = typeByName.get(parentName.toLowerCase())
+      parent = resolveIngredientType(parentName, { types, aliases })
       if (!parent) errors.push(`Unknown parentType "${parentName}"`)
       else if (category && parent.category_id !== category.id)
         errors.push(
@@ -93,13 +108,29 @@ export function validateIngredientImport(rawItems, { categories, types }) {
  * assistant, generated from the live catalog so it can never drift from
  * what validateIngredientImport() actually accepts.
  */
-export function buildIngredientImportPrompt({ categories, types }) {
+export function buildIngredientImportPrompt({
+  categories,
+  types,
+  aliases = [],
+}) {
   const categoryNames = categories.map((c) => c.name).sort()
   const typesByCategory = new Map(categoryNames.map((name) => [name, []]))
   const categoryNameById = new Map(categories.map((c) => [c.id, c.name]))
+  const aliasesByTypeId = new Map()
+  aliases.forEach((a) => {
+    if (!aliasesByTypeId.has(a.ingredient_type_id))
+      aliasesByTypeId.set(a.ingredient_type_id, [])
+    aliasesByTypeId.get(a.ingredient_type_id).push(a.alias)
+  })
   types.forEach((t) => {
     const categoryName = categoryNameById.get(t.category_id)
-    if (categoryName) typesByCategory.get(categoryName)?.push(t.name)
+    if (!categoryName) return
+    const knownAliases = aliasesByTypeId.get(t.id) ?? []
+    const label =
+      knownAliases.length > 0
+        ? `${t.name} (also known as: ${knownAliases.join(", ")})`
+        : t.name
+    typesByCategory.get(categoryName)?.push(label)
   })
 
   const existingLines = categoryNames
@@ -112,14 +143,14 @@ export function buildIngredientImportPrompt({ categories, types }) {
   return `Format a JSON array of new cocktail ingredient types for import into Cocktail Library.
 
 Return ONLY a JSON array (no markdown fences, no commentary) where each item has:
-- "name": string, required. Must not duplicate an existing ingredient type below.
+- "name": string, required. Must not duplicate an existing ingredient type or any of its known aliases below.
 - "category": string, required. Must be exactly one of: ${categoryNames.join(", ")}.
-- "parentType": string, optional. Must be an existing type name within the SAME category, used to group related styles (e.g. "Rum" as the parentType for a new "Spiced Rum").
+- "parentType": string, optional. Must be an existing type name (or one of its known aliases) within the SAME category, used to group related styles (e.g. "Rum" as the parentType for a new "Spiced Rum").
 - "barPriority": one of ${BAR_PRIORITIES.join(", ")}. Optional, defaults to "common".
 - "color": optional hex color like "#fb923c".
 - "description": optional short string.
 
-Existing categories and types (do not invent a new category; reuse an existing type name as parentType where it makes sense):
+Existing categories and types (do not invent a new category; reuse an existing type name or alias as parentType where it makes sense - names in parentheses are known aliases, already covered, not gaps to fill):
 ${existingLines}
 
 Here is what I want to add:

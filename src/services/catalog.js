@@ -10,6 +10,49 @@ export async function fetchIngredientCategories() {
   return data
 }
 
+export async function fetchIngredientAliases() {
+  const { data, error } = await supabase
+    .from("ingredient_aliases")
+    .select("id, ingredient_type_id, alias")
+    .order("alias")
+  if (error) throw error
+  return data
+}
+
+// Admin-only via the pre-existing "ingredient_aliases: admin insert/update/
+// delete" RLS policies - real spec scope (Phase 2, §12.3's "resolve through
+// IDs, canonical names, or controlled aliases") that had zero application
+// code until now. Uniqueness (one alias string can only ever mean one
+// ingredient type) is enforced by a case-insensitive unique index
+// (20260822150000_ingredient_alias_global_uniqueness.sql), not just app-side
+// checking - the DB is the actual source of truth for that guarantee.
+export async function createIngredientAlias({ alias, ingredientTypeId }) {
+  const { data, error } = await supabase
+    .from("ingredient_aliases")
+    .insert({ alias, ingredient_type_id: ingredientTypeId })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+export async function updateIngredientAlias(id, { alias, ingredientTypeId }) {
+  const { data, error } = await supabase
+    .from("ingredient_aliases")
+    .update({ alias, ingredient_type_id: ingredientTypeId })
+    .eq("id", id)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+export async function deleteIngredientAlias(id) {
+  const { error } = await supabase
+    .from("ingredient_aliases")
+    .delete()
+    .eq("id", id)
+  if (error) throw error
+}
+
 export async function fetchIngredientTypes() {
   const { data, error } = await supabase
     .from("ingredient_types")
