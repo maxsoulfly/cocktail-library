@@ -1799,8 +1799,23 @@ export default function AdminScreen() {
                                 fontFamily: "var(--font-display)",
                               }}
                             >
-                              Add ingredient: {addIngredientDraft.name}
+                              Add ingredient
                             </div>
+                            {/* The AI-flagged text isn't always a clean
+                                ingredient name (e.g. "Fresh pineapple - 50
+                                g", with the quantity/notes still attached) -
+                                editable rather than a fixed label so that
+                                can be cleaned up before creating the type. */}
+                            <Input
+                              label="Name"
+                              value={addIngredientDraft.name}
+                              onChange={(v) =>
+                                setAddIngredientDraft({
+                                  ...addIngredientDraft,
+                                  name: v,
+                                })
+                              }
+                            />
                             <Select
                               value={addIngredientDraft.categoryId}
                               onChange={(v) =>
@@ -1880,6 +1895,7 @@ export default function AdminScreen() {
                                 variant="primary"
                                 small
                                 disabled={
+                                  !addIngredientDraft.name.trim() ||
                                   !addIngredientDraft.categoryId ||
                                   addIngredientSaving
                                 }
