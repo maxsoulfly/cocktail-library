@@ -15,14 +15,22 @@ Agreed phase plan (revised by user on 2026-08-15 — private recipe CRUD moved i
 9. ~~Library browsing, filters, Favorites, Want to Make (Phase 4)~~ — **done, 2026-08-16 — verified**
 10. ~~Purchase recommendations, tested (Phase 4)~~ — **done, 2026-08-16 — verified**
 11. ~~Recipe publishing + admin unpublishing (Phase 5)~~ — **done, 2026-08-16 — browser-verified**
-12. Admin catalog tools + JSON import preview/validation (Phase 5) — **in progress**: ingredient-type batch import (AI-prompt-assisted), a member ingredient-request queue, real invitation generation/revocation, and recipe batch import are done; product import and glass/taste-tag/family management are not started.
+12. Admin catalog tools + JSON import preview/validation (Phase 5) — **in progress**: ingredient-type/recipe/product batch import (AI-prompt-assisted), a member ingredient-request queue, and real invitation generation/revocation are done; glass/taste-tag/family management UI is the one piece not started.
 13. Responsive/accessibility/security/deployment QA (Phase 6)
 
 Each numbered step is a development chunk boundary for this file.
 
 ## Last completed chunk
 
-Step 12, fifth slice: a real, repeated user-testing bug (not a code bug) around the Product vs. Ingredient Type split, plus the UX fix it exposed.
+Step 12, sixth slice: product batch import, the last of the three batch-import entities (ingredients → recipes → products). Simplest of the three: a product is one flat row (`name`, `ingredient_type_id`, `brand`, `is_homemade`) with no per-row children to insert, so `src/schemas/productImport.js` (`validateProductImport` + `buildProductImportPrompt`, 10 unit tests) and `createProducts(rows)` in `src/services/catalog.js` (a single bulk `.insert()`) are both noticeably smaller than their recipe equivalents. Same standing rules as the other two importers: `ingredientType` resolves via an EXISTING `ingredient_types.name` exact match only (no fuzzy matching - the prompt tells the AI to leave a product out entirely rather than guess a close type match), and duplicate detection checks name+type pairs both against every existing product (`catalog.products`) and within the same paste (the same product name is fine under two different types - e.g. two brands both making an "Amaretto" and a "Grenadine" - so the dedupe key is `name+type`, not name alone). `AdminScreen.jsx`'s entity switch is now Ingredients/Recipes/Products, all three batch/AI-only for Recipes and Products (My Bar's Add Product and New Recipe already cover one-off creation).
+
+No new migration - `createProducts()` goes through the exact same "products: member insert" RLS policy any member's single Add Product already uses (`created_by` defaults to `auth.uid()` per-row at the column level, which a live DB check confirmed works correctly for a multi-row bulk insert, not just a single row). Verified directly against the live DB with simulated admin JWT claims before considering this done, then cleaned up. `pnpm test` — 74/74 passing (64 previous + 10 new). `pnpm build` clean.
+
+**Not yet browser-clicked**: same as recipes - generating the product AI prompt, a real AI round-trip, and paste/validate/commit through the actual Admin UI.
+
+## Earlier chunk (step 12, fifth slice)
+
+A real, repeated user-testing bug (not a code bug) around the Product vs. Ingredient Type split, plus the UX fix it exposed.
 
 **What happened**: while browser-testing My Bar, the user added "Scotch" via **Add Product** (My Bar's member-facing `+`) expecting it to appear as a sibling of "Bourbon" under "Whiskey" (its own indented row, own toggle). Instead it showed as a small subtitle under "Whiskey" - because Add Product can only ever create a *product* mapped to an *existing* type (spec §8.1's ingredient-type/product split, enforced by the schema itself - products have no parent-type concept). The green "Matches catalog ingredient: Whiskey" success state looks like the action succeeded, but it succeeded at the wrong thing for what the user wanted. This repeated twice more in the same session ("Irish Whiskey", then a "Rye Whiskey" product about to be submitted) before the pattern was diagnosed - confirming it's a discoverability/clarity gap in the UI, not user error, even for the person who built the schema.
 
@@ -94,6 +102,8 @@ Migrations for all of the above: `20260815230002_recipe_publishing.sql`, `202608
 - Step 11, the loading-flash fix, and the scroll fix are all **browser-confirmed by the user**.
 - `create_invitation()` verified directly against the live DB with simulated admin and non-admin JWT claims (admin succeeds with a real row, non-admin correctly rejected); the new `profiles!invitations_redeemed_by_fkey` PostgREST embed sanity-checked via a real REST call (200, empty due to anon RLS denial).
 - `createClassicRecipes()`'s underlying insert path verified directly against the live DB with simulated admin (succeeds, `owner_id null`/`source_type classic`/`visibility shared`) and non-admin (real `42501` RLS rejection) JWT claims. `pnpm test` — 64/64 passing (45 previous + 19 new recipe-import schema tests).
+- `createProducts()`'s bulk-insert path verified directly against the live DB with simulated admin JWT claims (a 2-row insert succeeds, `created_by` correctly defaults per-row to the caller). `pnpm test` — 74/74 passing (64 previous + 10 new product-import schema tests).
+- The Scotch/Irish Whiskey/Rye taxonomy fix and the stray-product cleanup (see "Earlier chunk, fifth slice") were all verified directly against the live DB (insert, delete, and inventory-restore each confirmed via a follow-up select) - not yet re-confirmed by the user in the actual My Bar UI.
 
 ## Browser walkthrough, 2026-08-22 - results
 
@@ -115,13 +125,14 @@ User worked through the full "Checks needed" list from the previous chunk:
 - Ingredient request flow, now that the exact screens/buttons have been explained.
 - Real invitation generation → copy → redeem-from-a-second-account end-to-end through the browser UI (the underlying function is DB-verified; the UI path itself isn't yet).
 - Recipe batch import through the actual Admin UI: generate the prompt, get real JSON back from an AI, paste/validate/commit, confirm the new classic recipe(s) show up correctly in the Library and Detail screens (the underlying insert path is DB-verified; the UI path and the AI round-trip itself aren't yet).
+- Product batch import through the actual Admin UI - same shape of check as recipes above.
+- Confirm My Bar now shows Scotch/Irish Whiskey/Rye as proper indented siblings of Bourbon under Whiskey (fixed via direct DB verification this session, not yet re-confirmed live in the browser), and that the Add Product screen's new "request it as a new ingredient type instead" hint shows up and links correctly.
 
 ## Remaining / not started (what's next)
 
 **Rest of step 12** (admin catalog tools):
 
-- Product batch import.
-- Glass/taste-tag/family management UI - currently only editable via migrations.
+- Glass/taste-tag/family management UI - currently only editable via migrations. The one remaining piece of step 12.
 
 **Step 13** (final phase): responsive/accessibility/security/deployment QA - not started at all yet.
 
@@ -139,7 +150,8 @@ An untracked "Juice"/"Wine" ingredient-category pair was found live in the datab
 - **Admin can only edit/delete the classic (ownerless) catalog, never another member's recipe**, tightened from the original broader policy - the spec says "No by default" for admin editing another user's recipe, and the original RLS was wider than that.
 - **Batch import commits only the valid rows and reports the rest, rather than an all-or-nothing transaction.** Matches the spec's "atomic-or-clearly-partial commit" wording; simpler than a single multi-row transaction via RPC, and each row is independent (no cross-row foreign keys within one import).
 - **The AI-formatting-prompt is generated from the same catalog data the validator checks against**, not hand-written separately - this was flagged as a requirement while planning step 12, specifically to prevent the prompt's instructions and the validator's actual rules from silently drifting apart over time.
-- **Classic/product import options are shown but disabled ("Coming soon") rather than left as the old fake-success mock.** Once one import path is real, faking success for the other two would be actively misleading rather than merely incomplete.
+- **Classic/product import options were shown but disabled ("Coming soon") while unbuilt, rather than left as the old fake-success mock** - once one import path was real, faking success for the other two would have been actively misleading rather than merely incomplete. Historical now: all three (ingredients, recipes, products) are real as of this session, so there's no remaining "Coming soon" state in Batch Import.
+- **Product batch import dedupes on `name + ingredientType`, not name alone.** Unlike a recipe or ingredient-type name (expected to be globally unique-ish), the same product name legitimately exists under two different types (two brands both selling an "Amaretto" mixer vs. liqueur, say) - deduping on name alone would have produced false-positive duplicate errors.
 - **Ingredient requests don't auto-create anything.** Fulfilling a request is bookkeeping (marks it resolved); the admin still goes through Batch Import to actually add the type, since a request is just a name + optional note, not a validated category/hierarchy/color.
 - **Invitation generation is a `SECURITY DEFINER` function; revocation is a direct RLS-gated update, not a matching function.** AGENTS.md is explicit that invitation *generation* must run in protected backend logic, not client-side trust - but admins already have a full RLS grant on `invitations` ("invitations: admin manages"), so revocation (and reading the list) go through that grant directly, same precedent as `resolveIngredientRequest`/`createIngredientTypes`. SECURITY DEFINER is reserved for cases RLS genuinely can't cover, like a not-yet-a-member redeeming a code.
 - **`invitations.redeemed_by` now references `profiles`, not `auth.users`.** Matches `created_by` and `ingredient_requests.requested_by`, and lets the admin UI embed the redeemer's `display_name` in one PostgREST select instead of a second query.
@@ -151,16 +163,16 @@ Earlier decisions (still standing, trimmed here - see git history for step 2-10 
 
 ## Migrations / environment changes
 
-Seven migrations total across this session's work (six from the earlier "Recently completed" list, plus `20260822090000_invitation_generation.sql` for real invitation generation). Recipe batch import needed **no new migration** - it reuses the existing "recipes: insert" RLS policy's `is_admin()` branch. All migrations applied via `supabase db push`. No new environment variables.
+Seven migrations total across this session's work (six from the earlier "Recently completed" list, plus `20260822090000_invitation_generation.sql` for real invitation generation). Neither recipe nor product batch import needed a new migration - both reuse existing RLS policies (`"recipes: insert"`'s `is_admin()` branch; `"products: member insert"`'s `created_by = auth.uid()` check, satisfied by the column default on a bulk insert too). The Scotch/Irish Whiskey/Rye taxonomy fix was plain catalog data, also no migration - same precedent as the live-added Mezcal/Crema di Pistacchio ingredients. All migrations applied via `supabase db push`. No new environment variables.
 
 ## Tests / build checks last run
 
-2026-08-22: `pnpm test` — 64/64 passing (45 from earlier this session + 19 new `recipeImport.test.js`). `pnpm build` — no errors. `pnpm format` — clean. `create_invitation()` and `createClassicRecipes()`'s underlying insert path both verified directly against the live DB with simulated admin (success) and non-admin (correctly rejected, real `42501` RLS violation for the recipe case) JWT claims; the new `profiles!invitations_redeemed_by_fkey` embed sanity-checked via a real REST call (200, empty due to anon RLS denial). All test rows cleaned up after verification.
+2026-08-22: `pnpm test` — 74/74 passing (64 from earlier this session + 10 new `productImport.test.js`). `pnpm build` — no errors. `pnpm format` — clean. `create_invitation()`, `createClassicRecipes()`, and `createProducts()`'s underlying insert paths all verified directly against the live DB with simulated admin (success) and non-admin (correctly rejected, real `42501` RLS violation for the recipe case) JWT claims; the new `profiles!invitations_redeemed_by_fkey` embed sanity-checked via a real REST call (200, empty due to anon RLS denial). All test rows cleaned up after verification.
 
 ## Exact next recommended action
 
-Work through "Checks still needed" above - generating/redeeming a real invitation, recipe-editing-as-owner, the ingredient-request flow, and now recipe batch import, all through the actual browser UI (every one of these has its underlying logic DB/unit-verified already; only the click-through is outstanding). After that, product batch import or glass/taste-tag/family management UI are the remaining step-12 pieces. Ask the user about the untracked "Juice"/"Wine" category mystery whenever convenient - not urgent, still unresolved.
+Work through "Checks still needed" above - generating/redeeming a real invitation, recipe-editing-as-owner, the ingredient-request flow, and now recipe *and* product batch import, all through the actual browser UI (every one of these has its underlying logic DB/unit-verified already; only the click-through is outstanding). After that, glass/taste-tag/family management UI is the one remaining step-12 piece, then step 13 (responsive/accessibility/security/deployment QA). Ask the user about the untracked "Juice"/"Wine" category mystery whenever convenient - not urgent, still unresolved.
 
 ## Files/areas relevant to next action
 
-`src/schemas/recipeImport.js` and `src/services/recipes.js`'s `createClassicRecipes()` (now real - just needs the browser click-through, including a real AI round-trip on the generated prompt). `src/services/invitations.js` and `src/screens/AdminScreen.jsx`'s Invitations tab (also real, also needs its own browser click-through). `docs/Cocktail_Library_Development_Spec.md` §12 for the full batch-import requirements this is progressively fulfilling (product import is the one piece left).
+`src/schemas/productImport.js` and `src/services/catalog.js`'s `createProducts()` (now real - just needs the browser click-through, including a real AI round-trip on the generated prompt - same as recipes). `src/services/invitations.js` and `src/screens/AdminScreen.jsx`'s Invitations tab (also real, also needs its own browser click-through). `docs/Cocktail_Library_Development_Spec.md` §12 for the full batch-import requirements - all three entities (ingredients, recipes, products) are now real, so this section is functionally complete pending browser verification. Glass/taste-tag/family management (spec §7.7) is the next unbuilt admin-area piece.

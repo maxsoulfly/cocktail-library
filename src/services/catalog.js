@@ -58,6 +58,17 @@ export async function createProduct({
   return data
 }
 
+// Admin batch import - `rows` are already-validated resolved objects from
+// src/schemas/productImport.js (snake_case, matching the table), not raw
+// import JSON. Uses the same "products: member insert" RLS policy any
+// member's single Add Product goes through (created_by defaults to
+// auth.uid() at the column level) - no new grant needed, and no per-row
+// children to insert, so a single bulk insert is enough (unlike recipes).
+export async function createProducts(rows) {
+  const { error } = await supabase.from("products").insert(rows)
+  if (error) throw error
+}
+
 export async function fetchGlasses() {
   const { data, error } = await supabase
     .from("glasses")

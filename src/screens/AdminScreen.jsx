@@ -22,10 +22,14 @@ import {
   validateIngredientImport,
 } from "@/schemas/ingredientImport"
 import {
+  buildProductImportPrompt,
+  validateProductImport,
+} from "@/schemas/productImport"
+import {
   buildRecipeImportPrompt,
   validateRecipeImport,
 } from "@/schemas/recipeImport"
-import { createIngredientTypes } from "@/services/catalog"
+import { createIngredientTypes, createProducts } from "@/services/catalog"
 import {
   fetchPendingIngredientRequests,
   resolveIngredientRequest,
@@ -81,12 +85,11 @@ export default function AdminScreen() {
   const [inviteError, setInviteError] = useState(null)
   const [copied, setCopied] = useState(null)
 
-  // Batch Import covers two entities now: "ingredients" (with its own
-  // single/batch sub-modes below) and "recipes" (batch/AI only - a member-
-  // facing equivalent of the manual "single ingredient" quick-add doesn't
-  // make sense for recipes, since New Recipe already covers one-off
-  // creation). Products aren't real yet - no picker option for something
-  // there's nothing to pick.
+  // Batch Import covers three entities: "ingredients" (with its own
+  // single/batch sub-modes below), "recipes", and "products" - the latter
+  // two are batch/AI only, since both already have a member-facing
+  // equivalent for one-off creation (New Recipe, My Bar's Add Product), so a
+  // duplicate quick-add here would be redundant.
   const [importEntity, setImportEntity] = useState("ingredients")
 
   // Ingredient-adding has two modes: "single" (a quick form for the common
@@ -124,6 +127,16 @@ export default function AdminScreen() {
   const [recipeImporting, setRecipeImporting] = useState(false)
   const [recipePromptCopied, setRecipePromptCopied] = useState(false)
   const [recipeImportSuccessMessage, setRecipeImportSuccessMessage] =
+    useState(null)
+
+  // Product batch import - same shape again, one flat bulk insert since
+  // products have no per-row children (unlike recipes' components/tags).
+  const [productBatchPhase, setProductBatchPhase] = useState("paste")
+  const [productImportJson, setProductImportJson] = useState("")
+  const [productImportResult, setProductImportResult] = useState(null)
+  const [productImporting, setProductImporting] = useState(false)
+  const [productPromptCopied, setProductPromptCopied] = useState(false)
+  const [productImportSuccessMessage, setProductImportSuccessMessage] =
     useState(null)
 
   // Moderation is real: currently-published community recipes, with an
@@ -360,6 +373,60 @@ export default function AdminScreen() {
       setRecipeImportResult({ ...recipeImportResult, commitError: err.message })
     } finally {
       setRecipeImporting(false)
+    }
+  }
+
+  const productImportPrompt = buildProductImportPrompt({
+    types: catalog.types,
+  })
+
+  const copyProductImportPrompt = () => {
+    navigator.clipboard.writeText(productImportPrompt).catch(() => {})
+    setProductPromptCopied(true)
+    setTimeout(() => setProductPromptCopied(false), 2000)
+  }
+
+  const runProductImportValidation = () => {
+    let parsed
+    try {
+      parsed = JSON.parse(productImportJson)
+      if (!Array.isArray(parsed)) throw new Error("Expected a JSON array")
+    } catch (err) {
+      setProductImportResult({ parseError: err.message })
+      setProductBatchPhase("results")
+      return
+    }
+    const validation = validateProductImport(parsed, {
+      types: catalog.types,
+      existingProducts: catalog.products,
+    })
+    setProductImportResult(validation)
+    setProductBatchPhase("results")
+  }
+
+  const handleCommitProductImport = async () => {
+    if (!productImportResult?.results) return
+    const rows = productImportResult.results
+      .filter((r) => r.valid)
+      .map((r) => r.resolved)
+    if (rows.length === 0) return
+    setProductImporting(true)
+    try {
+      await createProducts(rows)
+      await catalog.refetch()
+      setProductImportSuccessMessage(
+        `Imported ${rows.length} product${rows.length === 1 ? "" : "s"}.`,
+      )
+      setProductBatchPhase("paste")
+      setProductImportJson("")
+      setProductImportResult(null)
+    } catch (err) {
+      setProductImportResult({
+        ...productImportResult,
+        commitError: err.message,
+      })
+    } finally {
+      setProductImporting(false)
     }
   }
 
@@ -896,6 +963,7 @@ export default function AdminScreen() {
               {[
                 { id: "ingredients", label: "Ingredients" },
                 { id: "recipes", label: "Recipes" },
+                { id: "products", label: "Products" },
               ].map((e) => (
                 <button
                   key={e.id}
@@ -1651,6 +1719,271 @@ export default function AdminScreen() {
                             ? "Importing..."
                             : `Import ${recipeImportResult.validCount} Recipe${
                                 recipeImportResult.validCount === 1 ? "" : "s"
+                              }`}
+                        </Btn>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {importEntity === "products" && (
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: 16 }}
+              >
+                {productImportSuccessMessage && (
+                  <p style={{ margin: 0, fontSize: 13, color: "var(--green)" }}>
+                    {productImportSuccessMessage}
+                  </p>
+                )}
+
+                {productBatchPhase === "paste" && (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 12,
+                    }}
+                  >
+                    <h3
+                      style={{
+                        margin: 0,
+                        fontFamily: "var(--font-display)",
+                        fontSize: 17,
+                        fontWeight: 700,
+                        color: "var(--text)",
+                      }}
+                    >
+                      Format with AI, then Paste JSON
+                    </h3>
+                    <p
+                      style={{ margin: 0, fontSize: 13, color: "var(--text2)" }}
+                    >
+                      Copy this prompt into an AI chat along with what branded
+                      or homemade products you want to add, then paste its JSON
+                      output below. The prompt is generated from the live
+                      ingredient types, so the AI can only map products onto
+                      things that actually exist.
+                    </p>
+                    <textarea
+                      readOnly
+                      value={productImportPrompt}
+                      rows={14}
+                      onFocus={(e) => e.target.select()}
+                      style={{
+                        background: "var(--surface2)",
+                        border: "1px solid var(--border-s)",
+                        borderRadius: "var(--r-sm)",
+                        padding: "14px",
+                        color: "var(--text2)",
+                        fontSize: 12,
+                        fontFamily: "var(--font-mono)",
+                        lineHeight: 1.6,
+                        resize: "vertical",
+                        width: "100%",
+                      }}
+                    />
+                    <Btn
+                      variant="ghost"
+                      small
+                      onClick={copyProductImportPrompt}
+                    >
+                      {productPromptCopied ? (
+                        <IconCheck size={14} />
+                      ) : (
+                        <IconCopy size={14} />
+                      )}{" "}
+                      {productPromptCopied ? "Copied" : "Copy Prompt"}
+                    </Btn>
+                    <textarea
+                      value={productImportJson}
+                      onChange={(e) => setProductImportJson(e.target.value)}
+                      placeholder="Paste your JSON here..."
+                      rows={8}
+                      style={{
+                        background: "var(--surface)",
+                        border: "1px solid var(--border-s)",
+                        borderRadius: "var(--r-sm)",
+                        padding: "12px 14px",
+                        color: "var(--text)",
+                        fontSize: 13,
+                        fontFamily: "var(--font-mono)",
+                        resize: "vertical",
+                        width: "100%",
+                      }}
+                    />
+                    <Btn
+                      variant="primary"
+                      full
+                      onClick={runProductImportValidation}
+                    >
+                      Validate
+                    </Btn>
+                  </div>
+                )}
+
+                {productBatchPhase === "results" && productImportResult && (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 12,
+                    }}
+                  >
+                    <h3
+                      style={{
+                        margin: 0,
+                        fontFamily: "var(--font-display)",
+                        fontSize: 17,
+                        fontWeight: 700,
+                        color: "var(--text)",
+                      }}
+                    >
+                      Validation Results
+                    </h3>
+                    {productImportResult.parseError ? (
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: 13,
+                          color: "var(--coral)",
+                        }}
+                      >
+                        Couldn't parse that as a JSON array:{" "}
+                        {productImportResult.parseError}
+                      </p>
+                    ) : (
+                      <>
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(2, 1fr)",
+                            gap: 8,
+                          }}
+                        >
+                          {[
+                            {
+                              label: "Ready to import",
+                              val: productImportResult.validCount,
+                              color: "var(--green)",
+                            },
+                            {
+                              label: "Errors",
+                              val: productImportResult.errorCount,
+                              color: "var(--coral)",
+                            },
+                          ].map(({ label, val, color }) => (
+                            <Card
+                              key={label}
+                              style={{ padding: "12px", textAlign: "center" }}
+                            >
+                              <div
+                                style={{
+                                  fontSize: 24,
+                                  fontFamily: "var(--font-display)",
+                                  fontWeight: 800,
+                                  color,
+                                  marginBottom: 2,
+                                }}
+                              >
+                                {val}
+                              </div>
+                              <div
+                                style={{ fontSize: 11, color: "var(--text2)" }}
+                              >
+                                {label}
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                        <Card style={{ padding: "12px 14px" }}>
+                          {productImportResult.results.map((row, i, arr) => (
+                            <div
+                              key={row.index}
+                              style={{
+                                display: "flex",
+                                alignItems: "flex-start",
+                                gap: 10,
+                                padding: "8px 0",
+                                borderBottom:
+                                  i < arr.length - 1
+                                    ? "1px solid var(--border-s)"
+                                    : "none",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: 6,
+                                  height: 6,
+                                  borderRadius: "50%",
+                                  flexShrink: 0,
+                                  marginTop: 6,
+                                  background: row.valid
+                                    ? "var(--green)"
+                                    : "var(--coral)",
+                                }}
+                              />
+                              <div style={{ flex: 1 }}>
+                                <span
+                                  style={{ fontSize: 13, color: "var(--text)" }}
+                                >
+                                  {row.name ?? `Row ${row.index + 1}`}
+                                </span>
+                                {!row.valid && (
+                                  <div
+                                    style={{
+                                      fontSize: 11,
+                                      color: "var(--coral)",
+                                      marginTop: 2,
+                                    }}
+                                  >
+                                    {row.errors.join("; ")}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </Card>
+                        {productImportResult.commitError && (
+                          <p
+                            style={{
+                              margin: 0,
+                              fontSize: 12,
+                              color: "var(--coral)",
+                            }}
+                          >
+                            {productImportResult.commitError}
+                          </p>
+                        )}
+                      </>
+                    )}
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <Btn
+                        variant="ghost"
+                        small
+                        onClick={() => {
+                          setProductBatchPhase("paste")
+                          setProductImportJson("")
+                          setProductImportResult(null)
+                        }}
+                      >
+                        Cancel
+                      </Btn>
+                      {!productImportResult.parseError && (
+                        <Btn
+                          variant="primary"
+                          full
+                          disabled={
+                            productImporting ||
+                            productImportResult.validCount === 0
+                          }
+                          onClick={handleCommitProductImport}
+                        >
+                          {productImporting
+                            ? "Importing..."
+                            : `Import ${productImportResult.validCount} Product${
+                                productImportResult.validCount === 1 ? "" : "s"
                               }`}
                         </Btn>
                       )}
