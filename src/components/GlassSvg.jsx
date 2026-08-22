@@ -212,25 +212,21 @@ export function GlassSvg({
         <path d="M15 16 Q28 10 41 16 L38 47 L18 47 Z" {...stk} />
       </svg>
     )
-  // The classic "coupette" - a wide flat saucer sitting on top of a
-  // separate rounded belly (not just a second rim ring), which then narrows
-  // into the stem - the actual double-tier margarita silhouette.
+  // Wide flat rim, bulging convex shoulders, tapering to a point at the
+  // bottom of the bowl (not a coupe's flat-bottomed curve, not a martini's
+  // straight-sided V) - the actual margarita silhouette.
   if (type === "margarita")
     return (
       <svg {...svgProps}>
         <path
-          d="M4 8 Q4 20 28 24 Q52 20 52 8 Z"
+          d="M6 8 Q2 24 28 36 Q54 24 50 8 Z"
           fill={liquidColor}
           fillOpacity={liqOp}
         />
-        <path d="M4 8 Q4 20 28 24 Q52 20 52 8" {...stk} />
-        <line x1="2" y1="8" x2="54" y2="8" {...stk} />
-        <path
-          d="M28 24 Q16 26 20 32 Q24 38 28 38 Q32 38 36 32 Q40 26 28 24"
-          {...stk}
-        />
-        <line x1="28" y1="38" x2="28" y2="46" {...stk} />
-        <line x1="20" y1="46" x2="36" y2="46" {...stk} />
+        <path d="M6 8 Q2 24 28 36 Q54 24 50 8" {...stk} />
+        <line x1="4" y1="8" x2="52" y2="8" {...stk} />
+        <line x1="28" y1="36" x2="28" y2="46" {...stk} />
+        <line x1="19" y1="46" x2="37" y2="46" {...stk} />
       </svg>
     )
   // Narrower and shorter than the red wine bowl below.
