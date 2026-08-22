@@ -73,8 +73,14 @@ export default function AddProductScreen() {
               lineHeight: 1.5,
             }}
           >
-            Adding a product tells Cocktail Library which generic ingredient it
-            represents. New ingredient types require admin approval.
+            You don't need this for most ingredients - just toggle the
+            ingredient type itself as owned in{" "}
+            <Link to="/bar" style={{ color: "var(--cyan)" }}>
+              My Bar
+            </Link>
+            . Use this screen only if you want to track a specific brand (e.g.
+            this bottle of Gin is Hendrick's) or a homemade version. New
+            ingredient types still require admin approval.
           </p>
         </Card>
 

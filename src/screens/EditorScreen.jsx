@@ -79,6 +79,91 @@ export default function EditorScreen() {
   const [error, setError] = useState(null)
   const [prefilled, setPrefilled] = useState(!isEditing && !cloneSourceId)
 
+  // A blocked save (most often: an ingredient that doesn't exist yet and
+  // needs admin approval - see RequestIngredientScreen) used to just lose
+  // whatever the member had typed, with no way back to it. Auto-saves a
+  // blank "New Recipe" in progress to this browser's local storage so a
+  // closed tab or a wait-on-approval doesn't erase it - not a real
+  // server-side draft (doesn't survive a different device or a cleared
+  // browser), but a cheap safety net for the common case. Scoped to plain
+  // new-recipe creation only, not editing or cloning - both of those already
+  // have their own prefill source and a saved copy to fall back to.
+  const isDraftable = !isEditing && !cloneSourceId
+  const draftKey = isDraftable && userId ? `recipe-draft:${userId}` : null
+  const [draftBanner, setDraftBanner] = useState(null)
+
+  useEffect(() => {
+    if (!draftKey) return
+    const raw = localStorage.getItem(draftKey)
+    if (!raw) return
+    try {
+      const draft = JSON.parse(raw)
+      if (draft?.name?.trim()) setDraftBanner(draft)
+      else localStorage.removeItem(draftKey)
+    } catch {
+      localStorage.removeItem(draftKey)
+    }
+    // Only ever check once, right after mount - restoring/discarding is a
+    // one-time user decision, not something to re-run as the form changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey])
+
+  useEffect(() => {
+    if (!draftKey || draftBanner) return
+    const hasContent =
+      name.trim() ||
+      ings.some((i) => i.ingredientName.trim()) ||
+      steps.some((s) => s.trim())
+    if (!hasContent) {
+      localStorage.removeItem(draftKey)
+      return
+    }
+    localStorage.setItem(
+      draftKey,
+      JSON.stringify({
+        name,
+        desc,
+        glassName,
+        familyId,
+        liquidColor,
+        ings,
+        steps,
+        tasteTagIds,
+      }),
+    )
+  }, [
+    draftKey,
+    draftBanner,
+    name,
+    desc,
+    glassName,
+    familyId,
+    liquidColor,
+    ings,
+    steps,
+    tasteTagIds,
+  ])
+
+  const restoreDraft = () => {
+    setName(draftBanner.name ?? "")
+    setDesc(draftBanner.desc ?? "")
+    setGlassName(draftBanner.glassName ?? "")
+    setFamilyId(draftBanner.familyId ?? "")
+    if (draftBanner.liquidColor) setLiquidColor(draftBanner.liquidColor)
+    setIngs(
+      draftBanner.ings ?? [
+        { ingredientName: "", amount: "", unit: "ml", role: "required" },
+      ],
+    )
+    setSteps(draftBanner.steps ?? [""])
+    setTasteTagIds(draftBanner.tasteTagIds ?? [])
+    setDraftBanner(null)
+  }
+  const discardDraft = () => {
+    if (draftKey) localStorage.removeItem(draftKey)
+    setDraftBanner(null)
+  }
+
   useEffect(() => {
     const source = isEditing ? existing : cloneSource
     if (prefilled || !source || catalogLoading) return
@@ -309,6 +394,7 @@ export default function EditorScreen() {
       const recipe = isEditing
         ? await updateRecipe(id, payload)
         : await createRecipe(payload)
+      if (draftKey) localStorage.removeItem(draftKey)
       await refetchRecipes() // so the change is in `computed` before DetailScreen looks for it
       navigate(`/library/${recipe.id}`)
     } catch (err) {
@@ -410,6 +496,30 @@ export default function EditorScreen() {
           gap: 20,
         }}
       >
+        {draftBanner && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              background: "rgba(34,211,238,0.08)",
+              border: "1px solid rgba(34,211,238,0.25)",
+              borderRadius: "var(--r-sm)",
+              padding: "10px 14px",
+            }}
+          >
+            <span style={{ flex: 1, fontSize: 12, color: "var(--text2)" }}>
+              You have an unsaved draft, "{draftBanner.name}" - saved on this
+              browser only.
+            </span>
+            <Btn variant="primary" small onClick={restoreDraft}>
+              Restore
+            </Btn>
+            <Btn variant="ghost" small onClick={discardDraft}>
+              Discard
+            </Btn>
+          </div>
+        )}
         {showPasteOption && (
           <div
             style={{
@@ -943,6 +1053,20 @@ export default function EditorScreen() {
                   )
                 })}
               </div>
+              {hasUnmatchedIng && isDraftable && (
+                <p
+                  style={{
+                    margin: "8px 0 0",
+                    fontSize: 11,
+                    color: "var(--text3)",
+                  }}
+                >
+                  This recipe can't save yet until every ingredient matches, but
+                  nothing is lost - it's auto-saved to this browser as you go.
+                  Come back once the requested ingredient is approved to finish
+                  it.
+                </p>
+              )}
             </div>
 
             <div>
