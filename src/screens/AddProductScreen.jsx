@@ -124,22 +124,50 @@ export default function AddProductScreen() {
               </datalist>
             </div>
             {matchedType && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "6px 10px",
-                  background: "rgba(52,211,153,0.08)",
-                  borderRadius: 6,
-                  border: "1px solid rgba(52,211,153,0.2)",
-                }}
-              >
-                <IconCheck size={14} style={{ color: "var(--green)" }} />
-                <span style={{ fontSize: 13, color: "var(--green)" }}>
-                  Matches catalog ingredient:{" "}
-                  <strong>{matchedType.name}</strong>
-                </span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "6px 10px",
+                    background: "rgba(52,211,153,0.08)",
+                    borderRadius: 6,
+                    border: "1px solid rgba(52,211,153,0.2)",
+                  }}
+                >
+                  <IconCheck size={14} style={{ color: "var(--green)" }} />
+                  <span style={{ fontSize: 13, color: "var(--green)" }}>
+                    Matches catalog ingredient:{" "}
+                    <strong>{matchedType.name}</strong>
+                  </span>
+                </div>
+                {/* This screen only ever creates a product satisfying
+                    matchedType - it can never add a new toggle-able style.
+                    Real confusion found in testing: a name like "Rye
+                    Whiskey" reads as a specific-enough item to feel done
+                    here, when what's actually wanted is a sibling type
+                    next to Bourbon/Scotch. */}
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 12,
+                    color: "var(--text3)",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  This adds a specific product under{" "}
+                  <strong>{matchedType.name}</strong>. If "{name || ingType}" is
+                  really its own style (like Bourbon or Rye), not a specific
+                  bottle,{" "}
+                  <Link
+                    to={`/request-ingredient?name=${encodeURIComponent(name || ingType)}`}
+                    style={{ color: "var(--cyan)" }}
+                  >
+                    request it as a new ingredient type
+                  </Link>{" "}
+                  instead.
+                </p>
               </div>
             )}
             {ingType && !matchedType && (
