@@ -1,5 +1,10 @@
 import { useState } from "react"
-import { Link, useNavigate, useOutletContext } from "react-router-dom"
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useOutletContext,
+} from "react-router-dom"
 import { IconAlert, IconCheck, IconInfo } from "@/components/icons"
 import { TopBar } from "@/components/Nav"
 import { Btn, Card, Input, OwnedToggle } from "@/components/primitives"
@@ -8,6 +13,7 @@ import { createProduct } from "@/services/catalog"
 
 export default function AddProductScreen() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { catalog, inventory } = useOutletContext()
   const { types, aliases } = catalog
   const [name, setName] = useState("")
@@ -169,7 +175,7 @@ export default function AddProductScreen() {
                   really its own style (like Bourbon or Rye), not a specific
                   bottle,{" "}
                   <Link
-                    to={`/request-ingredient?name=${encodeURIComponent(name || ingType)}`}
+                    to={`/request-ingredient?name=${encodeURIComponent(name || ingType)}&returnTo=${encodeURIComponent(location.pathname + location.search)}`}
                     style={{ color: "var(--cyan)" }}
                   >
                     request it as a new ingredient type
@@ -195,7 +201,7 @@ export default function AddProductScreen() {
                   Doesn't match an existing ingredient type - new types require
                   admin approval, so this can't be added yet.{" "}
                   <Link
-                    to={`/request-ingredient?name=${encodeURIComponent(ingType)}`}
+                    to={`/request-ingredient?name=${encodeURIComponent(ingType)}&returnTo=${encodeURIComponent(location.pathname + location.search)}`}
                     style={{ color: "var(--cyan)" }}
                   >
                     Request it

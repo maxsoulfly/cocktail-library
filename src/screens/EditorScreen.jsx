@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import {
   Link,
+  useLocation,
   useNavigate,
   useOutletContext,
   useParams,
@@ -33,6 +34,7 @@ function unitLabelToForm(ri) {
 
 export default function EditorScreen() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { id } = useParams()
   const [searchParams] = useSearchParams()
   const isEditing = Boolean(id)
@@ -971,7 +973,7 @@ export default function EditorScreen() {
                           Doesn't match an existing ingredient type - new types
                           require admin approval.{" "}
                           <Link
-                            to={`/request-ingredient?name=${encodeURIComponent(trimmedName)}`}
+                            to={`/request-ingredient?name=${encodeURIComponent(trimmedName)}&returnTo=${encodeURIComponent(location.pathname + location.search)}`}
                             style={{ color: "var(--cyan)" }}
                           >
                             Request it

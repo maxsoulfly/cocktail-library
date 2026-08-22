@@ -30,6 +30,15 @@ export default function RequestIngredientScreen() {
   const navigate = useNavigate()
   const { userId } = useOutletContext()
   const [searchParams] = useSearchParams()
+  // Set when arriving via a recipe/product form's "Request it" link (see
+  // EditorScreen.jsx, AddProductScreen.jsx) - lets the confirmation screen
+  // send the member straight back to what they were doing instead of a
+  // generic history-based "Back" that's easy to miss or navigate past.
+  // Real bug this fixed: a member's in-progress recipe read as "lost" after
+  // requesting an ingredient, because nothing pointed them back to it - the
+  // recipe itself was safe (auto-saved locally), but there was no obvious
+  // way back to see that.
+  const returnTo = searchParams.get("returnTo")
   const [name, setName] = useState(searchParams.get("name") ?? "")
   const [note, setNote] = useState("")
   const [saving, setSaving] = useState(false)
@@ -108,10 +117,22 @@ export default function RequestIngredientScreen() {
           </p>
           <p style={{ margin: "0 0 20px", fontSize: 14 }}>
             An admin will review "{name}" and add it to the catalog if it fits.
+            {returnTo &&
+              " Whatever you were working on is still there, unsaved changes and all."}
           </p>
-          <Btn variant="ghost" small onClick={() => navigate(-1)}>
-            Back
-          </Btn>
+          {returnTo ? (
+            <Btn
+              variant="primary"
+              small
+              onClick={() => navigate(returnTo, { replace: true })}
+            >
+              Back to what I was doing
+            </Btn>
+          ) : (
+            <Btn variant="ghost" small onClick={() => navigate(-1)}>
+              Back
+            </Btn>
+          )}
         </div>
       </div>
     )
