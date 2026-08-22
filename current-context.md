@@ -223,19 +223,19 @@ My Bar correctly shows "Orange Juice" as its own row, separate from "Lemon Juice
 - **Crema di Pistacchio under Digestif, and the new Beer/Stout types** - confirm both show up correctly in My Bar (Liqueur and the new Beer category).
 - **The new "Your Requests" list on Request an Ingredient** - submit one, confirm it shows up in the list below the form with a "Pending" status, and that the withdraw button actually removes it.
 
-## Remaining / not started (what's next)
+## Remaining / not started (what's next) - numbered backlog, 2026-08-22
 
-**Rest of step 12** (admin catalog tools):
+Working through this list one item at a time, in this order unless redirected. Mark each done in place (`~~strikethrough~~ — done, <date>`) rather than deleting, same convention as the Phase & chunk list above.
 
-- Glass/taste-tag/family management UI - currently only editable via migrations. Confirmed via the RLS audit to also cover `ingredient_categories` (spec §7.7 groups these together: "Manage ingredient types, categories, aliases, and commonness"). The one remaining piece of step 12.
+1. **Glass / taste-tag / family / ingredient-category management UI** - currently all four are only editable via migrations, no admin screen. The one remaining piece of step 12. Confirmed via the RLS audit that `ingredient_categories` belongs in this same item (spec §7.7 groups all four together: "Manage ingredient types, categories, aliases, and commonness").
+2. **Ingredient aliases** - `ingredient_aliases` has full RLS, zero application code. Real spec scope (Phase 2, and §12.3's import-resolution rules), never built. Needs a scoping decision, not just a go-ahead - touches all three importers plus `AddProductScreen`'s match check.
+3. **Member-facing "paste a recipe, app fills in New Recipe"** - an AI-formatting-prompt + paste + validate + prefill flow like admin batch import, but for one recipe and available to ordinary members. The actual ask behind the pineapple whisky sour recipe pasted earlier this session.
+4. **Substitution alternatives + recipe-relationships editor UI** - `recipe_component_alternatives` and `recipe_relationships` are both real schema with RLS, confirmed zero callers via the audit. No manual-editor UI for either, and recipe batch import deliberately doesn't support them either, for the same reason.
+5. **Polish backlog** (user-requested, explicitly deferred, 2026-08-22): pictogram+text treatment for ingredient types in My Bar, toggle living on the pictogram itself; pictogram+text glass picker in the recipe editor; admin-facing custom colors for `LIQUID_COLORS` beyond the current 10; search/filter within My Bar's expanded per-type product list once a catalog has many products under one type.
+6. **Automated RLS/integration test harness** - beyond this session's manual DB-level checks (simulated JWT claims via `supabase db query`), there's no repeatable automated suite exercising owner/non-owner/admin/anon identities.
+7. **Step 13 (final phase)**: responsive/accessibility/security/deployment QA - not started at all yet.
 
-**Step 13** (final phase): responsive/accessibility/security/deployment QA - not started at all yet.
-
-**Ingredient aliases - real spec scope (Phase 2), never built at all.** `ingredient_aliases` has full RLS, zero application code. Needed for admin-curated alternate-name resolution during import (spec §12.3). Bigger than a quick fix - touches all three importers plus `AddProductScreen`'s match check. Needs a scoping decision before starting, not just a go-ahead.
-
-**Long-carried, lower-priority items**: no editor UI for substitution alternatives/hierarchy (`recipe_component_alternatives`) or recipe-to-recipe relationships (`recipe_relationships`) - both real schema, no UI, confirmed via the RLS audit to still have zero callers, and now also explicitly out of scope for recipe batch import for the same reason (matching current manual-editor capability); no RLS/integration test harness beyond manual smoke-testing (this session's DB-level checks included); `<datalist>` ingredient-autocomplete theming (user-accepted deferral back in step 6). No recipe yet references any of the new Garnish types - they're real catalog entries, just not yet used as a component on any actual recipe. `ingredient_types: admin delete` RLS policy still has no caller (not requested, not built).
-
-**Polish backlog (user-requested, explicitly deferred, 2026-08-22)**: pictogram+text treatment for ingredient types in My Bar with the toggle on the pictogram itself; pictogram+text glass picker in the recipe editor (replacing the current text-label buttons); an admin-facing way to add custom colors to the `LIQUID_COLORS` swatch set beyond the current 10 fixed values; search/filter within My Bar's expanded per-type product list once a catalog has many products under one type (raised as a forward-looking concern, not an immediate ask).
+**Not on the numbered list - smaller loose ends, pick up opportunistically**: `ingredient_types: admin delete` RLS policy still has no caller (not requested); `<datalist>` ingredient-autocomplete theming (user-accepted deferral back in step 6); no recipe yet references any of the Garnish ingredient types added earlier; the untracked "Juice"/"Wine" ingredient-category mystery needs a question asked of the user, not code (see Blockers).
 
 **Real feature, not started, not covered by anything above**: a member-facing "paste a full recipe as free text, app fills in New Recipe" flow - the actual ask behind the pineapple whisky sour recipe the user originally pasted. Needs its own scoping pass (an AI-formatting-prompt + paste + validate + prefill flow like admin batch import, but for one recipe and available to ordinary members, not admin-only).
 
@@ -270,7 +270,7 @@ Nine migrations total across this session's work (eight from the earlier list, p
 
 ## Exact next recommended action
 
-Work through "Checks still needed" above through the actual browser UI - a growing list of DB-verified-but-not-browser-clicked items (ingredient requests, fresh recipe import, product delete, ingredient-type edit, and now the "Your Requests" withdraw flow). After that, three real options with different shapes: (1) `ingredient_categories`/glass/taste-tag/family management UI - the confirmed remaining step-12 piece, well-scoped; (2) `ingredient_aliases` - real spec-Phase-2 scope, never built, needs a scoping conversation before starting since it touches three importers; (3) the member-facing paste-a-recipe feature - real, scoped, not started. Then step 13 (responsive/accessibility/security/deployment QA). Ask the user about the untracked "Juice"/"Wine" *category* mystery (a different, still-unresolved issue from earlier in the session) whenever convenient - not urgent.
+User-facing browser QA ("Checks still needed" above) and build work are proceeding on separate tracks now. For build work: user directed working the numbered backlog above (see "Remaining / not started") one item at a time, starting from #1 (glass/taste-tag/family/category management UI). Ask the user about the untracked "Juice"/"Wine" *category* mystery whenever convenient - not urgent, not part of the numbered list.
 
 **Process note for future verification**: when a table's INSERT/UPDATE RLS policy checks a column against `auth.uid()`, verify by simulating the exact payload the client actually sends (letting column defaults apply, not supplying the column explicitly in test SQL) - this session's earlier "verified against the live DB" claim for ingredient requests tested the policy shape but not the client's actual call shape, which is exactly why this bug went undetected until a real user hit it.
 
