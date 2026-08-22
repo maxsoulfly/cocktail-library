@@ -14,23 +14,8 @@ import {
   Input,
   Select,
 } from "@/components/primitives"
-import { LIQUID_COLORS } from "@/data/constants"
+import { LIQUID_COLORS, NON_VOLUME_UNITS } from "@/data/constants"
 import { createRecipe, updateRecipe } from "@/services/recipes"
-
-// "part" isn't in the spec's explicit semantic-unit list (§9: dash, barspoon,
-// piece, slice, wedge, top-up) but is a very common real cocktail unit for
-// ratio-based recipes ("1 part gin, 1 part vermouth") - added per user
-// request. Same mechanism as the others: a plain label shown verbatim,
-// amount=0, no ml conversion.
-const NON_VOLUME_UNITS = [
-  "part",
-  "dash",
-  "barspoon",
-  "piece",
-  "slice",
-  "wedge",
-  "top-up",
-]
 
 // Reverses createRecipe's amount/unitLabel encoding (see services/recipes.js)
 // so an existing component can prefill the amount+unit inputs.

@@ -1,0 +1,241 @@
+// Pure, framework-free validation for recipe batch import (spec §12), same
+// shape as src/schemas/ingredientImport.js: takes plain data in, returns
+// plain data out, and the AI-prompt generator shares this module's rules so
+// the prompt and validator can't silently drift apart.
+//
+// Ingredients are resolved through an EXISTING ingredient_type's exact name
+// only (no fuzzy matching, per this project's standing rule) - an AI can
+// never invent one. Substitution groups and recipe-to-recipe relationships
+// are out of scope for this first pass: the manual recipe editor doesn't
+// expose either yet (see current-context.md's long-carried items), so batch
+// import doesn't get ahead of what a human can already do for the same
+// recipe.
+
+import { NON_VOLUME_UNITS } from "@/data/constants"
+
+export const RECIPE_ROLES = ["required", "optional", "garnish"]
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
+
+/**
+ * @param {unknown[]} rawItems - parsed JSON array, not yet validated
+ * @param {{
+ *   types: {id: string, name: string}[],
+ *   glasses: {id: string, name: string}[],
+ *   families: {id: string, name: string}[],
+ *   tasteTags: {id: string, name: string}[],
+ *   existingRecipeNames?: string[],
+ * }} catalog
+ */
+export function validateRecipeImport(
+  rawItems,
+  { types, glasses, families, tasteTags, existingRecipeNames = [] },
+) {
+  const typeByName = new Map(types.map((t) => [t.name.toLowerCase(), t]))
+  const glassByName = new Map(glasses.map((g) => [g.name.toLowerCase(), g]))
+  const familyByName = new Map(families.map((f) => [f.name.toLowerCase(), f]))
+  const tagByName = new Map(tasteTags.map((t) => [t.name.toLowerCase(), t]))
+  const existingNames = new Set(existingRecipeNames.map((n) => n.toLowerCase()))
+  const seenNames = new Set()
+
+  const results = rawItems.map((item, index) => {
+    const errors = []
+    const raw = item && typeof item === "object" ? item : {}
+
+    const name = typeof raw.name === "string" ? raw.name.trim() : ""
+    if (!name) errors.push("Missing name")
+    else if (existingNames.has(name.toLowerCase()))
+      errors.push(`Possible duplicate of an existing recipe named "${name}"`)
+    else if (seenNames.has(name.toLowerCase()))
+      errors.push(`Duplicate "${name}" earlier in this import`)
+    if (name) seenNames.add(name.toLowerCase())
+
+    const glassName = typeof raw.glass === "string" ? raw.glass.trim() : ""
+    const glass = glassByName.get(glassName.toLowerCase())
+    if (!glassName) errors.push("Missing glass")
+    else if (!glass) errors.push(`Unknown glass "${glassName}"`)
+
+    let family = null
+    if (raw.family) {
+      const familyName = String(raw.family).trim()
+      family = familyByName.get(familyName.toLowerCase())
+      if (!family) errors.push(`Unknown family "${familyName}"`)
+    }
+
+    let liquidColor = null
+    if (
+      raw.liquidColor !== undefined &&
+      raw.liquidColor !== null &&
+      raw.liquidColor !== ""
+    ) {
+      if (!HEX_COLOR_RE.test(raw.liquidColor))
+        errors.push(
+          `Invalid liquidColor "${raw.liquidColor}" (expected hex like #a1b2c3)`,
+        )
+      else liquidColor = raw.liquidColor
+    }
+
+    const tasteTagIds = []
+    if (raw.tasteTags !== undefined) {
+      if (!Array.isArray(raw.tasteTags)) {
+        errors.push("tasteTags must be an array")
+      } else {
+        for (const t of raw.tasteTags) {
+          const tagName = String(t).trim()
+          const tag = tagByName.get(tagName.toLowerCase())
+          if (!tag) errors.push(`Unknown taste tag "${tagName}"`)
+          else tasteTagIds.push(tag.id)
+        }
+      }
+    }
+
+    const steps = Array.isArray(raw.steps)
+      ? raw.steps
+          .filter((s) => typeof s === "string" && s.trim())
+          .map((s) => s.trim())
+      : []
+    if (steps.length === 0) errors.push("Missing steps")
+
+    if (
+      Array.isArray(raw.unresolvedIngredients) &&
+      raw.unresolvedIngredients.length > 0
+    ) {
+      errors.push(
+        `Unresolved ingredient(s) flagged for review: ${raw.unresolvedIngredients.join(", ")}`,
+      )
+    }
+
+    const rawComponents = Array.isArray(raw.components) ? raw.components : []
+    if (rawComponents.length === 0) errors.push("Missing components")
+
+    const components = []
+    rawComponents.forEach((c, ci) => {
+      const rawComp = c && typeof c === "object" ? c : {}
+      const label = `Component ${ci + 1}`
+
+      const ingredientName =
+        typeof rawComp.ingredient === "string" ? rawComp.ingredient.trim() : ""
+      const matchedType = typeByName.get(ingredientName.toLowerCase())
+      if (!ingredientName) {
+        errors.push(`${label}: missing ingredient name`)
+        return
+      }
+      if (!matchedType) {
+        errors.push(`${label}: unresolved ingredient "${ingredientName}"`)
+        return
+      }
+
+      const role = rawComp.role ?? "required"
+      if (!RECIPE_ROLES.includes(role)) {
+        errors.push(`${label} ("${ingredientName}"): invalid role "${role}"`)
+        return
+      }
+
+      const unit = typeof rawComp.unit === "string" ? rawComp.unit.trim() : ""
+      if (unit === "ml") {
+        const amount = Number(rawComp.amount)
+        if (!Number.isFinite(amount) || amount <= 0) {
+          errors.push(
+            `${label} ("${ingredientName}"): invalid ml amount "${rawComp.amount}"`,
+          )
+          return
+        }
+        components.push({
+          ingredientTypeId: matchedType.id,
+          amount,
+          unitLabel: "ml",
+          role,
+        })
+        return
+      }
+      if (NON_VOLUME_UNITS.includes(unit)) {
+        const amount =
+          rawComp.amount !== undefined && rawComp.amount !== null
+            ? String(rawComp.amount).trim()
+            : ""
+        components.push({
+          ingredientTypeId: matchedType.id,
+          amount: 0,
+          unitLabel: amount ? `${amount} ${unit}` : unit,
+          role,
+        })
+        return
+      }
+      errors.push(
+        `${label} ("${ingredientName}"): invalid unit "${unit}" (expected "ml" or one of ${NON_VOLUME_UNITS.join(", ")})`,
+      )
+    })
+
+    const valid = errors.length === 0
+    return {
+      index,
+      name: name || undefined,
+      errors,
+      valid,
+      resolved: valid
+        ? {
+            name,
+            description:
+              typeof raw.description === "string" ? raw.description.trim() : "",
+            glassId: glass.id,
+            familyId: family?.id ?? null,
+            liquidColor,
+            steps,
+            tasteTagIds,
+            components,
+          }
+        : null,
+    }
+  })
+
+  return {
+    results,
+    validCount: results.filter((r) => r.valid).length,
+    errorCount: results.filter((r) => !r.valid).length,
+  }
+}
+
+/**
+ * Builds a copy-paste prompt for formatting new recipes with an AI
+ * assistant, generated from the live catalog so it can never drift from
+ * what validateRecipeImport() actually accepts.
+ */
+export function buildRecipeImportPrompt({
+  types,
+  glasses,
+  families,
+  tasteTags,
+}) {
+  const typeNames = types.map((t) => t.name).sort()
+  const glassNames = glasses.map((g) => g.name).sort()
+  const familyNames = families.map((f) => f.name).sort()
+  const tagNames = tasteTags.map((t) => t.name).sort()
+
+  return `Format a JSON array of cocktail recipes for import into Cocktail Library.
+
+Return ONLY a JSON array (no markdown fences, no commentary) where each item has:
+- "name": string, required.
+- "description": string, optional short description.
+- "glass": string, required. Must be exactly one of: ${glassNames.join(", ")}.
+- "family": string, optional. Must be exactly one of: ${familyNames.join(", ") || "(none defined yet - omit this field)"}.
+- "liquidColor": optional hex color like "#f97316" for the drink's visual fill.
+- "tasteTags": optional array of strings, each exactly one of: ${tagNames.join(", ") || "(none defined yet - omit this field)"}.
+- "steps": array of strings, required, one instruction per step, in order.
+- "components": array of objects, required, each with:
+  - "ingredient": string, required. Must be an EXISTING ingredient type name from the list below, spelled exactly - never invent one or guess a close match.
+  - "amount": number. Use canonical ml values for volume; for non-volume units, use a plain count (e.g. 2 for "2 dashes"); omit for a unit like "top-up" that has no count.
+  - "unit": either "ml" (canonical volume unit - always convert to ml, never oz or cl) or one of: ${NON_VOLUME_UNITS.join(", ")}.
+  - "role": one of "required", "optional", "garnish". Defaults to "required" if omitted.
+- "unresolvedIngredients": optional array of strings - if a recipe needs an ingredient that ISN'T in the existing list below, put its name here instead of guessing the closest existing match or inventing a new ingredient type.
+
+Never invent a new ingredient type, glass, family, or taste tag name - only use the exact names listed below.
+
+Existing ingredient types (use EXACTLY these names):
+${typeNames.join(", ") || "(none yet)"}
+
+Existing glasses: ${glassNames.join(", ") || "(none yet)"}
+Existing cocktail families: ${familyNames.join(", ") || "(none yet)"}
+Existing taste tags: ${tagNames.join(", ") || "(none yet)"}
+
+Here is what I want to add:
+`
+}

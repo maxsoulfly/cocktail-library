@@ -73,33 +73,18 @@ export async function fetchRecipe(id) {
   return mapRecipe(data)
 }
 
-// Always creates a private user recipe - publishing is a separate action
-// (publishRecipe(), below). Components/tags are inserted after the recipe
-// row in separate calls (no client-side multi-statement transaction
-// available); best-effort cleanup deletes the recipe again if a later step
-// fails.
-export async function createRecipe({
-  name,
-  description,
-  glassId,
-  familyId,
-  liquidColor,
-  steps,
-  components,
-  tasteTagIds,
-}) {
+// Shared by createRecipe() and createClassicRecipes(): inserts the recipe
+// row, then its components/taste tags in separate calls (no client-side
+// multi-statement transaction available); best-effort cleanup deletes the
+// recipe again if a later step fails, so a partial write can't leave an
+// empty/broken recipe behind.
+async function insertRecipeWithRelations(
+  recipeInsert,
+  { components, tasteTagIds },
+) {
   const { data: recipe, error: recipeError } = await supabase
     .from("recipes")
-    .insert({
-      name,
-      description: description || null,
-      source_type: "user",
-      visibility: "private",
-      glass_id: glassId,
-      family_id: familyId || null,
-      liquid_color: liquidColor || null,
-      steps,
-    })
+    .insert(recipeInsert)
     .select()
     .single()
   if (recipeError) throw recipeError
@@ -137,7 +122,74 @@ export async function createRecipe({
     throw err
   }
 
-  return fetchRecipe(recipe.id)
+  return recipe.id
+}
+
+// Always creates a private user recipe - publishing is a separate action
+// (publishRecipe(), below).
+export async function createRecipe({
+  name,
+  description,
+  glassId,
+  familyId,
+  liquidColor,
+  steps,
+  components,
+  tasteTagIds,
+}) {
+  const id = await insertRecipeWithRelations(
+    {
+      name,
+      description: description || null,
+      source_type: "user",
+      visibility: "private",
+      glass_id: glassId,
+      family_id: familyId || null,
+      liquid_color: liquidColor || null,
+      steps,
+    },
+    { components, tasteTagIds },
+  )
+  return fetchRecipe(id)
+}
+
+// Admin-only via the "recipes: insert" RLS policy's is_admin() branch (see
+// supabase/migrations/20260815214307_recipes_schema.sql) - no new grant
+// needed. Unlike createRecipe()'s always-private member recipes, batch
+// imports join the canonical classic catalog directly: ownerless, published
+// immediately (there's no pre-publish review queue for classics, same as
+// community recipes per the moderation-tab comment above). `rows` are
+// already-validated resolved objects from src/schemas/recipeImport.js, not
+// raw import JSON. Commits each row independently and collects failures
+// rather than throwing on the first one - a per-row DB failure here (rare,
+// since validation already checked shape/references) shouldn't hide whether
+// the other, unrelated rows in the same paste succeeded.
+export async function createClassicRecipes(rows) {
+  const failures = []
+  let createdCount = 0
+  for (const [index, row] of rows.entries()) {
+    try {
+      await insertRecipeWithRelations(
+        {
+          name: row.name,
+          description: row.description || null,
+          source_type: "classic",
+          owner_id: null,
+          visibility: "shared",
+          moderation_status: "active",
+          glass_id: row.glassId,
+          family_id: row.familyId || null,
+          liquid_color: row.liquidColor || null,
+          steps: row.steps,
+        },
+        { components: row.components, tasteTagIds: row.tasteTagIds },
+      )
+      createdCount += 1
+    } catch (err) {
+      failures.push({ index, name: row.name, message: err.message })
+    }
+  }
+  return { createdCount, failures }
 }
 
 // Spec §4: owners can edit their own recipe (private or published), and

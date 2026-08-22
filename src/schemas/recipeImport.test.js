@@ -1,0 +1,262 @@
+import { describe, expect, it } from "vitest"
+import { buildRecipeImportPrompt, validateRecipeImport } from "./recipeImport"
+
+const types = [
+  { id: "type-gin", name: "Gin" },
+  { id: "type-vermouth", name: "Dry Vermouth" },
+  { id: "type-olive", name: "Olive" },
+]
+const glasses = [
+  { id: "glass-martini", name: "Martini" },
+  { id: "glass-rocks", name: "Rocks" },
+]
+const families = [{ id: "fam-stirred", name: "Stirred" }]
+const tasteTags = [{ id: "tag-dry", name: "Dry" }]
+const catalog = { types, glasses, families, tasteTags }
+
+const validItem = {
+  name: "Martini",
+  description: "Classic stirred cocktail.",
+  glass: "Martini",
+  family: "Stirred",
+  liquidColor: "#dbeafe",
+  tasteTags: ["Dry"],
+  steps: ["Stir with ice.", "Strain into a chilled glass."],
+  components: [
+    { ingredient: "Gin", amount: 60, unit: "ml", role: "required" },
+    { ingredient: "Dry Vermouth", amount: 10, unit: "ml", role: "required" },
+    { ingredient: "Olive", amount: 1, unit: "piece", role: "garnish" },
+  ],
+}
+
+describe("validateRecipeImport", () => {
+  it("accepts a fully-specified valid recipe", () => {
+    const { results, validCount, errorCount } = validateRecipeImport(
+      [validItem],
+      catalog,
+    )
+    expect(errorCount).toBe(0)
+    expect(validCount).toBe(1)
+    expect(results[0].resolved).toEqual({
+      name: "Martini",
+      description: "Classic stirred cocktail.",
+      glassId: "glass-martini",
+      familyId: "fam-stirred",
+      liquidColor: "#dbeafe",
+      steps: ["Stir with ice.", "Strain into a chilled glass."],
+      tasteTagIds: ["tag-dry"],
+      components: [
+        {
+          ingredientTypeId: "type-gin",
+          amount: 60,
+          unitLabel: "ml",
+          role: "required",
+        },
+        {
+          ingredientTypeId: "type-vermouth",
+          amount: 10,
+          unitLabel: "ml",
+          role: "required",
+        },
+        {
+          ingredientTypeId: "type-olive",
+          amount: 0,
+          unitLabel: "1 piece",
+          role: "garnish",
+        },
+      ],
+    })
+  })
+
+  it("accepts a minimal valid recipe with no family/color/tags", () => {
+    const { results } = validateRecipeImport(
+      [
+        {
+          name: "Plain",
+          glass: "Rocks",
+          steps: ["Build over ice."],
+          components: [{ ingredient: "Gin", amount: 45, unit: "ml" }],
+        },
+      ],
+      catalog,
+    )
+    expect(results[0].valid).toBe(true)
+    expect(results[0].resolved.familyId).toBeNull()
+    expect(results[0].resolved.liquidColor).toBeNull()
+    expect(results[0].resolved.tasteTagIds).toEqual([])
+    expect(results[0].resolved.components[0].role).toBe("required")
+  })
+
+  it("rejects a missing name", () => {
+    const { results } = validateRecipeImport(
+      [{ ...validItem, name: "" }],
+      catalog,
+    )
+    expect(results[0].valid).toBe(false)
+    expect(results[0].errors).toContain("Missing name")
+  })
+
+  it("flags a name matching an existing recipe (case-insensitive)", () => {
+    const { results } = validateRecipeImport([validItem], {
+      ...catalog,
+      existingRecipeNames: ["martini"],
+    })
+    expect(results[0].valid).toBe(false)
+    expect(results[0].errors[0]).toMatch(/Possible duplicate/)
+  })
+
+  it("rejects a duplicate name within the same import batch", () => {
+    const { results } = validateRecipeImport(
+      [validItem, { ...validItem, name: "martini" }],
+      catalog,
+    )
+    expect(results[0].valid).toBe(true)
+    expect(results[1].valid).toBe(false)
+    expect(results[1].errors[0]).toMatch(/Duplicate/)
+  })
+
+  it("rejects an unknown glass", () => {
+    const { results } = validateRecipeImport(
+      [{ ...validItem, glass: "Snifter" }],
+      catalog,
+    )
+    expect(results[0].valid).toBe(false)
+    expect(results[0].errors).toContain('Unknown glass "Snifter"')
+  })
+
+  it("rejects an unknown family", () => {
+    const { results } = validateRecipeImport(
+      [{ ...validItem, family: "Sours" }],
+      catalog,
+    )
+    expect(results[0].valid).toBe(false)
+    expect(results[0].errors).toContain('Unknown family "Sours"')
+  })
+
+  it("rejects an unknown taste tag", () => {
+    const { results } = validateRecipeImport(
+      [{ ...validItem, tasteTags: ["Bitter"] }],
+      catalog,
+    )
+    expect(results[0].valid).toBe(false)
+    expect(results[0].errors).toContain('Unknown taste tag "Bitter"')
+  })
+
+  it("rejects an invalid liquidColor", () => {
+    const { results } = validateRecipeImport(
+      [{ ...validItem, liquidColor: "blue" }],
+      catalog,
+    )
+    expect(results[0].valid).toBe(false)
+    expect(results[0].errors[0]).toMatch(/Invalid liquidColor/)
+  })
+
+  it("rejects missing steps", () => {
+    const { results } = validateRecipeImport(
+      [{ ...validItem, steps: [] }],
+      catalog,
+    )
+    expect(results[0].valid).toBe(false)
+    expect(results[0].errors).toContain("Missing steps")
+  })
+
+  it("rejects missing components", () => {
+    const { results } = validateRecipeImport(
+      [{ ...validItem, components: [] }],
+      catalog,
+    )
+    expect(results[0].valid).toBe(false)
+    expect(results[0].errors).toContain("Missing components")
+  })
+
+  it("rejects a component with an unresolved ingredient name (no fuzzy matching)", () => {
+    const { results } = validateRecipeImport(
+      [
+        {
+          ...validItem,
+          components: [{ ingredient: "Gyn", amount: 60, unit: "ml" }],
+        },
+      ],
+      catalog,
+    )
+    expect(results[0].valid).toBe(false)
+    expect(results[0].errors[0]).toMatch(/unresolved ingredient "Gyn"/)
+  })
+
+  it("rejects a component with an invalid unit", () => {
+    const { results } = validateRecipeImport(
+      [
+        {
+          ...validItem,
+          components: [{ ingredient: "Gin", amount: 2, unit: "cl" }],
+        },
+      ],
+      catalog,
+    )
+    expect(results[0].valid).toBe(false)
+    expect(results[0].errors[0]).toMatch(/invalid unit "cl"/)
+  })
+
+  it("rejects a non-positive ml amount", () => {
+    const { results } = validateRecipeImport(
+      [
+        {
+          ...validItem,
+          components: [{ ingredient: "Gin", amount: 0, unit: "ml" }],
+        },
+      ],
+      catalog,
+    )
+    expect(results[0].valid).toBe(false)
+    expect(results[0].errors[0]).toMatch(/invalid ml amount/)
+  })
+
+  it("rejects an invalid component role", () => {
+    const { results } = validateRecipeImport(
+      [
+        {
+          ...validItem,
+          components: [
+            { ingredient: "Gin", amount: 60, unit: "ml", role: "double" },
+          ],
+        },
+      ],
+      catalog,
+    )
+    expect(results[0].valid).toBe(false)
+    expect(results[0].errors[0]).toMatch(/invalid role "double"/)
+  })
+
+  it("surfaces AI-flagged unresolvedIngredients as a review error", () => {
+    const { results } = validateRecipeImport(
+      [{ ...validItem, unresolvedIngredients: ["Yuzu Bitters"] }],
+      catalog,
+    )
+    expect(results[0].valid).toBe(false)
+    expect(results[0].errors[0]).toMatch(/Unresolved ingredient.*Yuzu Bitters/)
+  })
+
+  it("handles a non-object item without throwing", () => {
+    const { results } = validateRecipeImport(["oops"], catalog)
+    expect(results[0].valid).toBe(false)
+    expect(results[0].errors).toContain("Missing name")
+  })
+})
+
+describe("buildRecipeImportPrompt", () => {
+  it("lists existing ingredients, glasses, families, and taste tags", () => {
+    const prompt = buildRecipeImportPrompt(catalog)
+    expect(prompt).toContain("Gin")
+    expect(prompt).toContain("Dry Vermouth")
+    expect(prompt).toContain("Martini")
+    expect(prompt).toContain("Stirred")
+    expect(prompt).toContain("Dry")
+  })
+
+  it("names the allowed non-volume units", () => {
+    const prompt = buildRecipeImportPrompt(catalog)
+    expect(prompt).toContain(
+      "part, dash, barspoon, piece, slice, wedge, top-up",
+    )
+  })
+})
