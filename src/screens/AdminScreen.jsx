@@ -476,7 +476,7 @@ function ShapePicker({ value, onChange }) {
               textTransform: "capitalize",
             }}
           >
-            {shape}
+            {shape.replace(/_/g, " ")}
           </span>
         </button>
       ))}
