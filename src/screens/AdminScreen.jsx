@@ -1347,16 +1347,25 @@ export default function AdminScreen() {
                   label: "Classic Recipes",
                   val: computed.filter((r) => r.source === "classic").length,
                   color: "var(--violet)",
+                  onClick: () => navigate("/library?source=classic"),
                 },
                 {
                   label: "Community Recipes",
                   val: communityRecipes.length,
                   color: "var(--cyan)",
+                  onClick: () => setTab("moderation"),
+                },
+                {
+                  label: "Pending Requests",
+                  val: pendingRequests.length,
+                  color: "var(--coral)",
+                  onClick: () => setTab("requests"),
                 },
                 {
                   label: "Ingredient Types",
                   val: catalog.types.length,
                   color: "var(--green)",
+                  onClick: () => navigate("/bar"),
                 },
                 {
                   label: "Active Invitations",
@@ -1364,11 +1373,21 @@ export default function AdminScreen() {
                     (i) => deriveInvitationStatus(i) === "active",
                   ).length,
                   color: "var(--amber)",
+                  onClick: () => setTab("invites"),
                 },
-              ].map(({ label, val, color }) => (
+              ].map(({ label, val, color, onClick }, i, arr) => (
                 <Card
                   key={label}
-                  style={{ padding: "16px", textAlign: "center" }}
+                  onClick={onClick}
+                  style={{
+                    padding: "16px",
+                    textAlign: "center",
+                    cursor: "pointer",
+                    gridColumn:
+                      i === arr.length - 1 && arr.length % 2 === 1
+                        ? "1 / -1"
+                        : undefined,
+                  }}
                 >
                   <div
                     style={{
@@ -1394,7 +1413,7 @@ export default function AdminScreen() {
               ))}
             </div>
             <p style={{ margin: 0, fontSize: 12, color: "var(--text3)" }}>
-              All four counts are real.
+              All five counts are real - tap any card to jump to its detail.
             </p>
           </div>
         )}

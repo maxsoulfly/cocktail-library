@@ -1,5 +1,9 @@
 import { useMemo, useState } from "react"
-import { useNavigate, useOutletContext } from "react-router-dom"
+import {
+  useNavigate,
+  useOutletContext,
+  useSearchParams,
+} from "react-router-dom"
 import { CocktailCard } from "@/components/CocktailCard"
 import { IconFilter, IconGlass, IconPlus, IconSearch } from "@/components/icons"
 import { Btn, FilterChip } from "@/components/primitives"
@@ -9,11 +13,21 @@ export default function LibraryScreen() {
   const navigate = useNavigate()
   const { computed, catalog } = useOutletContext()
   const { tasteTags } = catalog
+  const [searchParams] = useSearchParams()
+  // Deep-link support (?source=classic) for the Admin dashboard's stat
+  // cards - read once on mount as the initial filter state, not kept in
+  // sync afterward, so a member adjusting filters here doesn't fight with
+  // the URL on every click.
+  const initialSource = searchParams.get("source")
   const [query, setQuery] = useState("")
   const [availFilter, setAvailFilter] = useState("all")
-  const [sourceFilters, setSourceFilters] = useState([])
+  const [sourceFilters, setSourceFilters] = useState(
+    initialSource && SOURCE_FILTERS.some((f) => f.key === initialSource)
+      ? [initialSource]
+      : [],
+  )
   const [tasteFilters, setTasteFilters] = useState([])
-  const [showFilters, setShowFilters] = useState(false)
+  const [showFilters, setShowFilters] = useState(Boolean(sourceFilters.length))
 
   const toggleArr = (arr, val, set) =>
     set(arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val])
