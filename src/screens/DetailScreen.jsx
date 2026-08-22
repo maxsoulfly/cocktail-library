@@ -187,7 +187,7 @@ export default function DetailScreen() {
           }}
         >
           <GlassSvg
-            type={c.glass}
+            type={c.glassShape}
             liquidColor={c.liquidColor}
             size={96}
             avail={c.avail}

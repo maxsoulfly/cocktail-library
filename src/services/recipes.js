@@ -21,7 +21,17 @@ function mapRecipe(row) {
     source: deriveSource(row),
     ownerId: row.owner_id,
     author: row.owner?.display_name ?? undefined,
-    glass: row.glass?.shape ?? "rocks",
+    // `glass` is the glass's real name - EditorScreen matches it back
+    // against the live glasses list by name to prefill/save the picker, so
+    // this has to stay a name, not the shape key. `glassShape` is the
+    // separate field GlassSvg actually wants for its pictogram. Conflating
+    // the two (this used to just be `row.glass?.shape`) broke editing any
+    // recipe whose glass's shape key didn't match its current display name
+    // (true for every renamed glass since the 19-glass catalog migration) -
+    // Save crashed with "Cannot read properties of undefined (reading
+    // 'id')" because the picker's by-name lookup silently found nothing.
+    glass: row.glass?.name ?? "Rocks Glass",
+    glassShape: row.glass?.shape ?? "rocks",
     family: row.family?.name,
     liquidColor: row.liquid_color ?? "#22d3ee",
     steps: row.steps ?? [],
@@ -47,7 +57,7 @@ function mapRecipe(row) {
 
 const RECIPE_SELECT = `
   id, name, description, source_type, visibility, moderation_status, owner_id, liquid_color, steps,
-  glass:glasses(shape),
+  glass:glasses(name, shape),
   family:cocktail_families(name),
   owner:profiles(display_name),
   recipe_components(id, ingredient_type_id, amount, unit_label, role, sort_order, ingredient_types(name, color), recipe_component_alternatives(ingredient_type_id)),

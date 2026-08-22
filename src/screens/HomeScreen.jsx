@@ -279,7 +279,7 @@ export default function HomeScreen() {
                   onClick={() => navigate(`/library/${c.id}`)}
                 >
                   <GlassSvg
-                    type={c.glass}
+                    type={c.glassShape}
                     liquidColor={c.liquidColor}
                     size={40}
                     avail="almost"

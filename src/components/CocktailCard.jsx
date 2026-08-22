@@ -23,7 +23,7 @@ export function CocktailCard({ c, onClick }) {
         }}
       >
         <GlassSvg
-          type={c.glass}
+          type={c.glassShape}
           liquidColor={c.liquidColor}
           size={60}
           avail={c.avail}
@@ -124,7 +124,7 @@ export function SmallCard({ c, onClick }) {
       onClick={onClick}
     >
       <GlassSvg
-        type={c.glass}
+        type={c.glassShape}
         liquidColor={c.liquidColor}
         size={48}
         avail={c.avail}
