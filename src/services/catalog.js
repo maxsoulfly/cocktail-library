@@ -21,12 +21,38 @@ export async function fetchIngredientTypes() {
   return data
 }
 
-// Admin-only via ingredient_types' existing "admin writes" RLS policy - no
+// Admin-only via ingredient_types' existing "admin insert" RLS policy - no
 // new grant needed. `rows` are already-validated resolved objects from
 // src/schemas/ingredientImport.js, not raw import JSON.
 export async function createIngredientTypes(rows) {
   const { error } = await supabase.from("ingredient_types").insert(rows)
   if (error) throw error
+}
+
+// Admin-only via the pre-existing "ingredient_types: admin update" RLS
+// policy - same "existed since the RLS-hardening pass, never had a caller"
+// situation as updateProduct()/deleteProduct(). Once a type was created
+// (Single Ingredient, batch import, or a live data fix), nothing could ever
+// correct its name/category/parent/color/priority/description again.
+export async function updateIngredientType(
+  id,
+  { name, categoryId, parentTypeId, barPriority, color, description },
+) {
+  const { data, error } = await supabase
+    .from("ingredient_types")
+    .update({
+      name,
+      category_id: categoryId,
+      parent_type_id: parentTypeId || null,
+      bar_priority: barPriority,
+      color: color || null,
+      description: description || null,
+    })
+    .eq("id", id)
+    .select()
+    .single()
+  if (error) throw error
+  return data
 }
 
 export async function fetchProducts() {
