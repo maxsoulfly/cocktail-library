@@ -295,10 +295,16 @@ describe("buildRecipeImportPrompt", () => {
     expect(prompt).toContain("Dry")
   })
 
-  it("names the allowed non-volume units", () => {
+  it("names the allowed non-volume units, calling out grams separately", () => {
     const prompt = buildRecipeImportPrompt(catalog)
     expect(prompt).toContain(
-      "part, dash, barspoon, piece, slice, wedge, top-up, g",
+      "part, dash, barspoon, piece, slice, wedge, top-up",
     )
+    expect(prompt).toContain('"g" (grams, for weight-based solids)')
+  })
+
+  it("tells the AI to keep ingredient names bare, no quantity or notes", () => {
+    const prompt = buildRecipeImportPrompt(catalog)
+    expect(prompt).toMatch(/never append quantity/i)
   })
 })

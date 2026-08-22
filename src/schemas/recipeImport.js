@@ -240,12 +240,12 @@ Return ONLY a JSON array (no markdown fences, no commentary) where each item has
 - "liquidColor": optional hex color like "#f97316" for the drink's visual fill.
 - "tasteTags": optional array of strings, each exactly one of: ${tagNames.join(", ") || "(none defined yet - omit this field)"}.
 - "steps": array of strings, required, one instruction per step, in order.
-- "components": array of objects, required, each with:
-  - "ingredient": string, required. Must be an EXISTING ingredient type name from the list below, spelled exactly - never invent one or guess a close match.
-  - "amount": number. Use canonical ml values for volume; for non-volume units, use a plain count (e.g. 2 for "2 dashes"); omit for a unit like "top-up" that has no count.
-  - "unit": either "ml" (canonical volume unit - always convert to ml, never oz or cl) or one of: ${NON_VOLUME_UNITS.join(", ")}.
-  - "role": one of "required", "optional", "garnish". Defaults to "required" if omitted.
-- "unresolvedIngredients": optional array of strings - if a recipe needs an ingredient that ISN'T in the existing list below, put its name here instead of guessing the closest existing match or inventing a new ingredient type.
+- "components": array of objects, required - list EVERY ingredient the recipe uses here, including ones not in the existing list below, each with:
+  - "ingredient": string, required. If it matches one of the existing ingredient types below, spell it EXACTLY as listed there - never guess a close match. If it does NOT exist yet, still put it here: use only the plain, common name a shopper would recognize (e.g. "Pineapple", "Salt") - never append quantity, unit, preparation, or notes to this name (NOT "Fresh pineapple - 50 g", NOT "Salt - optional tiny pinch"). Never invent a new ingredient type name that's a variant of an existing one - use the plain generic name instead.
+  - "amount": number. Use canonical ml values for volume; for weight, use grams; for other non-volume units, use a plain count (e.g. 2 for "2 dashes"); omit for a unit like "top-up" that has no count.
+  - "unit": either "ml" (canonical volume unit - always convert to ml, never oz or cl), "g" (grams, for weight-based solids), or one of: ${NON_VOLUME_UNITS.filter((u) => u !== "g").join(", ")}.
+  - "role": one of "required", "optional", "garnish". Defaults to "required" if omitted. An ingredient the recipe calls optional (e.g. "optional: a pinch of salt") is still a real component - set "role" to "optional", don't move it out of components or bury that detail in the ingredient name.
+- "unresolvedIngredients": optional array of strings, rarely needed - only for something that genuinely cannot be expressed as a components entry at all (not a normal missing ingredient - see above, those belong in components). If used, each entry must be a bare ingredient name only, with no quantity, unit, or notes appended.
 
 Never invent a new ingredient type, glass, family, or taste tag name - only use the exact names listed below.
 

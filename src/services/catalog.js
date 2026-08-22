@@ -58,6 +58,30 @@ export async function createProduct({
   return data
 }
 
+// Admin-only via the pre-existing "products: admin update" RLS policy - a
+// product created by anyone (member's Add Product, or admin batch import)
+// can be miscategorized (wrong ingredient type, a typo) with no way to fix
+// it short of an admin recreating the row. No new grant needed - the policy
+// already exists, just never had a caller.
+export async function updateProduct(
+  id,
+  { name, ingredientTypeId, brand, isHomemade },
+) {
+  const { data, error } = await supabase
+    .from("products")
+    .update({
+      name,
+      ingredient_type_id: ingredientTypeId,
+      brand: brand || null,
+      is_homemade: isHomemade,
+    })
+    .eq("id", id)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
 // Admin batch import - `rows` are already-validated resolved objects from
 // src/schemas/productImport.js (snake_case, matching the table), not raw
 // import JSON. Uses the same "products: member insert" RLS policy any

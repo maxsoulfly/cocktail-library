@@ -4,14 +4,23 @@ import {
   IconBottle,
   IconChevD,
   IconChevR,
+  IconEdit,
   IconPlus,
   IconSearch,
 } from "@/components/icons"
-import { Card, FilterChip, OwnedToggle } from "@/components/primitives"
+import {
+  Btn,
+  Card,
+  FilterChip,
+  Input,
+  OwnedToggle,
+  Select,
+} from "@/components/primitives"
+import { updateProduct } from "@/services/catalog"
 
 export default function MyBarScreen() {
   const navigate = useNavigate()
-  const { catalog, inventory } = useOutletContext()
+  const { catalog, inventory, isAdmin } = useOutletContext()
   const { loading: catalogLoading, categories, types, products } = catalog
   const {
     loading: inventoryLoading,
@@ -24,6 +33,44 @@ export default function MyBarScreen() {
   const [query, setQuery] = useState("")
   const [cat, setCat] = useState("All")
   const [ownedOnly, setOwnedOnly] = useState(false)
+  // Admin-only product correction - a miscategorized/typo'd product (from
+  // Add Product or batch import) had no fix short of an admin deleting and
+  // recreating it. One draft at a time, same pattern as Admin's inline
+  // add-ingredient draft.
+  const [editingProduct, setEditingProduct] = useState(null)
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState(null)
+
+  const startEditProduct = (p) => {
+    setEditError(null)
+    setEditingProduct({
+      id: p.id,
+      name: p.name,
+      brand: p.brand ?? "",
+      ingredientTypeId: p.ingredient_type_id,
+      isHomemade: p.is_homemade,
+    })
+  }
+
+  const handleSaveEditProduct = async () => {
+    if (!editingProduct) return
+    setEditSaving(true)
+    setEditError(null)
+    try {
+      await updateProduct(editingProduct.id, {
+        name: editingProduct.name.trim(),
+        ingredientTypeId: editingProduct.ingredientTypeId,
+        brand: editingProduct.brand.trim(),
+        isHomemade: editingProduct.isHomemade,
+      })
+      await catalog.refetch()
+      setEditingProduct(null)
+    } catch (err) {
+      setEditError(err.message)
+    } finally {
+      setEditSaving(false)
+    }
+  }
   // Which type rows have their full product list expanded - separate from
   // ownership, since browsing what's in the shared catalog (e.g. products an
   // admin just batch-imported) is the only way to then claim one without
@@ -345,46 +392,146 @@ export default function MyBarScreen() {
                       />
                     </div>
                     {expanded &&
-                      allProducts.map((p, pIdx) => (
-                        <div
-                          key={p.id}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 12,
-                            padding: isChild
-                              ? "7px 14px 7px 58px"
-                              : "7px 14px 7px 38px",
-                            borderBottom:
-                              idx < rows.length - 1 ||
-                              pIdx < allProducts.length - 1
-                                ? "1px solid var(--border-s)"
-                                : "none",
-                            background: "var(--bg2)",
-                          }}
-                        >
-                          <div style={{ flex: 1, minWidth: 0 }}>
+                      allProducts.map((p, pIdx) => {
+                        const rowBorder =
+                          idx < rows.length - 1 || pIdx < allProducts.length - 1
+                            ? "1px solid var(--border-s)"
+                            : "none"
+                        if (editingProduct?.id === p.id) {
+                          return (
                             <div
+                              key={p.id}
                               style={{
-                                fontSize: 12,
-                                color: ownedProductIds.has(p.id)
-                                  ? "var(--text)"
-                                  : "var(--text3)",
+                                padding: isChild
+                                  ? "10px 14px 10px 58px"
+                                  : "10px 14px 10px 38px",
+                                borderBottom: rowBorder,
+                                background: "var(--bg2)",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 8,
                               }}
                             >
-                              {p.name}
-                              {p.brand && p.brand !== p.name
-                                ? ` · ${p.brand}`
-                                : ""}
-                              {p.is_homemade ? " · homemade" : ""}
+                              <Input
+                                label="Name"
+                                value={editingProduct.name}
+                                onChange={(v) =>
+                                  setEditingProduct({
+                                    ...editingProduct,
+                                    name: v,
+                                  })
+                                }
+                              />
+                              <Select
+                                value={editingProduct.ingredientTypeId}
+                                onChange={(v) =>
+                                  setEditingProduct({
+                                    ...editingProduct,
+                                    ingredientTypeId: v,
+                                  })
+                                }
+                                options={types.map((t) => ({
+                                  value: t.id,
+                                  label: t.name,
+                                }))}
+                              />
+                              <Input
+                                label="Brand (optional)"
+                                value={editingProduct.brand}
+                                onChange={(v) =>
+                                  setEditingProduct({
+                                    ...editingProduct,
+                                    brand: v,
+                                  })
+                                }
+                              />
+                              {editError && (
+                                <p
+                                  style={{
+                                    margin: 0,
+                                    fontSize: 12,
+                                    color: "var(--coral)",
+                                  }}
+                                >
+                                  {editError}
+                                </p>
+                              )}
+                              <div style={{ display: "flex", gap: 8 }}>
+                                <Btn
+                                  variant="primary"
+                                  small
+                                  disabled={
+                                    editSaving || !editingProduct.name.trim()
+                                  }
+                                  onClick={handleSaveEditProduct}
+                                >
+                                  {editSaving ? "Saving..." : "Save"}
+                                </Btn>
+                                <Btn
+                                  variant="ghost"
+                                  small
+                                  onClick={() => setEditingProduct(null)}
+                                >
+                                  Cancel
+                                </Btn>
+                              </div>
                             </div>
+                          )
+                        }
+                        return (
+                          <div
+                            key={p.id}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 12,
+                              padding: isChild
+                                ? "7px 14px 7px 58px"
+                                : "7px 14px 7px 38px",
+                              borderBottom: rowBorder,
+                              background: "var(--bg2)",
+                            }}
+                          >
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div
+                                style={{
+                                  fontSize: 12,
+                                  color: ownedProductIds.has(p.id)
+                                    ? "var(--text)"
+                                    : "var(--text3)",
+                                }}
+                              >
+                                {p.name}
+                                {p.brand && p.brand !== p.name
+                                  ? ` · ${p.brand}`
+                                  : ""}
+                                {p.is_homemade ? " · homemade" : ""}
+                              </div>
+                            </div>
+                            {isAdmin && (
+                              <button
+                                onClick={() => startEditProduct(p)}
+                                title="Edit product"
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  cursor: "pointer",
+                                  padding: 4,
+                                  color: "var(--text3)",
+                                  display: "flex",
+                                  alignItems: "center",
+                                }}
+                              >
+                                <IconEdit size={14} />
+                              </button>
+                            )}
+                            <OwnedToggle
+                              owned={ownedProductIds.has(p.id)}
+                              onChange={() => toggleProduct(p.id)}
+                            />
                           </div>
-                          <OwnedToggle
-                            owned={ownedProductIds.has(p.id)}
-                            onChange={() => toggleProduct(p.id)}
-                          />
-                        </div>
-                      ))}
+                        )
+                      })}
                   </div>
                 )
               })}

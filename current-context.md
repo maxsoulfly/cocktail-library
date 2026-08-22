@@ -22,6 +22,20 @@ Each numbered step is a development chunk boundary for this file.
 
 ## Last completed chunk
 
+QA round on the four fixes above turned up two more real issues, both fixed:
+
+**1. The recipe-import prompt itself was the bug behind "unresolved ingredients."** Testing the new "g" unit and inline-add recovery together, the user's real AI output put `"Fresh pineapple - 50 g"` and `"Salt - optional tiny pinch"` into `unresolvedIngredients` - full sentences, not ingredient names - because the prompt only ever told the AI to "put its name here" for that field and gave it no instruction to keep quantity/role data anywhere resolvable. Two compounding problems: the inline "+Add" button would have created an ingredient type literally named "Fresh pineapple - 50 g", and even after fixing that, the recipe would still silently drop the pineapple/salt components entirely - their amounts were never captured in `components` at all. Rewrote `buildRecipeImportPrompt()`'s instructions: every ingredient (even ones outside the existing catalog) must go in `components` with its real amount/unit and a bare, common name only ("Pineapple", not "50 g fresh pineapple"); `unresolvedIngredients` is now a rarely-needed last resort, explicitly bare-names-only if used at all. This means an ingredient missing from the catalog now correctly fails validation as an unresolved *component* (amount/unit preserved in the raw JSON) - so after an admin uses the inline "+Add" fix from the previous chunk and re-validates, the recipe imports with the pineapple/salt components intact, not silently missing. 2 new prompt-wording tests in `recipeImport.test.js`.
+
+**2. No way to fix a miscategorized or typo'd product.** The user asked for "an edit window" after wondering whether a batch-imported product (Bacardí Carta Blanca → "Rum") was mapped correctly - checked directly against the DB and confirmed it's actually correct as-is (there's no separate "White Rum" type; the existing taxonomy already uses generic "Rum" for anything that isn't specifically "Dark Rum"), but the underlying complaint was real: once a product exists, nothing in the UI could ever change its name/type/brand, even though the RLS policy for it ("products: admin update") has existed since step 5 with no caller. Added `updateProduct()` to `services/catalog.js` and an admin-only inline edit (pencil icon → name/ingredient-type/brand form) on each product row in My Bar's new expanded product list - the same place the miscategorization would actually be noticed. Verified directly against the live DB: admin update succeeds, a non-admin member's identical update attempt matches zero rows (real RLS enforcement, not just a hidden button).
+
+`pnpm test` — 77/77 passing. `pnpm build` clean.
+
+**Also raised, not built**: the user flagged that a flat expanded product list could get unwieldy at real-world scale (50 vodkas, 200 whiskeys) - noted as a future concern, not acted on yet ("we'll see" - no ask to build search/filtering within the expanded list right now).
+
+**Still not built at all - a genuinely separate feature, not covered by anything above**: a member-facing way to paste a full recipe as free text (not JSON) and have the New Recipe form auto-fill, mirroring admin's AI-prompt batch import but scoped to one recipe for ordinary members. This was the original ask behind the pineapple whisky sour recipe the user pasted several rounds ago - the "g" unit decision was a prerequisite for it, but the paste-and-fill member feature itself hasn't been scoped or built.
+
+## Earlier chunk (four fixes from one browser-testing round)
+
 Four fixes/features from one browser-testing round on the newly-shipped batch import + earlier taxonomy work, spanning steps 5/6/12 rather than a single step - grouped here because they landed together, not because they're one feature.
 
 **1. "g" (grams) added as a real unit.** The user pasted a real recipe with `50 g fresh pineapple` while testing recipe import and there was no way to represent it - units were only ever ml (canonical, converted for display) or a fixed semantic list (dash, barspoon, piece, slice, wedge, top-up, part). Asked the user how to handle weight-based solids; chose adding "g" as a real unit over approximating with an existing one or punting to manual review. Mechanically trivial because `NON_VOLUME_UNITS` (`src/data/constants.js`) already encodes "amount + unit as free text in `unit_label`, DB `amount` column stays 0" for anything that isn't ml - the same mechanism already used for "2 dash" - so `formatAmount()` in `src/domain/availability.js` (which just checks `amount === 0`) needed zero changes. One array entry, one new test in `recipeImport.test.js`.
@@ -138,14 +152,15 @@ User worked through the full "Checks needed" list from the previous chunk:
 
 Real invitation generate → redeem round-trip; the Whiskey/Bourbon/Scotch/Irish Whiskey/Rye taxonomy fix; the Add Product "request it as a new ingredient type" hint; recipe batch import's happy path (AI prompt → real JSON → validate → commit → shows up correctly); product batch import's commit step (the 17 real products the user pasted all landed in the DB - the *browsing/ownership* gap that surfaced from this is now fixed, see "Last completed chunk").
 
+## Confirmed working, QA round 2 (2026-08-22)
+
+Real invitation generate/redeem round-trip; My Bar's expand-and-toggle-a-specific-product flow (user confirmed it works, and separately flagged - not a bug, just a forward-looking note - that a flat product list could get unwieldy at real-world scale, e.g. 50 vodkas/200 whiskeys under one type; no action taken yet, "we'll see"); the Whiskey/Bourbon/Scotch/Irish Whiskey/Rye taxonomy siblings; "Clone as My Own Recipe" (full prefill confirmed); recipe editing as owner; the owner/admin edit-permission boundary.
+
 ## Checks still needed (not yet browser-verified)
 
-- Recipe editing as the **owner** of a private/community recipe (not just as admin on a classic), and confirm editing someone *else's* recipe is correctly blocked.
-- Ingredient request flow, now that the exact screens/buttons have been explained.
-- The "g" unit end-to-end: paste a recipe with a weight-based ingredient through Recipe batch import, confirm it validates/commits/displays correctly.
-- My Bar's new expand-and-toggle-a-specific-product flow (the fix for "batch-imported products don't appear in the bar").
-- "Clone as My Own Recipe" from a classic or community recipe's Detail screen - confirm the form prefills every field and saves as a new private recipe.
-- The inline "+ Add ‹ingredient›" recovery flow when a recipe batch-import row is blocked on an unresolved ingredient (e.g. paste something needing "Salt" again, click Add, confirm the row re-validates without losing the pasted JSON).
+- **Re-test recipe batch import with the fixed prompt**: re-paste the pineapple whisky sour (or any recipe needing an ingredient outside the catalog) and confirm the AI now puts it in `components` with a bare name and correct amount/unit, not a sentence in `unresolvedIngredients`. Then confirm the inline "+ Add" recovery flow actually restores the missing component (not just makes the row valid) once re-validated.
+- **The new admin-only product edit** in My Bar's expanded product list - open it, change the ingredient type/name/brand, save, confirm it sticks (the underlying RLS update path is DB-verified; the UI click-through isn't).
+- Ingredient request flow, now that the exact screens/buttons have been explained - not yet actually clicked through.
 
 ## Remaining / not started (what's next)
 
@@ -157,7 +172,9 @@ Real invitation generate → redeem round-trip; the Whiskey/Bourbon/Scotch/Irish
 
 **Long-carried, lower-priority items**: no editor UI for substitution alternatives/hierarchy (`recipe_component_alternatives`) or recipe-to-recipe relationships (`recipe_relationships`) - both real schema, no UI, and now also explicitly out of scope for recipe batch import for the same reason (matching current manual-editor capability); no RLS/integration test harness beyond manual smoke-testing (this session's DB-level checks included); `<datalist>` ingredient-autocomplete theming (user-accepted deferral back in step 6). No recipe yet references any of the new Garnish types - they're real catalog entries, just not yet used as a component on any actual recipe.
 
-**Polish backlog (user-requested, explicitly deferred, 2026-08-22)**: pictogram+text treatment for ingredient types in My Bar with the toggle on the pictogram itself; pictogram+text glass picker in the recipe editor (replacing the current text-label buttons); an admin-facing way to add custom colors to the `LIQUID_COLORS` swatch set beyond the current 10 fixed values.
+**Polish backlog (user-requested, explicitly deferred, 2026-08-22)**: pictogram+text treatment for ingredient types in My Bar with the toggle on the pictogram itself; pictogram+text glass picker in the recipe editor (replacing the current text-label buttons); an admin-facing way to add custom colors to the `LIQUID_COLORS` swatch set beyond the current 10 fixed values; search/filter within My Bar's expanded per-type product list once a catalog has many products under one type (raised as a forward-looking concern, not an immediate ask).
+
+**Real feature, not started, not covered by anything above**: a member-facing "paste a full recipe as free text, app fills in New Recipe" flow - the actual ask behind the pineapple whisky sour recipe the user originally pasted. Needs its own scoping pass (an AI-formatting-prompt + paste + validate + prefill flow like admin batch import, but for one recipe and available to ordinary members, not admin-only).
 
 ## Blockers / open questions
 
@@ -182,16 +199,16 @@ Earlier decisions (still standing, trimmed here - see git history for step 2-10 
 
 ## Migrations / environment changes
 
-Seven migrations total across this session's work (six from the earlier "Recently completed" list, plus `20260822090000_invitation_generation.sql` for real invitation generation). Nothing in this session's later chunks needed a new migration - recipe/product batch import reuse existing RLS policies, the Scotch/Irish Whiskey/Rye taxonomy fix and the "g" unit are plain catalog data/constant changes, and My Bar's product-ownership toggle reuses the pre-existing "user_inventory: delete own" policy (verified live: a member can delete their own product-ownership row; a different identity's delete attempt matches zero rows). All migrations applied via `supabase db push`. No new environment variables.
+Seven migrations total across this session's work (six from the earlier "Recently completed" list, plus `20260822090000_invitation_generation.sql` for real invitation generation). Nothing since then has needed a new migration - recipe/product batch import and the new product-edit UI all reuse pre-existing RLS policies ("recipes: insert"'s `is_admin()` branch, "user_inventory: delete own", "products: admin update" - the last of which existed since step 5 with no caller until now), and the Scotch/Irish Whiskey/Rye taxonomy fix plus the "g" unit are plain catalog data/constant changes. All migrations applied via `supabase db push`. No new environment variables.
 
 ## Tests / build checks last run
 
-2026-08-22: `pnpm test` — 76/76 passing (74 from earlier this session + 1 new `g`-unit test + 1 new `missingIngredientNames` test). `pnpm build` — no errors. `pnpm format` — clean. `create_invitation()`, `createClassicRecipes()`, and `createProducts()`'s underlying insert paths all verified directly against the live DB with simulated admin (success) and non-admin (correctly rejected, real `42501` RLS violation for the recipe case) JWT claims; the new `profiles!invitations_redeemed_by_fkey` embed sanity-checked via a real REST call (200, empty due to anon RLS denial); the new product-ownership toggle/delete path also verified live (own-row delete succeeds, cross-identity delete matches zero rows). All test rows cleaned up after verification.
+2026-08-22: `pnpm test` — 77/77 passing. `pnpm build` — no errors. `pnpm format` — clean. Verified directly against the live DB this session: `create_invitation()`, `createClassicRecipes()`, `createProducts()` (admin success / non-admin `42501` rejection); the `profiles!invitations_redeemed_by_fkey` embed via a real REST call; the product-ownership toggle/delete path (own-row succeeds, cross-identity matches zero rows); and `updateProduct()` (admin succeeds, non-admin matches zero rows). All test rows cleaned up after verification.
 
 ## Exact next recommended action
 
-Work through "Checks still needed" above through the actual browser UI - every item there has its underlying logic DB/unit-verified already; only the click-through is outstanding. After that, glass/taste-tag/family management UI is the one remaining step-12 piece, then step 13 (responsive/accessibility/security/deployment QA). Ask the user about the untracked "Juice"/"Wine" category mystery whenever convenient - not urgent, still unresolved.
+Work through "Checks still needed" above through the actual browser UI - every item there has its underlying logic DB/unit-verified already; only the click-through is outstanding, most importantly re-testing recipe batch import with the fixed prompt. After that: the member-facing "paste a recipe, app fills in New Recipe" feature is real, scoped, and not started (see "Remaining / not started"); glass/taste-tag/family management UI is the one remaining step-12 piece; then step 13 (responsive/accessibility/security/deployment QA). Ask the user about the untracked "Juice"/"Wine" category mystery whenever convenient - not urgent, still unresolved.
 
 ## Files/areas relevant to next action
 
-`src/screens/MyBarScreen.jsx` and `src/hooks/useInventory.js`'s `toggleProduct()` (the new expand-and-own-a-specific-product flow - needs a browser click-through). `src/screens/DetailScreen.jsx`/`EditorScreen.jsx`'s clone flow (`?clone=` query param). `src/screens/AdminScreen.jsx`'s inline add-ingredient draft in the recipe-import results view. `docs/Cocktail_Library_Development_Spec.md` §12 - all three batch-import entities (ingredients, recipes, products) are now real. Glass/taste-tag/family management (spec §7.7) is the next unbuilt admin-area piece.
+`src/schemas/recipeImport.js`'s `buildRecipeImportPrompt()` (just rewritten - re-verify with a real AI round-trip). `src/screens/MyBarScreen.jsx`'s new admin-only product edit (`updateProduct()` in `services/catalog.js`) and expand-and-own-a-specific-product flow - both need a browser click-through. `docs/Cocktail_Library_Development_Spec.md` §12 - all three batch-import entities (ingredients, recipes, products) are now real. Glass/taste-tag/family management (spec §7.7) is the next unbuilt admin-area piece; the member-facing paste-to-fill recipe feature is the next unbuilt *product* feature.
