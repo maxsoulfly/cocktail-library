@@ -14,7 +14,6 @@ import {
   FilterChip,
   Input,
   OwnedToggle,
-  Select,
 } from "@/components/primitives"
 import { updateProduct } from "@/services/catalog"
 
@@ -47,19 +46,34 @@ export default function MyBarScreen() {
       id: p.id,
       name: p.name,
       brand: p.brand ?? "",
-      ingredientTypeId: p.ingredient_type_id,
+      // Text, not an id - see the ingredient-type input below. A plain
+      // dropdown of every ingredient type became unusable once the catalog
+      // had more than a handful (a real complaint after Orange Juice turned
+      // out to have no correct type to pick at all - see the type-search
+      // input's comment) - same searchable text+datalist pattern
+      // AddProductScreen already uses for this exact problem.
+      ingredientTypeName:
+        types.find((t) => t.id === p.ingredient_type_id)?.name ?? "",
       isHomemade: p.is_homemade,
     })
   }
 
+  const editMatchedType = editingProduct
+    ? types.find(
+        (t) =>
+          t.name.toLowerCase() ===
+          editingProduct.ingredientTypeName.trim().toLowerCase(),
+      )
+    : null
+
   const handleSaveEditProduct = async () => {
-    if (!editingProduct) return
+    if (!editingProduct || !editMatchedType) return
     setEditSaving(true)
     setEditError(null)
     try {
       await updateProduct(editingProduct.id, {
         name: editingProduct.name.trim(),
-        ingredientTypeId: editingProduct.ingredientTypeId,
+        ingredientTypeId: editMatchedType.id,
         brand: editingProduct.brand.trim(),
         isHomemade: editingProduct.isHomemade,
       })
@@ -422,19 +436,59 @@ export default function MyBarScreen() {
                                   })
                                 }
                               />
-                              <Select
-                                value={editingProduct.ingredientTypeId}
-                                onChange={(v) =>
-                                  setEditingProduct({
-                                    ...editingProduct,
-                                    ingredientTypeId: v,
-                                  })
-                                }
-                                options={types.map((t) => ({
-                                  value: t.id,
-                                  label: t.name,
-                                }))}
-                              />
+                              <div>
+                                <label
+                                  style={{
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    color: "var(--text2)",
+                                    fontFamily: "var(--font-display)",
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.06em",
+                                    display: "block",
+                                    marginBottom: 4,
+                                  }}
+                                >
+                                  Ingredient Type
+                                </label>
+                                <input
+                                  list={`edit-ing-types-${p.id}`}
+                                  value={editingProduct.ingredientTypeName}
+                                  onChange={(e) =>
+                                    setEditingProduct({
+                                      ...editingProduct,
+                                      ingredientTypeName: e.target.value,
+                                    })
+                                  }
+                                  style={{
+                                    background: "var(--surface)",
+                                    border: "1px solid var(--border-s)",
+                                    borderRadius: "var(--r-sm)",
+                                    padding: "8px 10px",
+                                    color: "var(--text)",
+                                    fontSize: 13,
+                                    fontFamily: "var(--font-body)",
+                                    width: "100%",
+                                  }}
+                                />
+                                <datalist id={`edit-ing-types-${p.id}`}>
+                                  {types.map((t) => (
+                                    <option key={t.id} value={t.name} />
+                                  ))}
+                                </datalist>
+                                {editingProduct.ingredientTypeName.trim() &&
+                                  !editMatchedType && (
+                                    <p
+                                      style={{
+                                        margin: "4px 0 0",
+                                        fontSize: 11,
+                                        color: "var(--amber)",
+                                      }}
+                                    >
+                                      Doesn't match an existing ingredient type.
+                                    </p>
+                                  )}
+                              </div>
                               <Input
                                 label="Brand (optional)"
                                 value={editingProduct.brand}
@@ -461,7 +515,9 @@ export default function MyBarScreen() {
                                   variant="primary"
                                   small
                                   disabled={
-                                    editSaving || !editingProduct.name.trim()
+                                    editSaving ||
+                                    !editingProduct.name.trim() ||
+                                    !editMatchedType
                                   }
                                   onClick={handleSaveEditProduct}
                                 >
