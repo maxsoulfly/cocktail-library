@@ -7,6 +7,7 @@ import {
   IconEdit,
   IconPlus,
   IconSearch,
+  IconTrash,
 } from "@/components/icons"
 import {
   Btn,
@@ -15,7 +16,7 @@ import {
   Input,
   OwnedToggle,
 } from "@/components/primitives"
-import { updateProduct } from "@/services/catalog"
+import { deleteProduct, updateProduct } from "@/services/catalog"
 
 export default function MyBarScreen() {
   const navigate = useNavigate()
@@ -39,6 +40,8 @@ export default function MyBarScreen() {
   const [editingProduct, setEditingProduct] = useState(null)
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState(null)
+  const [confirmDeleteProductId, setConfirmDeleteProductId] = useState(null)
+  const [deletingProduct, setDeletingProduct] = useState(false)
 
   const startEditProduct = (p) => {
     setEditError(null)
@@ -85,6 +88,18 @@ export default function MyBarScreen() {
       setEditSaving(false)
     }
   }
+
+  const handleDeleteProduct = async (id) => {
+    setDeletingProduct(true)
+    try {
+      await deleteProduct(id)
+      await catalog.refetch()
+      setConfirmDeleteProductId(null)
+    } finally {
+      setDeletingProduct(false)
+    }
+  }
+
   // Which type rows have their full product list expanded - separate from
   // ownership, since browsing what's in the shared catalog (e.g. products an
   // admin just batch-imported) is the only way to then claim one without
@@ -534,6 +549,48 @@ export default function MyBarScreen() {
                             </div>
                           )
                         }
+                        if (confirmDeleteProductId === p.id) {
+                          return (
+                            <div
+                              key={p.id}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 10,
+                                padding: isChild
+                                  ? "7px 14px 7px 58px"
+                                  : "7px 14px 7px 38px",
+                                borderBottom: rowBorder,
+                                background: "var(--bg2)",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  flex: 1,
+                                  fontSize: 12,
+                                  color: "var(--coral)",
+                                }}
+                              >
+                                Delete "{p.name}"? This can't be undone.
+                              </span>
+                              <Btn
+                                variant="danger"
+                                small
+                                disabled={deletingProduct}
+                                onClick={() => handleDeleteProduct(p.id)}
+                              >
+                                Delete
+                              </Btn>
+                              <Btn
+                                variant="ghost"
+                                small
+                                onClick={() => setConfirmDeleteProductId(null)}
+                              >
+                                Cancel
+                              </Btn>
+                            </div>
+                          )
+                        }
                         return (
                           <div
                             key={p.id}
@@ -579,6 +636,23 @@ export default function MyBarScreen() {
                                 }}
                               >
                                 <IconEdit size={14} />
+                              </button>
+                            )}
+                            {isAdmin && (
+                              <button
+                                onClick={() => setConfirmDeleteProductId(p.id)}
+                                title="Delete product"
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  cursor: "pointer",
+                                  padding: 4,
+                                  color: "var(--text3)",
+                                  display: "flex",
+                                  alignItems: "center",
+                                }}
+                              >
+                                <IconTrash size={14} />
                               </button>
                             )}
                             <OwnedToggle

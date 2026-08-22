@@ -82,6 +82,15 @@ export async function updateProduct(
   return data
 }
 
+// Admin-only via the pre-existing "products: admin delete" RLS policy - same
+// "existed since step 5, never had a caller" situation as updateProduct().
+// user_inventory.product_id is `on delete cascade`, so any ownership record
+// pointing at this product is cleaned up automatically.
+export async function deleteProduct(id) {
+  const { error } = await supabase.from("products").delete().eq("id", id)
+  if (error) throw error
+}
+
 // Admin batch import - `rows` are already-validated resolved objects from
 // src/schemas/productImport.js (snake_case, matching the table), not raw
 // import JSON. Uses the same "products: member insert" RLS policy any
