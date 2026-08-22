@@ -154,3 +154,90 @@ export async function fetchCocktailFamilies() {
   if (error) throw error
   return data
 }
+
+// Shared by glasses/taste_tags/cocktail_families - all three are just
+// `(id, name unique)` with the same admin-insert/update/delete RLS shape (no
+// new grant needed, existed since the RLS-hardening pass with no caller
+// until now, same pattern as products/ingredient_types earlier this
+// session). A row referenced by a recipe (glass_id/family_id) or
+// recipe_taste_tags is protected from deletion by its own foreign key
+// constraint - no application-level "is this in use" check needed, the DB
+// already refuses and callers surface that error message as-is.
+function createNamedRow(table, name) {
+  return supabase
+    .from(table)
+    .insert({ name })
+    .select()
+    .single()
+    .then(({ data, error }) => {
+      if (error) throw error
+      return data
+    })
+}
+function updateNamedRow(table, id, name) {
+  return supabase
+    .from(table)
+    .update({ name })
+    .eq("id", id)
+    .select()
+    .single()
+    .then(({ data, error }) => {
+      if (error) throw error
+      return data
+    })
+}
+function deleteNamedRow(table, id) {
+  return supabase
+    .from(table)
+    .delete()
+    .eq("id", id)
+    .then(({ error }) => {
+      if (error) throw error
+    })
+}
+
+export const createGlass = (name) => createNamedRow("glasses", name)
+export const updateGlass = (id, name) => updateNamedRow("glasses", id, name)
+export const deleteGlass = (id) => deleteNamedRow("glasses", id)
+
+export const createTasteTag = (name) => createNamedRow("taste_tags", name)
+export const updateTasteTag = (id, name) =>
+  updateNamedRow("taste_tags", id, name)
+export const deleteTasteTag = (id) => deleteNamedRow("taste_tags", id)
+
+export const createCocktailFamily = (name) =>
+  createNamedRow("cocktail_families", name)
+export const updateCocktailFamily = (id, name) =>
+  updateNamedRow("cocktail_families", id, name)
+export const deleteCocktailFamily = (id) =>
+  deleteNamedRow("cocktail_families", id)
+
+// ingredient_categories carries sort_order too (added in
+// 20260816010047_category_order_and_spirit_hierarchy.sql), so it doesn't fit
+// the plain name-only helpers above.
+export async function createIngredientCategory({ name, sortOrder }) {
+  const { data, error } = await supabase
+    .from("ingredient_categories")
+    .insert({ name, sort_order: sortOrder ?? 0 })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+export async function updateIngredientCategory(id, { name, sortOrder }) {
+  const { data, error } = await supabase
+    .from("ingredient_categories")
+    .update({ name, sort_order: sortOrder ?? 0 })
+    .eq("id", id)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+export async function deleteIngredientCategory(id) {
+  const { error } = await supabase
+    .from("ingredient_categories")
+    .delete()
+    .eq("id", id)
+  if (error) throw error
+}

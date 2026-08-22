@@ -3,6 +3,7 @@ import { useNavigate, useOutletContext } from "react-router-dom"
 import {
   IconCheck,
   IconCopy,
+  IconEdit,
   IconLock,
   IconPlus,
   IconTrash,
@@ -15,6 +16,7 @@ import {
   ColorSwatchPicker,
   Input,
   Select,
+  SectionTitle,
 } from "@/components/primitives"
 import {
   BAR_PRIORITIES,
@@ -29,7 +31,22 @@ import {
   buildRecipeImportPrompt,
   validateRecipeImport,
 } from "@/schemas/recipeImport"
-import { createIngredientTypes, createProducts } from "@/services/catalog"
+import {
+  createCocktailFamily,
+  createGlass,
+  createIngredientCategory,
+  createIngredientTypes,
+  createProducts,
+  createTasteTag,
+  deleteCocktailFamily,
+  deleteGlass,
+  deleteIngredientCategory,
+  deleteTasteTag,
+  updateCocktailFamily,
+  updateGlass,
+  updateIngredientCategory,
+  updateTasteTag,
+} from "@/services/catalog"
 import {
   fetchPendingIngredientRequests,
   resolveIngredientRequest,
@@ -52,6 +69,7 @@ const TABS = [
   { id: "moderation", label: "Moderation" },
   { id: "requests", label: "Requests" },
   { id: "import", label: "Batch Import" },
+  { id: "catalog", label: "Catalog" },
 ]
 
 const STATUS_COLORS = {
@@ -73,6 +91,318 @@ const formatDate = (iso) =>
     month: "short",
     year: "numeric",
   })
+
+// Shared list+add+inline-edit+inline-delete-confirm UI for the four simple
+// "admin-managed lookup table" cases (glasses, taste tags, cocktail
+// families, ingredient categories) - one component instead of four
+// near-identical copies. `items` need at least {id, name}; pass
+// `showSortOrder` for ingredient_categories, the one table with an extra
+// column. `onCreate`/`onUpdate` receive a plain string name (or
+// `{name, sortOrder}` when `showSortOrder`); the caller re-fetches the
+// catalog after any successful mutation, same as every other admin write in
+// this file.
+function NamedRowManager({
+  title,
+  singular,
+  items,
+  showSortOrder,
+  onCreate,
+  onUpdate,
+  onDelete,
+}) {
+  const [newName, setNewName] = useState("")
+  const [newSortOrder, setNewSortOrder] = useState("0")
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState(null)
+
+  const [editingId, setEditingId] = useState(null)
+  const [editName, setEditName] = useState("")
+  const [editSortOrder, setEditSortOrder] = useState("0")
+  const [saving, setSaving] = useState(false)
+  const [editError, setEditError] = useState(null)
+
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null)
+  const [deleteError, setDeleteError] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const handleCreate = async () => {
+    if (!newName.trim()) return
+    setCreating(true)
+    setCreateError(null)
+    try {
+      await onCreate(
+        showSortOrder
+          ? { name: newName.trim(), sortOrder: Number(newSortOrder) || 0 }
+          : newName.trim(),
+      )
+      setNewName("")
+      setNewSortOrder("0")
+    } catch (err) {
+      setCreateError(err.message)
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const startEdit = (item) => {
+    setEditError(null)
+    setEditingId(item.id)
+    setEditName(item.name)
+    setEditSortOrder(String(item.sort_order ?? 0))
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editName.trim()) return
+    setSaving(true)
+    setEditError(null)
+    try {
+      await onUpdate(
+        editingId,
+        showSortOrder
+          ? { name: editName.trim(), sortOrder: Number(editSortOrder) || 0 }
+          : editName.trim(),
+      )
+      setEditingId(null)
+    } catch (err) {
+      setEditError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async (id) => {
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await onDelete(id)
+      setConfirmDeleteId(null)
+    } catch (err) {
+      // Most likely a foreign key violation (still in use by a recipe or
+      // ingredient type) - the DB's own error message is specific enough to
+      // show as-is rather than guessing a friendlier one.
+      setDeleteError(err.message)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <SectionTitle>{title}</SectionTitle>
+      <Card style={{ padding: 0 }}>
+        {items.length === 0 ? (
+          <p
+            style={{
+              margin: 0,
+              padding: "14px 16px",
+              fontSize: 13,
+              color: "var(--text3)",
+            }}
+          >
+            None yet.
+          </p>
+        ) : (
+          items.map((item, i) => (
+            <div
+              key={item.id}
+              style={{
+                padding: "10px 14px",
+                borderBottom:
+                  i < items.length - 1 ? "1px solid var(--border-s)" : "none",
+              }}
+            >
+              {editingId === item.id ? (
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 8 }}
+                >
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <div style={{ flex: 1 }}>
+                      <Input value={editName} onChange={setEditName} />
+                    </div>
+                    {showSortOrder && (
+                      <input
+                        type="number"
+                        value={editSortOrder}
+                        onChange={(e) => setEditSortOrder(e.target.value)}
+                        style={{
+                          width: 64,
+                          background: "var(--surface)",
+                          border: "1px solid var(--border-s)",
+                          borderRadius: "var(--r-sm)",
+                          padding: "10px 8px",
+                          color: "var(--text)",
+                          fontSize: 14,
+                          fontFamily: "var(--font-mono)",
+                        }}
+                      />
+                    )}
+                  </div>
+                  {editError && (
+                    <p
+                      style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}
+                    >
+                      {editError}
+                    </p>
+                  )}
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <Btn
+                      variant="primary"
+                      small
+                      disabled={saving || !editName.trim()}
+                      onClick={handleSaveEdit}
+                    >
+                      {saving ? "Saving..." : "Save"}
+                    </Btn>
+                    <Btn
+                      variant="ghost"
+                      small
+                      onClick={() => setEditingId(null)}
+                    >
+                      Cancel
+                    </Btn>
+                  </div>
+                </div>
+              ) : confirmDeleteId === item.id ? (
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 8 }}
+                >
+                  <p style={{ margin: 0, fontSize: 13, color: "var(--coral)" }}>
+                    Delete "{item.name}"?{" "}
+                    {deleteError ? deleteError : "This can't be undone."}
+                  </p>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <Btn
+                      variant="danger"
+                      small
+                      disabled={deleting}
+                      onClick={() => handleDelete(item.id)}
+                    >
+                      Delete
+                    </Btn>
+                    <Btn
+                      variant="ghost"
+                      small
+                      onClick={() => {
+                        setConfirmDeleteId(null)
+                        setDeleteError(null)
+                      }}
+                    >
+                      Cancel
+                    </Btn>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                  }}
+                >
+                  <span
+                    style={{
+                      flex: 1,
+                      fontSize: 14,
+                      color: "var(--text)",
+                      fontFamily: "var(--font-body)",
+                    }}
+                  >
+                    {item.name}
+                    {showSortOrder && (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color: "var(--text3)",
+                          fontFamily: "var(--font-mono)",
+                          marginLeft: 8,
+                        }}
+                      >
+                        order {item.sort_order}
+                      </span>
+                    )}
+                  </span>
+                  <button
+                    onClick={() => startEdit(item)}
+                    title={`Edit ${singular}`}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      padding: 4,
+                      color: "var(--text3)",
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                  >
+                    <IconEdit size={14} />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDeleteError(null)
+                      setConfirmDeleteId(item.id)
+                    }}
+                    title={`Delete ${singular}`}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      padding: 4,
+                      color: "var(--text3)",
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                  >
+                    <IconTrash size={14} />
+                  </button>
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </Card>
+      <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ flex: 1 }}>
+          <Input
+            placeholder={`New ${singular} name`}
+            value={newName}
+            onChange={setNewName}
+          />
+        </div>
+        {showSortOrder && (
+          <input
+            type="number"
+            value={newSortOrder}
+            onChange={(e) => setNewSortOrder(e.target.value)}
+            title="Sort order"
+            style={{
+              width: 64,
+              background: "var(--surface)",
+              border: "1px solid var(--border-s)",
+              borderRadius: "var(--r-sm)",
+              padding: "10px 8px",
+              color: "var(--text)",
+              fontSize: 14,
+              fontFamily: "var(--font-mono)",
+            }}
+          />
+        )}
+        <Btn
+          variant="primary"
+          small
+          disabled={creating || !newName.trim()}
+          onClick={handleCreate}
+        >
+          {creating ? "Adding..." : "Add"}
+        </Btn>
+      </div>
+      {createError && (
+        <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
+          {createError}
+        </p>
+      )}
+    </div>
+  )
+}
 
 export default function AdminScreen() {
   const navigate = useNavigate()
@@ -2227,6 +2557,96 @@ export default function AdminScreen() {
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {tab === "catalog" && (
+          <div
+            className="fade-in"
+            style={{ display: "flex", flexDirection: "column", gap: 24 }}
+          >
+            <p style={{ margin: 0, fontSize: 13, color: "var(--text2)" }}>
+              Glasses, taste tags, cocktail families, and ingredient categories
+              - the lookup lists recipes and ingredient types reference. A row
+              in use by a recipe or ingredient type can't be deleted (the
+              database rejects it); rename or add new ones instead.
+            </p>
+            <p style={{ margin: 0, fontSize: 12, color: "var(--text3)" }}>
+              A new glass works immediately for matching/availability, but{" "}
+              <code>GlassSvg.jsx</code> only draws a real shape for the names it
+              already knows (rocks, highball/collins, coupe, wine) - anything
+              else renders as a generic martini silhouette until a matching
+              shape is added in code.
+            </p>
+            <NamedRowManager
+              title="Glasses"
+              singular="glass"
+              items={catalog.glasses}
+              onCreate={async (name) => {
+                await createGlass(name)
+                await catalog.refetch()
+              }}
+              onUpdate={async (id, name) => {
+                await updateGlass(id, name)
+                await catalog.refetch()
+              }}
+              onDelete={async (id) => {
+                await deleteGlass(id)
+                await catalog.refetch()
+              }}
+            />
+            <NamedRowManager
+              title="Taste Tags"
+              singular="taste tag"
+              items={catalog.tasteTags}
+              onCreate={async (name) => {
+                await createTasteTag(name)
+                await catalog.refetch()
+              }}
+              onUpdate={async (id, name) => {
+                await updateTasteTag(id, name)
+                await catalog.refetch()
+              }}
+              onDelete={async (id) => {
+                await deleteTasteTag(id)
+                await catalog.refetch()
+              }}
+            />
+            <NamedRowManager
+              title="Cocktail Families"
+              singular="family"
+              items={catalog.families}
+              onCreate={async (name) => {
+                await createCocktailFamily(name)
+                await catalog.refetch()
+              }}
+              onUpdate={async (id, name) => {
+                await updateCocktailFamily(id, name)
+                await catalog.refetch()
+              }}
+              onDelete={async (id) => {
+                await deleteCocktailFamily(id)
+                await catalog.refetch()
+              }}
+            />
+            <NamedRowManager
+              title="Ingredient Categories"
+              singular="category"
+              items={catalog.categories}
+              showSortOrder
+              onCreate={async ({ name, sortOrder }) => {
+                await createIngredientCategory({ name, sortOrder })
+                await catalog.refetch()
+              }}
+              onUpdate={async (id, { name, sortOrder }) => {
+                await updateIngredientCategory(id, { name, sortOrder })
+                await catalog.refetch()
+              }}
+              onDelete={async (id) => {
+                await deleteIngredientCategory(id)
+                await catalog.refetch()
+              }}
+            />
           </div>
         )}
       </div>
