@@ -4,6 +4,7 @@ import {
   useNavigate,
   useOutletContext,
   useParams,
+  useSearchParams,
 } from "react-router-dom"
 import { IconPlus, IconX } from "@/components/icons"
 import { TopBar } from "@/components/Nav"
@@ -28,7 +29,15 @@ function unitLabelToForm(ri) {
 export default function EditorScreen() {
   const navigate = useNavigate()
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
   const isEditing = Boolean(id)
+  // Cloning (?clone=<id>, linked from DetailScreen's "Clone as My Own
+  // Recipe") is a plain new-recipe creation, not editing - it prefills the
+  // form from another visible recipe (classic or someone else's community
+  // one) so a member doesn't have to retype every ingredient/step to build
+  // their own variant, but saving still goes through createRecipe() and
+  // makes an ordinary private recipe they own outright.
+  const cloneSourceId = !isEditing ? searchParams.get("clone") : null
   const { catalog, computed, userId, isAdmin, refetchRecipes } =
     useOutletContext()
   const {
@@ -40,6 +49,9 @@ export default function EditorScreen() {
   } = catalog
 
   const existing = isEditing ? computed.find((item) => item.id === id) : null
+  const cloneSource = cloneSourceId
+    ? computed.find((item) => item.id === cloneSourceId)
+    : null
   // Spec §4: owners edit their own recipe (any state); admins edit only the
   // ownerless classic catalog. Same rule the DB now enforces (see
   // supabase/migrations/20260815231800_tighten_recipe_edit_scope.sql) -
@@ -60,31 +72,40 @@ export default function EditorScreen() {
   const [tasteTagIds, setTasteTagIds] = useState([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
-  const [prefilled, setPrefilled] = useState(!isEditing)
+  const [prefilled, setPrefilled] = useState(!isEditing && !cloneSourceId)
 
   useEffect(() => {
-    if (!isEditing || prefilled || !existing || catalogLoading) return
-    setName(existing.name)
-    setDesc(existing.description ?? "")
-    setGlassName(existing.glass)
-    setLiquidColor(existing.liquidColor)
-    const family = families.find((f) => f.name === existing.family)
+    const source = isEditing ? existing : cloneSource
+    if (prefilled || !source || catalogLoading) return
+    setName(isEditing ? source.name : `${source.name} (My Version)`)
+    setDesc(source.description ?? "")
+    setGlassName(source.glass)
+    setLiquidColor(source.liquidColor)
+    const family = families.find((f) => f.name === source.family)
     setFamilyId(family?.id ?? "")
     setIngs(
-      existing.ings.map((ri) => ({
+      source.ings.map((ri) => ({
         ingredientName: ri.name ?? "",
         ...unitLabelToForm(ri),
         role: ri.role,
       })),
     )
-    setSteps(existing.steps.length > 0 ? existing.steps : [""])
+    setSteps(source.steps.length > 0 ? source.steps : [""])
     setTasteTagIds(
-      existing.taste
+      source.taste
         .map((name) => tasteTags.find((t) => t.name === name)?.id)
         .filter(Boolean),
     )
     setPrefilled(true)
-  }, [isEditing, prefilled, existing, catalogLoading, families, tasteTags])
+  }, [
+    isEditing,
+    prefilled,
+    existing,
+    cloneSource,
+    catalogLoading,
+    families,
+    tasteTags,
+  ])
 
   const effectiveGlassName = glassName || glasses[0]?.name || ""
 
@@ -240,7 +261,13 @@ export default function EditorScreen() {
       style={{ paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))" }}
     >
       <TopBar
-        title={isEditing ? "Edit Recipe" : "New Recipe"}
+        title={
+          isEditing
+            ? "Edit Recipe"
+            : cloneSourceId
+              ? "Clone Recipe"
+              : "New Recipe"
+        }
         onBack={() => navigate(-1)}
       />
       <div

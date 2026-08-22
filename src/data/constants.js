@@ -15,17 +15,16 @@ export const SOURCE_FILTERS = [
   { key: "private", label: "Private" },
 ]
 
-// Preset swatches for a recipe's liquid_color (see GlassSvg.jsx) - a plain
-// hex field would need color-theory knowledge nobody creating a recipe
-// should have to have; picking "looks about right" from a small curated
-// palette is good enough for a decorative fill, not a precision value.
 // "part" isn't in the spec's explicit semantic-unit list (§9: dash,
 // barspoon, piece, slice, wedge, top-up) but is a very common real cocktail
 // unit for ratio-based recipes ("1 part gin, 1 part vermouth") - added per
-// user request. Shared between the manual recipe editor and the recipe
-// batch-import validator/prompt so both accept exactly the same unit
-// vocabulary - if they drifted, an AI-imported recipe could use a unit the
-// manual editor doesn't support, or vice versa.
+// user request. "g" (grams) was added the same way - muddled/solid
+// ingredients (fresh fruit, sugar) are genuinely measured by weight, not a
+// count or a volume, and there was no way to represent that at all. Shared
+// between the manual recipe editor and the recipe batch-import
+// validator/prompt so both accept exactly the same unit vocabulary - if they
+// drifted, an AI-imported recipe could use a unit the manual editor doesn't
+// support, or vice versa.
 export const NON_VOLUME_UNITS = [
   "part",
   "dash",
@@ -34,8 +33,13 @@ export const NON_VOLUME_UNITS = [
   "slice",
   "wedge",
   "top-up",
+  "g",
 ]
 
+// Preset swatches for a recipe's liquid_color (see GlassSvg.jsx) - a plain
+// hex field would need color-theory knowledge nobody creating a recipe
+// should have to have; picking "looks about right" from a small curated
+// palette is good enough for a decorative fill, not a precision value.
 export const LIQUID_COLORS = [
   { label: "Clear", value: "#dbeafe" },
   { label: "Pale Gold", value: "#fef3c7" },

@@ -95,6 +95,23 @@ export function validateRecipeImport(
       : []
     if (steps.length === 0) errors.push("Missing steps")
 
+    // Names a fix could plausibly resolve, collected from both the AI's own
+    // unresolvedIngredients review list and any component that didn't match
+    // - surfaced separately from `errors` (which stays human-readable text)
+    // so the UI can offer an inline "add this ingredient" action per name
+    // instead of parsing it back out of an error string.
+    const missingIngredientNames = []
+    const addMissing = (rawName) => {
+      const trimmed = String(rawName).trim()
+      if (
+        trimmed &&
+        !missingIngredientNames.some(
+          (n) => n.toLowerCase() === trimmed.toLowerCase(),
+        )
+      )
+        missingIngredientNames.push(trimmed)
+    }
+
     if (
       Array.isArray(raw.unresolvedIngredients) &&
       raw.unresolvedIngredients.length > 0
@@ -102,6 +119,7 @@ export function validateRecipeImport(
       errors.push(
         `Unresolved ingredient(s) flagged for review: ${raw.unresolvedIngredients.join(", ")}`,
       )
+      raw.unresolvedIngredients.forEach(addMissing)
     }
 
     const rawComponents = Array.isArray(raw.components) ? raw.components : []
@@ -121,6 +139,7 @@ export function validateRecipeImport(
       }
       if (!matchedType) {
         errors.push(`${label}: unresolved ingredient "${ingredientName}"`)
+        addMissing(ingredientName)
         return
       }
 
@@ -171,6 +190,7 @@ export function validateRecipeImport(
       name: name || undefined,
       errors,
       valid,
+      missingIngredientNames,
       resolved: valid
         ? {
             name,

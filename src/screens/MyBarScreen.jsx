@@ -1,6 +1,12 @@
 import { useMemo, useState } from "react"
 import { useNavigate, useOutletContext } from "react-router-dom"
-import { IconBottle, IconPlus, IconSearch } from "@/components/icons"
+import {
+  IconBottle,
+  IconChevD,
+  IconChevR,
+  IconPlus,
+  IconSearch,
+} from "@/components/icons"
 import { Card, FilterChip, OwnedToggle } from "@/components/primitives"
 
 export default function MyBarScreen() {
@@ -12,11 +18,24 @@ export default function MyBarScreen() {
     ownedTypeIds,
     ownedProductIds,
     toggleType,
+    toggleProduct,
   } = inventory
 
   const [query, setQuery] = useState("")
   const [cat, setCat] = useState("All")
   const [ownedOnly, setOwnedOnly] = useState(false)
+  // Which type rows have their full product list expanded - separate from
+  // ownership, since browsing what's in the shared catalog (e.g. products an
+  // admin just batch-imported) is the only way to then claim one without
+  // retyping its name into Add Product and creating a duplicate row.
+  const [expandedTypeIds, setExpandedTypeIds] = useState(new Set())
+  const toggleExpanded = (typeId) =>
+    setExpandedTypeIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(typeId)) next.delete(typeId)
+      else next.add(typeId)
+      return next
+    })
 
   const productsByType = useMemo(() => {
     const map = new Map()
@@ -27,6 +46,18 @@ export default function MyBarScreen() {
     })
     return map
   }, [products, ownedProductIds])
+
+  // Every catalog product under a type, owned or not - what the expanded
+  // browse list renders, as opposed to productsByType above (owned-only,
+  // used for the collapsed subtitle).
+  const allProductsByType = useMemo(() => {
+    const map = new Map()
+    products.forEach((p) => {
+      if (!map.has(p.ingredient_type_id)) map.set(p.ingredient_type_id, [])
+      map.get(p.ingredient_type_id).push(p)
+    })
+    return map
+  }, [products])
 
   // "Owned" for display combines generic ownership and any owned product
   // mapped to the type, per the spec ("owning a product satisfies its
@@ -214,6 +245,8 @@ export default function MyBarScreen() {
               {rows.map(({ type, isChild }, idx) => {
                 const owned = isOwned(type.id)
                 const ownedProducts = productsByType.get(type.id) ?? []
+                const allProducts = allProductsByType.get(type.id) ?? []
+                const expanded = expandedTypeIds.has(type.id)
                 // A parent type's own toggle only reflects direct/generic
                 // ownership of it specifically - it can show "off" even
                 // though the availability engine already treats an owned
@@ -228,57 +261,130 @@ export default function MyBarScreen() {
                       )
                     : []
                 return (
-                  <div
-                    key={type.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      padding: isChild ? "9px 14px 9px 34px" : "11px 14px",
-                      borderBottom:
-                        idx < rows.length - 1
-                          ? "1px solid var(--border-s)"
-                          : "none",
-                    }}
-                  >
+                  <div key={type.id}>
                     <div
                       style={{
-                        width: isChild ? 26 : 34,
-                        height: isChild ? 26 : 34,
-                        borderRadius: 8,
-                        background: `${type.color ?? "#4e6680"}25`,
-                        border: `1px solid ${type.color ?? "#4e6680"}40`,
-                        flexShrink: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        padding: isChild ? "9px 14px 9px 34px" : "11px 14px",
+                        borderBottom:
+                          idx < rows.length - 1 && !expanded
+                            ? "1px solid var(--border-s)"
+                            : "none",
                       }}
-                    />
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    >
                       <div
                         style={{
-                          fontSize: isChild ? 13 : 14,
-                          fontFamily: "var(--font-body)",
-                          fontWeight: isChild ? 400 : 500,
-                          color: owned ? "var(--text)" : "var(--text3)",
-                          transition: "color 0.15s",
+                          width: isChild ? 26 : 34,
+                          height: isChild ? 26 : 34,
+                          borderRadius: 8,
+                          background: `${type.color ?? "#4e6680"}25`,
+                          border: `1px solid ${type.color ?? "#4e6680"}40`,
+                          flexShrink: 0,
                         }}
-                      >
-                        {type.name}
+                      />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: isChild ? 13 : 14,
+                              fontFamily: "var(--font-body)",
+                              fontWeight: isChild ? 400 : 500,
+                              color: owned ? "var(--text)" : "var(--text3)",
+                              transition: "color 0.15s",
+                            }}
+                          >
+                            {type.name}
+                          </div>
+                          {allProducts.length > 0 && (
+                            <button
+                              onClick={() => toggleExpanded(type.id)}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                padding: 2,
+                                color: "var(--text3)",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 3,
+                                fontSize: 11,
+                              }}
+                            >
+                              {expanded ? (
+                                <IconChevD size={12} />
+                              ) : (
+                                <IconChevR size={12} />
+                              )}
+                              {allProducts.length}
+                            </button>
+                          )}
+                        </div>
+                        {ownedProducts.length > 0 && (
+                          <div style={{ fontSize: 12, color: "var(--text3)" }}>
+                            {ownedProducts.map((p) => p.name).join(", ")}
+                          </div>
+                        )}
+                        {coveringChildren.length > 0 && (
+                          <div style={{ fontSize: 12, color: "var(--cyan)" }}>
+                            Covered by{" "}
+                            {coveringChildren.map((c) => c.name).join(", ")}
+                          </div>
+                        )}
                       </div>
-                      {ownedProducts.length > 0 && (
-                        <div style={{ fontSize: 12, color: "var(--text3)" }}>
-                          {ownedProducts.map((p) => p.name).join(", ")}
-                        </div>
-                      )}
-                      {coveringChildren.length > 0 && (
-                        <div style={{ fontSize: 12, color: "var(--cyan)" }}>
-                          Covered by{" "}
-                          {coveringChildren.map((c) => c.name).join(", ")}
-                        </div>
-                      )}
+                      <OwnedToggle
+                        owned={owned}
+                        onChange={() => toggleType(type.id)}
+                      />
                     </div>
-                    <OwnedToggle
-                      owned={owned}
-                      onChange={() => toggleType(type.id)}
-                    />
+                    {expanded &&
+                      allProducts.map((p, pIdx) => (
+                        <div
+                          key={p.id}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 12,
+                            padding: isChild
+                              ? "7px 14px 7px 58px"
+                              : "7px 14px 7px 38px",
+                            borderBottom:
+                              idx < rows.length - 1 ||
+                              pIdx < allProducts.length - 1
+                                ? "1px solid var(--border-s)"
+                                : "none",
+                            background: "var(--bg2)",
+                          }}
+                        >
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div
+                              style={{
+                                fontSize: 12,
+                                color: ownedProductIds.has(p.id)
+                                  ? "var(--text)"
+                                  : "var(--text3)",
+                              }}
+                            >
+                              {p.name}
+                              {p.brand && p.brand !== p.name
+                                ? ` · ${p.brand}`
+                                : ""}
+                              {p.is_homemade ? " · homemade" : ""}
+                            </div>
+                          </div>
+                          <OwnedToggle
+                            owned={ownedProductIds.has(p.id)}
+                            onChange={() => toggleProduct(p.id)}
+                          />
+                        </div>
+                      ))}
                   </div>
                 )
               })}

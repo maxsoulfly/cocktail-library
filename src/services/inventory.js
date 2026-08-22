@@ -31,3 +31,12 @@ export async function addProductOwnership(userId, productId) {
     .insert({ user_id: userId, product_id: productId })
   if (error) throw error
 }
+
+export async function removeProductOwnership(userId, productId) {
+  const { error } = await supabase
+    .from("user_inventory")
+    .delete()
+    .eq("user_id", userId)
+    .eq("product_id", productId)
+  if (error) throw error
+}

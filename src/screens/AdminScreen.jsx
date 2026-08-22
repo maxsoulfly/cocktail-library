@@ -129,6 +129,16 @@ export default function AdminScreen() {
   const [recipeImportSuccessMessage, setRecipeImportSuccessMessage] =
     useState(null)
 
+  // Inline "add this missing ingredient" from a recipe-import row, rather
+  // than forcing a trip out to the Ingredients tab and back with the pasted
+  // JSON lost. One draft at a time (not per-row) since only one form can be
+  // usefully edited at once anyway. Reuses validateIngredientImport/
+  // createIngredientTypes - same rules as Single Ingredient, not a second
+  // hand-rolled check.
+  const [addIngredientDraft, setAddIngredientDraft] = useState(null)
+  const [addIngredientSaving, setAddIngredientSaving] = useState(false)
+  const [addIngredientError, setAddIngredientError] = useState(null)
+
   // Product batch import - same shape again, one flat bulk insert since
   // products have no per-row children (unlike recipes' components/tags).
   const [productBatchPhase, setProductBatchPhase] = useState("paste")
@@ -373,6 +383,62 @@ export default function AdminScreen() {
       setRecipeImportResult({ ...recipeImportResult, commitError: err.message })
     } finally {
       setRecipeImporting(false)
+    }
+  }
+
+  const openAddIngredientDraft = (name) => {
+    setAddIngredientError(null)
+    setAddIngredientDraft({
+      name,
+      categoryId: "",
+      parentTypeId: "",
+      barPriority: "common",
+      color: "",
+      description: "",
+    })
+  }
+
+  const handleSaveAddIngredientDraft = async () => {
+    if (!addIngredientDraft) return
+    setAddIngredientSaving(true)
+    setAddIngredientError(null)
+    const categoryName =
+      catalog.categories.find((c) => c.id === addIngredientDraft.categoryId)
+        ?.name ?? ""
+    const parentTypeName = addIngredientDraft.parentTypeId
+      ? catalog.types.find((t) => t.id === addIngredientDraft.parentTypeId)
+          ?.name
+      : undefined
+    const { results } = validateIngredientImport(
+      [
+        {
+          name: addIngredientDraft.name.trim(),
+          category: categoryName,
+          parentType: parentTypeName,
+          barPriority: addIngredientDraft.barPriority,
+          color: addIngredientDraft.color.trim() || undefined,
+          description: addIngredientDraft.description.trim() || undefined,
+        },
+      ],
+      { categories: catalog.categories, types: catalog.types },
+    )
+    const [result] = results
+    if (!result.valid) {
+      setAddIngredientError(result.errors.join("; "))
+      setAddIngredientSaving(false)
+      return
+    }
+    try {
+      await createIngredientTypes([result.resolved])
+      await catalog.refetch()
+      setAddIngredientDraft(null)
+      // Re-validate in place so the row that was blocked on this ingredient
+      // updates immediately, without losing the pasted JSON.
+      runRecipeImportValidation()
+    } catch (err) {
+      setAddIngredientError(err.message)
+    } finally {
+      setAddIngredientSaving(false)
     }
   }
 
@@ -1676,10 +1742,163 @@ export default function AdminScreen() {
                                     {row.errors.join("; ")}
                                   </div>
                                 )}
+                                {row.missingIngredientNames?.length > 0 && (
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      flexWrap: "wrap",
+                                      gap: 6,
+                                      marginTop: 6,
+                                    }}
+                                  >
+                                    {row.missingIngredientNames.map((n) => (
+                                      <button
+                                        key={n}
+                                        onClick={() =>
+                                          openAddIngredientDraft(n)
+                                        }
+                                        style={{
+                                          background: "rgba(34,211,238,0.1)",
+                                          border:
+                                            "1px solid rgba(34,211,238,0.25)",
+                                          borderRadius: 6,
+                                          padding: "3px 8px",
+                                          cursor: "pointer",
+                                          color: "var(--cyan)",
+                                          fontSize: 11,
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: 4,
+                                        }}
+                                      >
+                                        <IconPlus size={10} /> Add "{n}"
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           ))}
                         </Card>
+
+                        {addIngredientDraft && (
+                          <Card
+                            style={{
+                              padding: "14px",
+                              border: "1px solid rgba(34,211,238,0.25)",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 10,
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontSize: 13,
+                                fontWeight: 700,
+                                color: "var(--text)",
+                                fontFamily: "var(--font-display)",
+                              }}
+                            >
+                              Add ingredient: {addIngredientDraft.name}
+                            </div>
+                            <Select
+                              value={addIngredientDraft.categoryId}
+                              onChange={(v) =>
+                                setAddIngredientDraft({
+                                  ...addIngredientDraft,
+                                  categoryId: v,
+                                  parentTypeId: "",
+                                })
+                              }
+                              options={[
+                                { value: "", label: "Select a category..." },
+                                ...catalog.categories.map((c) => ({
+                                  value: c.id,
+                                  label: c.name,
+                                })),
+                              ]}
+                            />
+                            {addIngredientDraft.categoryId && (
+                              <Select
+                                value={addIngredientDraft.parentTypeId}
+                                onChange={(v) =>
+                                  setAddIngredientDraft({
+                                    ...addIngredientDraft,
+                                    parentTypeId: v,
+                                  })
+                                }
+                                options={[
+                                  { value: "", label: "No parent type" },
+                                  ...catalog.types
+                                    .filter(
+                                      (t) =>
+                                        t.category_id ===
+                                        addIngredientDraft.categoryId,
+                                    )
+                                    .map((t) => ({
+                                      value: t.id,
+                                      label: t.name,
+                                    })),
+                                ]}
+                              />
+                            )}
+                            <Select
+                              value={addIngredientDraft.barPriority}
+                              onChange={(v) =>
+                                setAddIngredientDraft({
+                                  ...addIngredientDraft,
+                                  barPriority: v,
+                                })
+                              }
+                              options={BAR_PRIORITIES.map((p) => ({
+                                value: p,
+                                label: p[0].toUpperCase() + p.slice(1),
+                              }))}
+                            />
+                            <ColorSwatchPicker
+                              value={addIngredientDraft.color}
+                              onChange={(v) =>
+                                setAddIngredientDraft({
+                                  ...addIngredientDraft,
+                                  color: v,
+                                })
+                              }
+                            />
+                            {addIngredientError && (
+                              <p
+                                style={{
+                                  margin: 0,
+                                  fontSize: 12,
+                                  color: "var(--coral)",
+                                }}
+                              >
+                                {addIngredientError}
+                              </p>
+                            )}
+                            <div style={{ display: "flex", gap: 8 }}>
+                              <Btn
+                                variant="primary"
+                                small
+                                disabled={
+                                  !addIngredientDraft.categoryId ||
+                                  addIngredientSaving
+                                }
+                                onClick={handleSaveAddIngredientDraft}
+                              >
+                                {addIngredientSaving
+                                  ? "Adding..."
+                                  : "Add & Re-validate"}
+                              </Btn>
+                              <Btn
+                                variant="ghost"
+                                small
+                                onClick={() => setAddIngredientDraft(null)}
+                              >
+                                Cancel
+                              </Btn>
+                            </div>
+                          </Card>
+                        )}
                         {recipeImportResult.commitError && (
                           <p
                             style={{

@@ -4,6 +4,7 @@ import {
   addProductOwnership,
   fetchInventory,
   removeIngredientTypeOwnership,
+  removeProductOwnership,
 } from "@/services/inventory"
 
 export function useInventory(userId) {
@@ -85,12 +86,43 @@ export function useInventory(userId) {
     }
   }
 
+  // Browsing an existing catalog product (e.g. one an admin batch-imported)
+  // and claiming/un-claiming ownership of it - distinct from ownProduct(),
+  // which only ever adds (used right after AddProductScreen creates a brand
+  // new product, when it can't possibly be owned yet).
+  const toggleProduct = async (productId) => {
+    const wasOwned = ownedProductIds.has(productId)
+    setRows((prev) =>
+      wasOwned
+        ? prev.filter((r) => r.product_id !== productId)
+        : [
+            ...prev,
+            {
+              id: `optimistic-${productId}`,
+              ingredient_type_id: null,
+              product_id: productId,
+            },
+          ],
+    )
+    try {
+      if (wasOwned) {
+        await removeProductOwnership(userId, productId)
+      } else {
+        await addProductOwnership(userId, productId)
+      }
+    } catch (err) {
+      load()
+      throw err
+    }
+  }
+
   return {
     loading,
     ownedTypeIds,
     ownedProductIds,
     toggleType,
     ownProduct,
+    toggleProduct,
     refetch: load,
   }
 }

@@ -68,6 +68,29 @@ describe("validateRecipeImport", () => {
     })
   })
 
+  it("accepts a weight-based (g) component", () => {
+    const { results } = validateRecipeImport(
+      [
+        {
+          name: "Muddled",
+          glass: "Rocks",
+          steps: ["Muddle."],
+          components: [
+            { ingredient: "Olive", amount: 50, unit: "g", role: "required" },
+          ],
+        },
+      ],
+      catalog,
+    )
+    expect(results[0].valid).toBe(true)
+    expect(results[0].resolved.components[0]).toEqual({
+      ingredientTypeId: "type-olive",
+      amount: 0,
+      unitLabel: "50 g",
+      role: "required",
+    })
+  })
+
   it("accepts a minimal valid recipe with no family/color/tags", () => {
     const { results } = validateRecipeImport(
       [
@@ -234,6 +257,25 @@ describe("validateRecipeImport", () => {
     )
     expect(results[0].valid).toBe(false)
     expect(results[0].errors[0]).toMatch(/Unresolved ingredient.*Yuzu Bitters/)
+    expect(results[0].missingIngredientNames).toEqual(["Yuzu Bitters"])
+  })
+
+  it("collects missingIngredientNames from both unresolvedIngredients and unmatched components, deduped", () => {
+    const { results } = validateRecipeImport(
+      [
+        {
+          ...validItem,
+          unresolvedIngredients: ["Salt"],
+          components: [
+            { ingredient: "Gin", amount: 60, unit: "ml" },
+            { ingredient: "salt", amount: 1, unit: "piece" },
+          ],
+        },
+      ],
+      catalog,
+    )
+    expect(results[0].valid).toBe(false)
+    expect(results[0].missingIngredientNames).toEqual(["Salt"])
   })
 
   it("handles a non-object item without throwing", () => {
@@ -256,7 +298,7 @@ describe("buildRecipeImportPrompt", () => {
   it("names the allowed non-volume units", () => {
     const prompt = buildRecipeImportPrompt(catalog)
     expect(prompt).toContain(
-      "part, dash, barspoon, piece, slice, wedge, top-up",
+      "part, dash, barspoon, piece, slice, wedge, top-up, g",
     )
   })
 })

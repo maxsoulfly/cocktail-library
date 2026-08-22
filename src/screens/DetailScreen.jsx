@@ -3,6 +3,7 @@ import { useNavigate, useOutletContext, useParams } from "react-router-dom"
 import { GlassSvg } from "@/components/GlassSvg"
 import {
   IconBookmark,
+  IconCopy,
   IconEdit,
   IconGlobe,
   IconHeart,
@@ -442,6 +443,22 @@ export default function DetailScreen() {
             onClick={() => navigate(`/library/${c.id}/edit`)}
           >
             <IconEdit size={15} /> Edit Recipe
+          </Btn>
+        )}
+
+        {/* Classics (and other people's community recipes) can't be edited
+            directly - spec §4 says "no" to editing someone else's recipe by
+            default, and only admins manage the classic catalog. Cloning
+            gives any member their own private, fully editable copy instead,
+            prefilled so they don't retype every ingredient/step from
+            scratch - see EditorScreen.jsx's ?clone= handling. */}
+        {!isOwner && (
+          <Btn
+            variant="ghost"
+            full
+            onClick={() => navigate(`/library/new?clone=${c.id}`)}
+          >
+            <IconCopy size={15} /> Clone as My Own Recipe
           </Btn>
         )}
 
