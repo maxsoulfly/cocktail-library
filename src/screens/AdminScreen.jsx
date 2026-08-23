@@ -84,16 +84,22 @@ import {
 } from "@/services/membership"
 import { IngredientTypeEditor } from "@/components/IngredientTypeEditor"
 
+// Grouped by what the tab is *for*, not the order each was built in
+// (the original order): Overview first, then recipe content (Classic
+// Recipes, Moderation - which is community recipe moderation), then
+// catalog/taxonomy tools (Catalog, Ingredient Types, Batch Import,
+// Requests - Requests feeds directly into Ingredient Types/Batch Import),
+// then membership admin (Users, Invitations) last.
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "recipes", label: "Classic Recipes" },
-  { id: "users", label: "Users" },
-  { id: "invites", label: "Invitations" },
   { id: "moderation", label: "Moderation" },
-  { id: "requests", label: "Requests" },
-  { id: "import", label: "Batch Import" },
   { id: "catalog", label: "Catalog" },
   { id: "types", label: "Ingredient Types" },
+  { id: "import", label: "Batch Import" },
+  { id: "requests", label: "Requests" },
+  { id: "users", label: "Users" },
+  { id: "invites", label: "Invitations" },
 ]
 
 const STATUS_COLORS = {
@@ -1232,17 +1238,21 @@ export default function AdminScreen() {
     }
   }
 
-  // Jumps to the single-add form pre-filled with a request's name.
-  // singleFromRequestId is threaded through so a successful save can also
-  // mark the request fulfilled - originally these were kept as two
+  // Jumps to the single-add form, optionally pre-filled with a request's
+  // name. singleFromRequestId is threaded through so a successful save can
+  // also mark the request fulfilled - originally these were kept as two
   // separate manual steps, but real usage found that confusing ("I added
   // it, why does it still show as pending, do I need to press + again?"),
   // with no actual benefit: nothing meaningfully different could happen
   // between "add succeeded" and "mark fulfilled" that would warrant a
-  // separate confirm.
+  // separate confirm. Also the Ingredient Types tab's own "+ Add" button,
+  // which has no request behind it - resets importEntity too, since
+  // without that a prior visit to Recipes/Products import would leave this
+  // deep link landing on the wrong sub-tab.
   const [singleFromRequestId, setSingleFromRequestId] = useState(null)
-  const startSingleAddFromRequest = (name, requestId) => {
+  const startSingleAddFromRequest = (name = "", requestId = null) => {
     setImportSuccessMessage(null)
+    setImportEntity("ingredients")
     setImportMode("single")
     setSingleName(name)
     setSingleFromRequestId(requestId)
@@ -3928,11 +3938,22 @@ export default function AdminScreen() {
               nothing - a child type, product, recipe, or substitution - still
               references it; the database's own rejection shows as-is.
             </p>
-            <Input
-              placeholder="Search types..."
-              value={typeQuery}
-              onChange={setTypeQuery}
-            />
+            <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ flex: 1 }}>
+                <Input
+                  placeholder="Search types..."
+                  value={typeQuery}
+                  onChange={setTypeQuery}
+                />
+              </div>
+              <Btn
+                variant="primary"
+                small
+                onClick={() => startSingleAddFromRequest()}
+              >
+                + Add
+              </Btn>
+            </div>
             {filteredTypes.length === 0 ? (
               <p style={{ margin: 0, fontSize: 14, color: "var(--text3)" }}>
                 No matching ingredient types.
