@@ -972,7 +972,7 @@ export default function EditorScreen() {
                       gap: 2,
                     }}
                   >
-                    <FamilyIcon family={f.name} size={24} />
+                    <FamilyIcon shape={f.shape} size={24} />
                     {f.name}
                   </button>
                 ))}

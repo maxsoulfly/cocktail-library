@@ -9,6 +9,7 @@ import {
   IconTrash,
   IconX,
 } from "@/components/icons"
+import { FamilyIcon } from "@/components/FamilyIcon"
 import { GlassSvg } from "@/components/GlassSvg"
 import { TopBar } from "@/components/Nav"
 import {
@@ -20,7 +21,7 @@ import {
   Select,
   SectionTitle,
 } from "@/components/primitives"
-import { GLASS_SHAPES } from "@/data/constants"
+import { FAMILY_SHAPES, GLASS_SHAPES } from "@/data/constants"
 import { resolveIngredientType } from "@/domain/ingredientResolution"
 import {
   BAR_PRIORITIES,
@@ -121,26 +122,34 @@ const formatDate = (iso) =>
 // `{name, sortOrder}` when `showSortOrder`); the caller re-fetches the
 // catalog after any successful mutation, same as every other admin write in
 // this file.
+// "glass" -> GLASS_SHAPES/GlassSvg, "family" -> FAMILY_SHAPES/FamilyIcon.
+// Undefined means this table has no shape column at all.
+const SHAPE_KIND_DEFAULTS = { glass: "martini", family: "highball" }
+
 function NamedRowManager({
   title,
   singular,
   items,
   showSortOrder,
-  showShapePicker,
+  shapeKind,
   onCreate,
   onUpdate,
   onDelete,
 }) {
   const [newName, setNewName] = useState("")
   const [newSortOrder, setNewSortOrder] = useState("0")
-  const [newShape, setNewShape] = useState("martini")
+  const [newShape, setNewShape] = useState(
+    SHAPE_KIND_DEFAULTS[shapeKind] ?? "martini",
+  )
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState(null)
 
   const [editingId, setEditingId] = useState(null)
   const [editName, setEditName] = useState("")
   const [editSortOrder, setEditSortOrder] = useState("0")
-  const [editShape, setEditShape] = useState("martini")
+  const [editShape, setEditShape] = useState(
+    SHAPE_KIND_DEFAULTS[shapeKind] ?? "martini",
+  )
   const [saving, setSaving] = useState(false)
   const [editError, setEditError] = useState(null)
 
@@ -158,14 +167,14 @@ function NamedRowManager({
           name: newName.trim(),
           sortOrder: Number(newSortOrder) || 0,
         })
-      } else if (showShapePicker) {
+      } else if (shapeKind) {
         await onCreate({ name: newName.trim(), shape: newShape })
       } else {
         await onCreate(newName.trim())
       }
       setNewName("")
       setNewSortOrder("0")
-      setNewShape("martini")
+      setNewShape(SHAPE_KIND_DEFAULTS[shapeKind] ?? "martini")
     } catch (err) {
       setCreateError(err.message)
     } finally {
@@ -178,7 +187,7 @@ function NamedRowManager({
     setEditingId(item.id)
     setEditName(item.name)
     setEditSortOrder(String(item.sort_order ?? 0))
-    setEditShape(item.shape ?? "martini")
+    setEditShape(item.shape ?? SHAPE_KIND_DEFAULTS[shapeKind] ?? "martini")
   }
 
   const handleSaveEdit = async () => {
@@ -191,7 +200,7 @@ function NamedRowManager({
           name: editName.trim(),
           sortOrder: Number(editSortOrder) || 0,
         })
-      } else if (showShapePicker) {
+      } else if (shapeKind) {
         await onUpdate(editingId, { name: editName.trim(), shape: editShape })
       } else {
         await onUpdate(editingId, editName.trim())
@@ -271,8 +280,12 @@ function NamedRowManager({
                       />
                     )}
                   </div>
-                  {showShapePicker && (
-                    <ShapePicker value={editShape} onChange={setEditShape} />
+                  {shapeKind && (
+                    <ShapePicker
+                      kind={shapeKind}
+                      value={editShape}
+                      onChange={setEditShape}
+                    />
                   )}
                   {editError && (
                     <p
@@ -336,9 +349,16 @@ function NamedRowManager({
                     gap: 10,
                   }}
                 >
-                  {showShapePicker && (
+                  {shapeKind === "glass" && (
                     <GlassSvg
                       type={item.shape ?? "martini"}
+                      size={22}
+                      color="var(--text2)"
+                    />
+                  )}
+                  {shapeKind === "family" && (
+                    <FamilyIcon
+                      shape={item.shape ?? "highball"}
                       size={22}
                       color="var(--text2)"
                     />
@@ -404,8 +424,8 @@ function NamedRowManager({
           ))
         )}
       </Card>
-      {showShapePicker && (
-        <ShapePicker value={newShape} onChange={setNewShape} />
+      {shapeKind && (
+        <ShapePicker kind={shapeKind} value={newShape} onChange={setNewShape} />
       )}
       <div style={{ display: "flex", gap: 8 }}>
         <div style={{ flex: 1 }}>
@@ -451,48 +471,52 @@ function NamedRowManager({
   )
 }
 
-// Which built-in GlassSvg pictogram a glass row uses - see GLASS_SHAPES'
-// comment for why this exists instead of the icon being tied to the name.
-function ShapePicker({ value, onChange }) {
+// Which built-in pictogram a row uses - see GLASS_SHAPES/FAMILY_SHAPES'
+// comments for why this exists instead of the icon being tied to the name.
+// `kind` picks the shape list and icon component; "glass" -> GlassSvg,
+// "family" -> FamilyIcon.
+function ShapePicker({ kind, value, onChange }) {
+  const shapes = kind === "family" ? FAMILY_SHAPES : GLASS_SHAPES
   return (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-      {GLASS_SHAPES.map((shape) => (
-        <button
-          key={shape}
-          type="button"
-          onClick={() => onChange(shape)}
-          title={shape}
-          style={{
-            padding: "6px 10px 4px",
-            borderRadius: "var(--r-sm)",
-            border: `1px solid ${
-              value === shape ? "var(--cyan)" : "var(--border-s)"
-            }`,
-            background:
-              value === shape ? "rgba(34,211,238,0.12)" : "var(--surface)",
-            cursor: "pointer",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 2,
-          }}
-        >
-          <GlassSvg
-            type={shape}
-            size={24}
-            color={value === shape ? "var(--cyan)" : "var(--text2)"}
-          />
-          <span
+      {shapes.map((shape) => {
+        const active = value === shape
+        const iconColor = active ? "var(--cyan)" : "var(--text2)"
+        return (
+          <button
+            key={shape}
+            type="button"
+            onClick={() => onChange(shape)}
+            title={shape}
             style={{
-              fontSize: 10,
-              color: value === shape ? "var(--cyan)" : "var(--text2)",
-              textTransform: "capitalize",
+              padding: "6px 10px 4px",
+              borderRadius: "var(--r-sm)",
+              border: `1px solid ${active ? "var(--cyan)" : "var(--border-s)"}`,
+              background: active ? "rgba(34,211,238,0.12)" : "var(--surface)",
+              cursor: "pointer",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 2,
             }}
           >
-            {shape.replace(/_/g, " ")}
-          </span>
-        </button>
-      ))}
+            {kind === "family" ? (
+              <FamilyIcon shape={shape} size={24} color={iconColor} />
+            ) : (
+              <GlassSvg type={shape} size={24} color={iconColor} />
+            )}
+            <span
+              style={{
+                fontSize: 10,
+                color: iconColor,
+                textTransform: "capitalize",
+              }}
+            >
+              {shape.replace(/_/g, " ")}
+            </span>
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -3691,16 +3715,17 @@ export default function AdminScreen() {
               database rejects it); rename or add new ones instead.
             </p>
             <p style={{ margin: 0, fontSize: 12, color: "var(--text3)" }}>
-              Every glass picks one of a handful of built-in pictograms
-              (whichever one looks closest) - a new glass name works
-              immediately, no code change needed. A genuinely new silhouette
-              none of these resemble still needs a developer to draw it.
+              Glasses and cocktail families each pick one of a handful of
+              built-in pictograms (whichever one looks closest) - a new glass or
+              family name works immediately, no code change needed. A genuinely
+              new silhouette none of these resemble still needs a developer to
+              draw it.
             </p>
             <NamedRowManager
               title="Glasses"
               singular="glass"
               items={catalog.glasses}
-              showShapePicker
+              shapeKind="glass"
               onCreate={async ({ name, shape }) => {
                 await createGlass(name, shape)
                 await catalog.refetch()
@@ -3735,12 +3760,13 @@ export default function AdminScreen() {
               title="Cocktail Families"
               singular="family"
               items={catalog.families}
-              onCreate={async (name) => {
-                await createCocktailFamily(name)
+              shapeKind="family"
+              onCreate={async ({ name, shape }) => {
+                await createCocktailFamily(name, shape)
                 await catalog.refetch()
               }}
-              onUpdate={async (id, name) => {
-                await updateCocktailFamily(id, name)
+              onUpdate={async (id, { name, shape }) => {
+                await updateCocktailFamily(id, name, shape)
                 await catalog.refetch()
               }}
               onDelete={async (id) => {

@@ -64,6 +64,26 @@ export const GLASS_SHAPES = [
   "shot",
 ]
 
+// See FamilyIcon.jsx - same decoupled-icon pattern as GLASS_SHAPES above.
+export const FAMILY_SHAPES = [
+  "beer",
+  "highball",
+  "shot",
+  "sours",
+  "spritz",
+  "stirred",
+  "fizz",
+  "flip",
+  "julep",
+  "martini",
+  "old_fashioned",
+  "punch",
+  "smash",
+  "tiki",
+  "toddy",
+  "frozen",
+]
+
 // Preset swatches for a recipe's liquid_color (see GlassSvg.jsx) - a plain
 // hex field would need color-theory knowledge nobody creating a recipe
 // should have to have; picking "looks about right" from a small curated

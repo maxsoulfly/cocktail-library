@@ -209,7 +209,7 @@ export async function fetchTasteTags() {
 export async function fetchCocktailFamilies() {
   const { data, error } = await supabase
     .from("cocktail_families")
-    .select("id, name")
+    .select("id, name, shape")
     .order("name")
   if (error) throw error
   return data
@@ -289,10 +289,32 @@ export const updateTasteTag = (id, name) =>
   updateNamedRow("taste_tags", id, name)
 export const deleteTasteTag = (id) => deleteNamedRow("taste_tags", id)
 
-export const createCocktailFamily = (name) =>
-  createNamedRow("cocktail_families", name)
-export const updateCocktailFamily = (id, name) =>
-  updateNamedRow("cocktail_families", id, name)
+// Cocktail families carry a `shape` (which FamilyIcon pictogram to draw)
+// alongside `name`, same reason glasses can't reuse createNamedRow/
+// updateNamedRow as-is (see above).
+export function createCocktailFamily(name, shape) {
+  return supabase
+    .from("cocktail_families")
+    .insert({ name, shape })
+    .select()
+    .single()
+    .then(({ data, error }) => {
+      if (error) throw error
+      return data
+    })
+}
+export function updateCocktailFamily(id, name, shape) {
+  return supabase
+    .from("cocktail_families")
+    .update({ name, shape })
+    .eq("id", id)
+    .select()
+    .single()
+    .then(({ data, error }) => {
+      if (error) throw error
+      return data
+    })
+}
 export const deleteCocktailFamily = (id) =>
   deleteNamedRow("cocktail_families", id)
 
