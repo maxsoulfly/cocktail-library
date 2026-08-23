@@ -124,10 +124,37 @@ export function validateRecipeImport(
       Array.isArray(raw.unresolvedIngredients) &&
       raw.unresolvedIngredients.length > 0
     ) {
-      errors.push(
-        `Unresolved ingredient(s) flagged for review: ${raw.unresolvedIngredients.join(", ")}`,
+      // The AI flagged these as unresolvable *at generation time* - the
+      // catalog may have changed since (the ingredient added later, or
+      // this JSON is reused/stale). Re-checking against the live catalog
+      // here avoids offering a "+Add" button that's guaranteed to fail
+      // with "already exists" for a name that's already real - a real,
+      // confusing case this validator hit with a stale "Salt" entry.
+      // There's still no amount/unit captured for these bare names either
+      // way, so even an already-resolvable one can't just be silently
+      // promoted into a real component - the recipe still needs a fresh
+      // paste to actually capture its measurement.
+      const stillUnresolved = raw.unresolvedIngredients.filter(
+        (n) => !resolveIngredientType(n, { types, aliases }),
       )
-      raw.unresolvedIngredients.forEach(addMissing)
+      const nowResolvable = raw.unresolvedIngredients.filter((n) =>
+        resolveIngredientType(n, { types, aliases }),
+      )
+      if (stillUnresolved.length > 0) {
+        errors.push(
+          `Unresolved ingredient(s) flagged for review: ${stillUnresolved.join(", ")}`,
+        )
+        stillUnresolved.forEach(addMissing)
+      }
+      if (nowResolvable.length > 0) {
+        errors.push(
+          `${nowResolvable.join(", ")} ${
+            nowResolvable.length === 1 ? "is" : "are"
+          } now in the catalog, but this JSON never captured ${
+            nowResolvable.length === 1 ? "its" : "their"
+          } amount/unit - re-paste with a fresh AI round-trip so it's included as a real component, or add it to this recipe manually after import.`,
+        )
+      }
     }
 
     const rawComponents = Array.isArray(raw.components) ? raw.components : []

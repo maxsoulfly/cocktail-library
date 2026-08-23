@@ -277,6 +277,20 @@ describe("validateRecipeImport", () => {
     expect(results[0].missingIngredientNames).toEqual(["Yuzu Bitters"])
   })
 
+  it("does not offer to add an unresolvedIngredients name that already resolves against the live catalog", () => {
+    // Real bug this covers: an AI flagged a name as unresolved at
+    // generation time, but the catalog gained that exact type since (or
+    // the JSON is just stale/reused) - offering "+Add" for it would only
+    // ever fail with "already exists in the catalog".
+    const { results } = validateRecipeImport(
+      [{ ...validItem, unresolvedIngredients: ["Gin"] }],
+      catalog,
+    )
+    expect(results[0].valid).toBe(false)
+    expect(results[0].missingIngredientNames).toEqual([])
+    expect(results[0].errors.join(" ")).toMatch(/Gin.*now in the catalog/i)
+  })
+
   it("collects missingIngredientNames from both unresolvedIngredients and unmatched components, deduped", () => {
     const { results } = validateRecipeImport(
       [
