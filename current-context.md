@@ -322,7 +322,7 @@ Concrete steps for the "Checks still needed" items below, in priority order. Nee
 2. ~~**Users tab - block**~~ — **browser-confirmed working, 2026-08-23**: blocking the test account showed the "Your access has been revoked" screen live in incognito.
 3. ~~**Users tab - unblock**~~ — **browser-confirmed working, 2026-08-23**: unblocking restored normal access.
 4. ~~**Users tab - promote/demote**~~ — **browser-confirmed working, 2026-08-23**: promoting the test account granted real Admin access live, demoting removed it. User feedback: the demote button read as "Make Member" - relabeled to "Demote to Member" for clarity against "Make Admin".
-5. **Users tab - self-action guard**: admin window → find your own row in Users → confirm no Make Member/Block buttons appear on it, just "(you)".
+5. ~~**Users tab - self-action guard**~~ — **browser-confirmed working, 2026-08-23**: no action buttons render on the admin's own row, just "(you)".
 6. **Classic Recipes tab**: Admin Dashboard → Classic Recipes → search box filters the list → Edit opens the normal recipe editor → Delete (pick something unimportant) removes it from the list and drops the Dashboard's Classic Recipes count by one.
 7. **Ingredient Types tab**: Admin Dashboard → Ingredient Types → search filters → Edit a type (change something small, Save, confirm it sticks) → Delete on an in-use type shows a real error (not silent failure/crash) → Delete on a genuinely unused test type actually deletes.
 8. **Moderation tab search**: Admin Dashboard → Moderation → confirm the new search box filters the published-community-recipes list and Unpublish still works on a filtered result.
