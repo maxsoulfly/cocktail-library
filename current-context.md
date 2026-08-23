@@ -22,6 +22,16 @@ Each numbered step is a development chunk boundary for this file.
 
 ## Last completed chunk
 
+**Change Password, a real bug fix (not from the numbered backlog)**: the "Change Password" row in `MoreScreen.jsx`'s Account section was a literal no-op (`onClick={() => {}}`) - user reported "change password doesn't work" and this was the root cause, not a deeper auth issue. Added `changePassword(newPassword)` to `src/services/auth.js` (`supabase.auth.updateUser({ password })`) and wired the row to expand an inline new-password/confirm form (min-length + match validation, error/success feedback) directly in `MoreScreen.jsx`, matching the existing inline-form style already used for "Forgot password" in `SignInScreen.jsx`.
+
+**Follow-up same session**: wired the new form so Chrome's password-generator autofill actually has a chance to trigger - `Input`/`Btn` primitives (`src/components/primitives.jsx`) gained `autoComplete`/`name` and an explicit button `type` (`Btn` now defaults to `type="button"` so its many non-form call sites elsewhere are unaffected), and the password panel is now a real `<form>` (`autoComplete="new-password"` on both fields, a hidden `autoComplete="username"` field for context, `Save` as `type="submit"`) instead of a plain `<div>` with `onClick` handlers.
+
+**Found, not fixed - flagged to the user, not yet on the numbered backlog**: the *forgot-password* email-reset flow (`sendPasswordReset` in `SignInScreen.jsx`) sends the reset email correctly, but there's no UI that detects the `type=recovery` session on the `/signin` redirect and lets the user actually set a new password - clicking the emailed link currently leads nowhere useful. Separate gap from the Change Password fix above; needs its own scoping/build pass if wanted.
+
+`pnpm test` — 102/102 passing (unchanged - UI wiring, no domain logic touched). `pnpm build` clean.
+
+## Earlier chunk (backlog #4: substitution-alternatives editor UI)
+
 Backlog item **#4 done, scoped as agreed**: substitution-alternatives editor UI. User confirmed both scoping questions before starting: (1) any one owned alternative satisfies the component - same rule already used for parent/child ingredient hierarchy; (2) ingredient substitutions only, recipe-relationships (`recipe_relationships`, "variation of") stays a separate future item, not bundled in.
 
 **Turned out to be smaller than expected**: the availability engine (`src/domain/availability.js`) already fully implemented "any one owned alternative satisfies the slot" and was already unit-tested (`availability.test.js`) - substitutions were designed into the domain layer back when the availability engine was built, just never given a way to actually create one. Same for reading: `recipes.js`'s `RECIPE_SELECT`/`mapRecipe()` already embedded and mapped `recipe_component_alternatives` into `ings[].alternativeIds`. The only real gaps were the write path and the editor UI.
@@ -353,6 +363,8 @@ Thirteen migrations total across this session's work - backlog #4 (substitutions
 
 ## Tests / build checks last run
 
+2026-08-23 (Change Password fix + password-generator autofill wiring): `pnpm test` — 102/102 passing (unchanged). `pnpm build` clean, both after the initial fix and after the autofill follow-up. Not yet browser-verified beyond dev-server HMR reload - needs a real click-through: open Change Password, confirm Save actually updates the password (can sign out and sign back in with the new one), and confirm Chrome offers its password-generator suggestion when focusing the New Password field.
+
 2026-08-22 (recipe-draft localStorage auto-save + Add Product copy): `pnpm test` — 102/102 passing (UI-only, no schema/domain change). `pnpm build` — no errors. `pnpm format` — clean. Not yet browser-verified - needs a real test: start a new recipe, type a name and an unmatched ingredient, close the tab, reopen New Recipe, confirm the "Restore draft" banner appears and repopulates every field correctly (including substitution alternatives); confirm the draft is gone after a real successful save.
 
 2026-08-22 (My Bar family clusters + flatten Aperitif/Digestif): `pnpm test` — 102/102 passing. `pnpm build` — no errors. `pnpm format` — clean. Verified live: querying the Liqueur category post-migration shows Aperol/Campari/Galliano/Amaretto/Crema di Pistacchio/Triple Sec all with `parent_type_id = null`, and the "Aperitif"/"Digestif" rows are gone; confirmed beforehand that zero recipes/products/aliases referenced either type directly, so the delete carried no FK risk. `db advisors --type security` unchanged from the pre-existing baseline. Not yet browser-verified - see "Checks still needed" above (folded into the My Bar card-grid check).
@@ -371,7 +383,11 @@ Thirteen migrations total across this session's work - backlog #4 (substitutions
 
 ## Exact next recommended action
 
+Change Password (this session's fix, unplanned/off-backlog) still needs its own browser click-through - see "Tests / build checks last run" above. Add it to the standing QA-walkthrough checklist rather than treating it as done.
+
 User is mid-QA-walkthrough (round 5) - resume from item 2 of the checklist ("Paste a Recipe (AI)"), now unblocked by the `CategoryPicker` fix, and browser-verify the new glass/family/My-Bar pictogram work, the glass `ShapePicker`, the 19-glass catalog, the My Bar family-cluster boxes, and the flattened Aperitif/Digestif types while at it. Once the user finishes the current checklist pass: implement the substitute-match display (`computeAvail()` change + `DetailScreen.jsx` wiring, see "Now explicitly requested" above), then continue numbered backlog #5 (remaining polish items)-#8 unless redirected. Ask about the untracked "Juice"/"Wine" *category* mystery whenever convenient - not urgent. Also worth asking at some point whether Whiskey should get the same Aperitif/Digestif flattening treatment - user explicitly deferred that decision, not forgot it.
+
+**2026-08-23 session note**: since the QA walkthrough itself is the user's own browser-driven work, not something this agent can do standalone, the plan for right now is to move ahead on the next code-only chunk that doesn't depend on it - the substitute-match display feature (`computeAvail()` + `DetailScreen.jsx`) - while the walkthrough queue above waits for the user's own testing pass.
 
 **Process note for future verification**: when a table's INSERT/UPDATE RLS policy checks a column against `auth.uid()`, verify by simulating the exact payload the client actually sends (letting column defaults apply, not supplying the column explicitly in test SQL) - this session's earlier "verified against the live DB" claim for ingredient requests tested the policy shape but not the client's actual call shape, which is exactly why this bug went undetected until a real user hit it.
 
