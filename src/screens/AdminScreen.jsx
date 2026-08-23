@@ -1803,7 +1803,9 @@ export default function AdminScreen() {
                               fontWeight: 600,
                             }}
                           >
-                            {u.role === "admin" ? "Make Member" : "Make Admin"}
+                            {u.role === "admin"
+                              ? "Demote to Member"
+                              : "Make Admin"}
                           </button>
                           {u.membership && (
                             <button
