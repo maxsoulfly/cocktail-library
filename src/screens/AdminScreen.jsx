@@ -3094,7 +3094,7 @@ export default function AdminScreen() {
                     <Btn
                       variant="primary"
                       full
-                      onClick={runRecipeImportValidation}
+                      onClick={() => runRecipeImportValidation()}
                     >
                       Validate
                     </Btn>
