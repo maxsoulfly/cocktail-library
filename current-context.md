@@ -26,7 +26,7 @@ Each numbered step is a development chunk boundary for this file.
 
 Removed the ~300-line `AliasManager` component and its Catalog-tab usage entirely. `IngredientTypeEditor.jsx` (shared by My Bar's edit pencil and Admin → Ingredient Types) gained an inline "Aliases" section - existing aliases as removable chips, plus a text input + "+ Add" button, scoped to that one type (no target-type picker needed, since the type is already fixed by which form you're in). Only on **Edit**, not the Single Ingredient **Add** form - an alias needs a real `ingredient_type_id` to attach to, which doesn't exist until the type itself has been created via Batch Import; a brand-new type's aliases are added afterward via its own Edit form, same as color/category/parent already work. New `onAliasesChanged` prop (wired to `catalog.refetch` by both callers) refreshes the shared `catalog.aliases` list after every add/delete, rather than tracking a separate local copy - deliberately avoiding the "two copies of the same data go stale relative to each other" bug class this session already hit twice (`useInventory` double-instantiation, the batch-import stale-closure bug).
 
-`pnpm test` — 106/106 passing (unchanged, UI-only). `pnpm build` clean (bundle size actually dropped slightly, net code removed). `pnpm format` clean. Not yet browser-verified - needs a real click-through: add an alias from My Bar's edit pencil, confirm it also shows/works from Admin → Ingredient Types' edit form (and vice versa), confirm a fresh Add Product/batch-import prompt resolves it correctly.
+`pnpm test` — 106/106 passing (unchanged, UI-only). `pnpm build` clean (bundle size actually dropped slightly, net code removed). `pnpm format` clean. **User browser-confirmed working, 2026-08-23** - add/remove from both My Bar's edit pencil and Admin → Ingredient Types, resolves correctly afterward.
 
 ## Earlier chunk (Admin tab reorder + Ingredient Types Add button)
 
@@ -584,7 +584,7 @@ Sixteen migrations total across this session's work (thirteen prior to today, th
 
 ## Tests / build checks last run
 
-2026-08-23 (ingredient aliases moved into the type's own edit form): `pnpm test` — 106/106 passing (unchanged, UI-only). `pnpm build` clean (bundle size dropped slightly, net code removed). `pnpm format` clean. Not yet browser-verified.
+2026-08-23 (ingredient aliases moved into the type's own edit form): `pnpm test` — 106/106 passing (unchanged, UI-only). `pnpm build` clean (bundle size dropped slightly, net code removed). `pnpm format` clean. **User browser-confirmed working, 2026-08-23**.
 
 2026-08-23 (admin-manageable liquid color palette): `pnpm test` — 106/106 passing (unchanged, UI/service wiring). `pnpm build` clean. `pnpm format` clean. `db advisors --type security` unchanged from baseline. **User browser-confirmed working**, including a follow-up layout fix (hex field moved inline with the name field/Add button instead of stacking on its own line, per user's "weird when they are on different lines" note on a wide viewport - looked fine on mobile, fixed anyway for consistency).
 
@@ -610,7 +610,7 @@ Sixteen migrations total across this session's work (thirteen prior to today, th
 
 ## Exact next recommended action
 
-**Current priority, 2026-08-23**: the round-5 QA checklist is now fully walked once each - the only item not yet re-verified after a code change is the just-relocated ingredient-alias UI (add an alias from My Bar's edit pencil, confirm it shows/works from Admin → Ingredient Types too, confirm a fresh Add Product/batch-import prompt resolves it). One item from the original checklist is still genuinely untested: recipe batch import with a genuinely fresh AI round-trip (copy the *current* prompt, not a saved one, paste a recipe needing an out-of-catalog ingredient, confirm the AI puts it in `components` with a bare name/amount/unit, then "+Add" it and confirm the amount isn't silently dropped).
+**Current priority, 2026-08-23**: the round-5 QA checklist is now fully browser-confirmed, including the relocated ingredient-alias UI. The one item from the original checklist still genuinely untested: recipe batch import with a genuinely fresh AI round-trip (copy the *current* prompt, not a saved one, paste a recipe needing an out-of-catalog ingredient, confirm the AI puts it in `components` with a bare name/amount/unit, then "+Add" it and confirm the amount isn't silently dropped). Once that's done, round-5 QA is fully closed out - move on to numbered backlog #6-#8 (automated RLS/integration test harness, step 13 responsive/accessibility/security/deployment QA, `recipe_relationships`/"variation of") unless redirected.
 
 **Still mid-flight from earlier the same day**: two things. (1) Browser-verify the new promote/demote-classic feature (Moderation tab → Promote a real published community recipe → confirm it lands correctly in Classic Recipes with the "originally by" credit and the Detail page's own credit line → Demote it back → confirm it's restored under the original owner in Moderation). (2) Resume the interrupted multi-draft QA retest - step 1 (draft survives a Request-Ingredient round trip) is confirmed fixed; still need step 2 (a *second* concurrent draft, picker shows both, Continue/Discard/Save each behave correctly) and step 3 (push past 5 drafts, oldest quietly evicted).
 
