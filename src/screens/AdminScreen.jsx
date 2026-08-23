@@ -1290,7 +1290,19 @@ export default function AdminScreen() {
     setTimeout(() => setRecipePromptCopied(false), 2000)
   }
 
-  const runRecipeImportValidation = () => {
+  // catalogOverride lets a caller pass freshly-refetched data directly,
+  // instead of this function reading the component's own `catalog` closure -
+  // needed because `catalog.refetch()` updates React *state* (a future
+  // render), it never mutates the `catalog` object an already-running
+  // function is holding. handleSaveAddIngredientDraft used to call this
+  // right after awaiting catalog.refetch() and still validate against the
+  // pre-refetch catalog every single time (not a rare race - a plain JS
+  // closure can never see a state update from within its own execution) -
+  // real bug a user hit while batch-importing "Alexander" and adding its
+  // missing ingredients one at a time, where each add's re-validate still
+  // showed that exact ingredient as unresolved.
+  const runRecipeImportValidation = (catalogOverride) => {
+    const c = catalogOverride ?? catalog
     let parsed
     try {
       parsed = JSON.parse(recipeImportJson)
@@ -1301,11 +1313,11 @@ export default function AdminScreen() {
       return
     }
     const validation = validateRecipeImport(parsed, {
-      types: catalog.types,
-      glasses: catalog.glasses,
-      families: catalog.families,
-      tasteTags: catalog.tasteTags,
-      aliases: catalog.aliases,
+      types: c.types,
+      glasses: c.glasses,
+      families: c.families,
+      tasteTags: c.tasteTags,
+      aliases: c.aliases,
       existingRecipeNames: computed.map((r) => r.name),
     })
     setRecipeImportResult(validation)
@@ -1392,11 +1404,13 @@ export default function AdminScreen() {
     }
     try {
       await createIngredientTypes([result.resolved])
-      await catalog.refetch()
+      const freshCatalog = await catalog.refetch()
       setAddIngredientDraft(null)
       // Re-validate in place so the row that was blocked on this ingredient
-      // updates immediately, without losing the pasted JSON.
-      runRecipeImportValidation()
+      // updates immediately, without losing the pasted JSON. Passed
+      // explicitly - see runRecipeImportValidation's comment for why this
+      // can't just read the component's own (stale) catalog closure here.
+      runRecipeImportValidation(freshCatalog)
     } catch (err) {
       setAddIngredientError(err.message)
     } finally {
