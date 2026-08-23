@@ -163,33 +163,18 @@ export default function LibraryScreen() {
             />
           ))}
         </div>
+        <div style={{ display: "flex", gap: 6, paddingBottom: 12 }}>
+          {SOURCE_FILTERS.map((f) => (
+            <FilterChip
+              key={f.key}
+              label={f.label}
+              active={sourceFilters.includes(f.key)}
+              onClick={() => toggleArr(sourceFilters, f.key, setSourceFilters)}
+            />
+          ))}
+        </div>
         {showFilters && (
           <div style={{ paddingBottom: 12 }}>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: "var(--text3)",
-                fontFamily: "var(--font-display)",
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-                marginBottom: 6,
-              }}
-            >
-              Source
-            </div>
-            <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-              {SOURCE_FILTERS.map((f) => (
-                <FilterChip
-                  key={f.key}
-                  label={f.label}
-                  active={sourceFilters.includes(f.key)}
-                  onClick={() =>
-                    toggleArr(sourceFilters, f.key, setSourceFilters)
-                  }
-                />
-              ))}
-            </div>
             <div
               style={{
                 fontSize: 11,
