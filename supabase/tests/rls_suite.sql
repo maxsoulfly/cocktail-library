@@ -34,13 +34,15 @@
 -- insert (Supabase Auth owns that table), so real accounts are the only
 -- practical fixture identities without standing up a local instance.
 --
--- Coverage so far: recipes, ingredient_types, memberships - the three
--- tables that already had a real RLS bug found and fixed this session.
--- Not yet covered: the other ~12 RLS-protected tables (products, glasses,
--- taste_tags, cocktail_families, liquid_colors, ingredient_categories,
--- ingredient_aliases, invitations, ingredient_requests, user_inventory,
--- recipe_components, recipe_component_alternatives, lists). Add a new
--- section per table following the pattern below as a follow-up chunk.
+-- Coverage so far: recipes, ingredient_types, memberships (the three
+-- tables that already had a real RLS bug found and fixed this session),
+-- plus the five simple "member read, admin write" lookup tables (glasses,
+-- taste_tags, cocktail_families, liquid_colors, ingredient_categories) via
+-- one generic pg_temp.test_lookup_table() helper, since they all share the
+-- identical policy shape. Not yet covered: products, ingredient_aliases,
+-- invitations, ingredient_requests, user_inventory, recipe_components,
+-- recipe_component_alternatives, lists. Add a new section per table
+-- following the pattern below as a follow-up chunk.
 
 begin;
 
@@ -346,5 +348,84 @@ begin
   end;
 end;
 $$;
+
+-- ── glasses / taste_tags / cocktail_families / liquid_colors /
+--    ingredient_categories ────────────────────────────────────────────────
+-- All five share the identical "member read, admin write" shape (verified
+-- live via pg_policies before writing this - liquid_colors' policies
+-- target role {public} rather than {authenticated} like the other four,
+-- but the outcome is the same either way since is_member()/is_admin() both
+-- evaluate false with no identity set, so anon is denied regardless of
+-- which mechanism the policy uses). One generic helper instead of five
+-- near-identical copies - p_insert_cols/p_insert_vals are trusted literals
+-- this file controls itself, not user input, so the dynamic SQL below
+-- carries no injection risk.
+create function pg_temp.test_lookup_table(
+  p_table text, p_insert_cols text, p_insert_vals text,
+  p_update_col text, p_update_val text
+) returns void language plpgsql as $$
+declare
+  f record;
+  v_id uuid;
+  n int;
+  affected int;
+begin
+  select * into f from rls_fixture_ids;
+
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+  execute format('select count(*) from public.%I', p_table) into n;
+  perform pg_temp.assert(n > 0, format('%s: an ordinary member can read', p_table));
+
+  perform pg_temp.set_identity('anon', null);
+  execute format('select count(*) from public.%I', p_table) into n;
+  perform pg_temp.assert(n = 0, format('%s: anon cannot read', p_table));
+
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+  begin
+    execute format('insert into public.%I (%s) values (%s)', p_table, p_insert_cols, p_insert_vals);
+    perform pg_temp.assert(false, format('%s: an ordinary member inserting should be denied', p_table));
+  exception when insufficient_privilege then
+    perform pg_temp.assert(true, format('%s: an ordinary member cannot insert', p_table));
+  end;
+
+  perform pg_temp.set_identity('authenticated', f.admin_id);
+  execute format('insert into public.%I (%s) values (%s) returning id', p_table, p_insert_cols, p_insert_vals) into v_id;
+  perform pg_temp.assert(true, format('%s: admin can insert', p_table));
+
+  perform pg_temp.set_identity('authenticated', f.member_other_id);
+  execute format('update public.%I set %I = %L where id = $1', p_table, p_update_col, p_update_val) using v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 0, format('%s: an ordinary member cannot update', p_table));
+
+  execute format('delete from public.%I where id = $1', p_table) using v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 0, format('%s: an ordinary member cannot delete', p_table));
+
+  perform pg_temp.set_identity('authenticated', f.admin_id);
+  execute format('update public.%I set %I = %L where id = $1', p_table, p_update_col, p_update_val) using v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 1, format('%s: admin can update', p_table));
+
+  execute format('delete from public.%I where id = $1', p_table) using v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 1, format('%s: admin can delete', p_table));
+end;
+$$;
+
+do $$ begin
+  perform pg_temp.test_lookup_table('glasses', 'name, shape', $vals$'RLS_TEST glass', 'martini'$vals$, 'name', 'RLS_TEST glass renamed');
+end $$;
+do $$ begin
+  perform pg_temp.test_lookup_table('taste_tags', 'name', $vals$'RLS_TEST tag'$vals$, 'name', 'RLS_TEST tag renamed');
+end $$;
+do $$ begin
+  perform pg_temp.test_lookup_table('cocktail_families', 'name, shape', $vals$'RLS_TEST family', 'highball'$vals$, 'name', 'RLS_TEST family renamed');
+end $$;
+do $$ begin
+  perform pg_temp.test_lookup_table('liquid_colors', 'name, hex', $vals$'RLS_TEST color', '#123456'$vals$, 'name', 'RLS_TEST color renamed');
+end $$;
+do $$ begin
+  perform pg_temp.test_lookup_table('ingredient_categories', 'name, sort_order', $vals$'RLS_TEST category', 999$vals$, 'name', 'RLS_TEST category renamed');
+end $$;
 
 rollback;
