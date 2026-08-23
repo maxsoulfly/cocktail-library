@@ -252,6 +252,13 @@ export default function MyBarScreen() {
           alignItems: "center",
           textAlign: "center",
           gap: 4,
+          // Without this, a card with a long owned-products list (e.g.
+          // several bottles of one whiskey type) could visually grow wider
+          // than its fixed-width slot (104px/96px in a family cluster's
+          // flex-wrap row) instead of the product-name text truncating
+          // within it - the ellipsis styling below only works if the box
+          // it's ellipsizing inside actually stays put.
+          overflow: "hidden",
           border: `1px solid ${owned ? "var(--cyan)" : "var(--border-s)"}`,
           background: owned ? "rgba(34,211,238,0.08)" : "var(--surface)",
         }}
