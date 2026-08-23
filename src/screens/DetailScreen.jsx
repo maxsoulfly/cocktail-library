@@ -330,7 +330,8 @@ export default function DetailScreen() {
                   </div>
                 )}
                 {ings.map((ri) => {
-                  const isOwned = owned.has(ri.ingId)
+                  const substitution = c.substitutions[ri.ingId]
+                  const isOwned = owned.has(ri.ingId) || Boolean(substitution)
                   return (
                     <div
                       key={ri.ingId}
@@ -358,15 +359,27 @@ export default function DetailScreen() {
                             : undefined,
                         }}
                       />
-                      <span
-                        style={{
-                          flex: 1,
-                          fontSize: 14,
-                          color: "var(--text)",
-                          fontFamily: "var(--font-body)",
-                        }}
-                      >
-                        {ri.name ?? ri.ingId}
+                      <span style={{ flex: 1 }}>
+                        <span
+                          style={{
+                            fontSize: 14,
+                            color: "var(--text)",
+                            fontFamily: "var(--font-body)",
+                          }}
+                        >
+                          {ri.name ?? ri.ingId}
+                        </span>
+                        {substitution && (
+                          <span
+                            style={{
+                              display: "block",
+                              fontSize: 11,
+                              color: "var(--text3)",
+                            }}
+                          >
+                            Substituting: {substitution.matchedName}
+                          </span>
+                        )}
                       </span>
                       <span
                         style={{

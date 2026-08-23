@@ -88,6 +88,38 @@ describe("computeAvail", () => {
     expect(result.missingRequired).toEqual([])
   })
 
+  it("records which substitution alternative satisfied a component", () => {
+    const cocktail = {
+      ings: [
+        component({
+          ingId: "gin",
+          alternativeIds: ["vodka"],
+          role: "required",
+        }),
+      ],
+    }
+    const result = computeAvail(cocktail, new Set(["vodka"]), (id) =>
+      id === "vodka" ? "Vodka" : id,
+    )
+    expect(result.substitutions).toEqual({
+      gin: { matchedId: "vodka", matchedName: "Vodka" },
+    })
+  })
+
+  it("does not record a substitution when the primary ingredient itself is owned", () => {
+    const cocktail = {
+      ings: [
+        component({
+          ingId: "gin",
+          alternativeIds: ["vodka"],
+          role: "required",
+        }),
+      ],
+    }
+    const result = computeAvail(cocktail, new Set(["gin", "vodka"]))
+    expect(result.substitutions).toEqual({})
+  })
+
   it("still reports the primary ingredient as missing when no alternative is owned either", () => {
     const cocktail = {
       ings: [

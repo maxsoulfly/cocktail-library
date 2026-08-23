@@ -11,12 +11,13 @@
 export function computeAvail(cocktail, owned, resolveIngredientName) {
   const resolveName = resolveIngredientName ?? ((id) => id)
 
-  // Satisfied directly, or via any substitution alternative ("one allowed
-  // item from its substitution group" - the spec never requires *which*
-  // alternative, just that one is owned).
-  const isSatisfied = (component) =>
-    owned.has(component.ingId) ||
-    (component.alternativeIds ?? []).some((id) => owned.has(id))
+  // The id that actually satisfies a component: its own ingId, the first
+  // owned substitution alternative, or null if nothing is owned.
+  const matchedIdFor = (component) => {
+    if (owned.has(component.ingId)) return component.ingId
+    return (component.alternativeIds ?? []).find((id) => owned.has(id)) ?? null
+  }
+  const isSatisfied = (component) => matchedIdFor(component) !== null
 
   const missingRequiredIds = cocktail.ings
     .filter((i) => i.role === "required" && !isSatisfied(i))
@@ -34,12 +35,26 @@ export function computeAvail(cocktail, owned, resolveIngredientName) {
   else if (missingRequired.length === 1) avail = "almost"
   else avail = "unavail"
 
+  // Components satisfied via a substitution alternative rather than the
+  // primary ingredient itself, keyed by the component's own ingId.
+  const substitutions = {}
+  cocktail.ings.forEach((component) => {
+    const matchedId = matchedIdFor(component)
+    if (matchedId && matchedId !== component.ingId) {
+      substitutions[component.ingId] = {
+        matchedId,
+        matchedName: resolveName(matchedId),
+      }
+    }
+  })
+
   return {
     avail,
     missingRequired,
     missingOptional,
     missingRequiredIds,
     missingOptionalIds,
+    substitutions,
   }
 }
 
