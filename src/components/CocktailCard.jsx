@@ -51,6 +51,17 @@ export function CocktailCard({ c, onClick }) {
             </span>
             <SourceBadge source={c.source} />
           </div>
+          {c.author && (
+            <div
+              style={{
+                fontSize: 11,
+                color: "var(--text3)",
+                marginBottom: 6,
+              }}
+            >
+              by {c.author}
+            </div>
+          )}
           <div
             style={{
               display: "flex",
