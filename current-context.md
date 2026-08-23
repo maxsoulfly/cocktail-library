@@ -314,6 +314,19 @@ My Bar correctly shows "Orange Juice" as its own row, separate from "Lemon Juice
 
 Substitution alternatives: adding a substitute, saving, and re-opening the recipe all persist correctly, and owning the substitute (not the original) does flip the recipe to available - the write path + availability read-back both confirmed live. Two things fell out of this round, both fixed same-day (see "Last completed chunk"): (1) the recipe detail view doesn't show *which* substitute matched, just that the component is satisfied - user wants this surfaced, not just correct under the hood; (2) the recipe-import inline "Add ingredient" draft's category field was a collapsed `<Select>` with no visible label, which on the user's screen read as inert placeholder text rather than a tappable control - blocked using the "+Add" flow entirely. Replaced with a `CategoryPicker` chip grid (all ~11 categories visible at once, no hidden second tap) in all three places that pattern existed: the inline draft, single-ingredient add, and My Bar's ingredient-type edit.
 
+## QA script — this session's work (2026-08-23), step by step
+
+Concrete steps for the "Checks still needed" items below, in priority order. Needs both accounts open at once: admin in the normal window, the non-admin test account in incognito (matches the user's existing setup). Being fed to the user in small portions, one section at a time, per their request - mark each step's checkbox-equivalent (~~strikethrough~~) as they report it back, don't dump the whole remaining list on them at once.
+
+1. **`/admin` redirect (the actual security bug reported)**: in incognito, type `/admin` into the URL bar directly. Expected: lands on `/home`, not the Admin screen.
+2. **Users tab - block**: admin window → More → Admin Dashboard → Users tab → find the non-admin account (should show "Active") → Block → confirm. Switch to incognito, refresh, expected: "Your access has been revoked" screen instead of the app.
+3. **Users tab - unblock**: admin window → Unblock that same account → confirm status flips to "Active". Refresh incognito, expected: normal app access restored.
+4. **Users tab - promote/demote**: admin window → Make Admin on the non-admin account → confirm. In incognito, refresh, check for an Admin Dashboard link/access. Admin window → Make Member on that account to demote back → confirm the link disappears from incognito after a refresh.
+5. **Users tab - self-action guard**: admin window → find your own row in Users → confirm no Make Member/Block buttons appear on it, just "(you)".
+6. **Classic Recipes tab**: Admin Dashboard → Classic Recipes → search box filters the list → Edit opens the normal recipe editor → Delete (pick something unimportant) removes it from the list and drops the Dashboard's Classic Recipes count by one.
+7. **Ingredient Types tab**: Admin Dashboard → Ingredient Types → search filters → Edit a type (change something small, Save, confirm it sticks) → Delete on an in-use type shows a real error (not silent failure/crash) → Delete on a genuinely unused test type actually deletes.
+8. **Moderation tab search**: Admin Dashboard → Moderation → confirm the new search box filters the published-community-recipes list and Unpublish still works on a filtered result.
+
 ## Checks still needed (not yet browser-verified)
 
 - **`/admin` access-control fix, urgent retest**: sign in as the non-admin test account and hit `/admin` directly by URL - confirm it now redirects to `/home` instead of rendering the Admin screen. This was the actual bug the user hit and reported.
