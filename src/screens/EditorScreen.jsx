@@ -139,53 +139,61 @@ export default function EditorScreen() {
   // shows draftBanner for that specific one on the next check below.
   const [otherDrafts, setOtherDrafts] = useState([])
 
-  // Set at the end of the mount-check effect below, read by the autosave
-  // effect right after it - a plain ref rather than state so the write is
-  // visible to same-commit effects, not just later renders. Needed because
-  // both effects can fire in the SAME commit right after returning from
-  // Request Ingredient (draftId just appeared in the URL, triggering both):
-  // without this gate, the autosave effect would see the just-mounted
-  // blank form (setDraftBanner's update hasn't landed on this commit yet)
-  // and delete the very draft the other effect is about to offer restoring.
-  const draftCheckedRef = useRef(false)
+  // Set by the autosave effect below when IT assigns a brand-new draft id
+  // (first keystroke on a genuinely blank New Recipe) - read here so this
+  // effect never mistakes "a draft id I just created for myself" for
+  // "returning to an existing draft" and pops a restore banner for content
+  // the user is actively typing right now. That's a real bug this exact
+  // shape used to have: assigning a fresh id changes draftId, which is
+  // this effect's own dependency, so it re-ran on the very next render -
+  // showed the banner mid-keystroke, and then permanently froze the
+  // autosave effect below (its own draftBanner guard) for the rest of that
+  // session, since nothing ever set draftBanner back to null except a
+  // Restore/Discard click the user never needed to make and might not have
+  // understood the point of.
+  const selfAssignedDraftIdRef = useRef(null)
 
   useEffect(() => {
     if (!isDraftable || !userId) return
-    if (draftId) {
-      const raw = localStorage.getItem(draftKey)
-      if (raw) {
-        try {
-          const draft = JSON.parse(raw)
-          if (draft?.name?.trim()) setDraftBanner(draft)
-          else removeDraftIndexEntry(userId, draftId)
-        } catch {
-          removeDraftIndexEntry(userId, draftId)
-        }
-      }
-    } else {
+    if (!draftId) {
       setOtherDrafts(readDraftIndex(userId))
+      return
     }
-    draftCheckedRef.current = true
+    if (draftId === selfAssignedDraftIdRef.current) return
+    const raw = localStorage.getItem(draftKey)
+    if (!raw) return
+    try {
+      const draft = JSON.parse(raw)
+      if (draft?.name?.trim()) setDraftBanner(draft)
+    } catch {
+      // Corrupted entry - leave it alone rather than deleting it here.
+      // There's nothing to restore either way; if the user keeps typing,
+      // autosave below overwrites it with valid content anyway.
+    }
     // Only ever check once, right after mount - restoring/discarding is a
     // one-time user decision, not something to re-run as the form changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDraftable, userId, draftId])
 
+  // Deliberately never deletes a draft just because the form looks empty
+  // right now - that heuristic used to run against transient render state
+  // (e.g. a just-mounted, not-yet-restored form) and could delete a draft
+  // out from under its own restore banner. Deletion only ever happens from
+  // an explicit user action (discardDraft/discardOtherDraft below, or a
+  // successful save) - a stray empty entry is low-cost and self-heals the
+  // moment the user types something, or ages out via MAX_DRAFTS eviction.
   useEffect(() => {
     if (!isDraftable || !userId || draftBanner) return
-    if (draftId && !draftCheckedRef.current) return
     const hasContent =
       name.trim() ||
       ings.some((i) => i.ingredientName.trim()) ||
       steps.some((s) => s.trim())
-    if (!hasContent) {
-      if (draftId) removeDraftIndexEntry(userId, draftId)
-      return
-    }
+    if (!hasContent) return
     const id =
       draftId ??
       (() => {
         const newId = crypto.randomUUID()
+        selfAssignedDraftIdRef.current = newId
         setSearchParams(
           (prev) => {
             const next = new URLSearchParams(prev)
