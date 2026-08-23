@@ -22,6 +22,21 @@ Each numbered step is a development chunk boundary for this file.
 
 ## Last completed chunk
 
+**Multi-draft QA (step 2) found a serious regression: starting a second concurrent draft wiped the entire draft index, not just displaying it wrong.** User verified directly in DevTools Local Storage (`recipe-drafts:<userId>` was a literal `[]`), not just a UI symptom - both the in-progress first draft and the second were gone.
+
+**Two real, structural problems found in `EditorScreen.jsx`'s draft-persistence effects** (this session's earlier `20260823` race-condition fix addressed a related but different symptom in the same code - see "Earlier chunk" below):
+
+1. **Self-triggering restore banner.** The mount-check effect re-runs whenever `draftId` changes - including when the autosave effect assigns itself a brand-new id on the first keystroke of a genuinely fresh draft (`draftId` is that effect's own dependency too). That self-assignment is indistinguishable, by the old code, from "returning to an existing draft from elsewhere" - it popped a restore banner for content the user was actively typing, and once `draftBanner` is truthy, the autosave effect's own guard silently freezes *all* further saving for that draft for the rest of the session. Fixed with a new `selfAssignedDraftIdRef` tracking ids this component instance created itself, so the mount-check effect can tell "I just made this" from "I'm returning to this."
+2. **Fragile delete-on-empty heuristic.** The autosave effect used to delete a draft whenever the *current form state* looked empty - but a just-mounted, not-yet-restored form looks identical to a genuinely abandoned one, which is exactly the kind of thing that races. Removed entirely: a draft is now only ever deleted by an explicit user action (Discard) or a successful save. A stray low-content entry left behind is cheap - it self-heals the moment the user types something, or ages out via the existing `MAX_DRAFTS` eviction.
+
+**Honesty note, same as the earlier draft-restore fix**: both of these are real, demonstrable bugs in genuinely fragile code, and fixing them is clearly the right direction - but static reading couldn't fully prove this is the *complete* mechanism behind the specific full-index wipe reported. Needs a real retest of the same repro (two concurrent drafts, one going through a Request-Ingredient round trip) before calling this fully closed.
+
+`pnpm test` — 105/105 passing (unchanged, no domain logic touched). `pnpm build` clean. Not yet browser-verified.
+
+**Also flagged, not a code issue**: the user pasted a real Supabase access/refresh token pair into chat while sharing DevTools output (for the non-admin test account). Short-lived (1hr access token per its `exp`) and their own test account, but worth a mention - noted here rather than acted on, no code change warranted.
+
+## Earlier chunk (classic promotion feature)
+
 **Admin can promote a community recipe to classic and back, crediting the original submitter.** User request, not from the spec/backlog: a way to move a cocktail between the published-community list and the canonical classic catalog while keeping the original author attached.
 
 **The real design problem**: the catalog has always modeled a classic as `owner_id null` - every existing admin classic feature (the Classic Recipes tab's Edit/Delete, `recipe_is_editable()`) depends on that invariant. Promotion can't just flip `source_type` while leaving `owner_id` pointed at the original member, or `recipe_is_editable()` would let that member keep editing/deleting what's now supposed to be admin-managed catalog, and block admin from managing it through the Classic Recipes tab at all.
