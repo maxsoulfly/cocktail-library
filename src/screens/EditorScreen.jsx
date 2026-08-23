@@ -67,6 +67,21 @@ function removeDraftIndexEntry(userId, draftId) {
   localStorage.setItem(draftIndexKeyFor(userId), JSON.stringify(list))
   localStorage.removeItem(draftContentKeyFor(userId, draftId))
 }
+// Shared by the autosave effect (decides whether the live form has enough
+// to save) and the mount-check effect (decides whether a saved draft has
+// enough to offer restoring) - a real bug had these disagree: saving
+// allowed a blank name as long as an ingredient or step was filled in
+// (upsertDraftIndexEntry falls back to "Untitled draft" for display), but
+// restoring only ever checked the name, so a nameless-but-real draft saved
+// correctly and even showed up in the "other drafts" picker, but its own
+// restore banner could never trigger.
+function hasDraftContent(draft) {
+  return Boolean(
+    draft?.name?.trim() ||
+      draft?.ings?.some((i) => i.ingredientName?.trim()) ||
+      draft?.steps?.some((s) => s?.trim()),
+  )
+}
 
 export default function EditorScreen() {
   const navigate = useNavigate()
@@ -164,7 +179,7 @@ export default function EditorScreen() {
     if (!raw) return
     try {
       const draft = JSON.parse(raw)
-      if (draft?.name?.trim()) setDraftBanner(draft)
+      if (hasDraftContent(draft)) setDraftBanner(draft)
     } catch {
       // Corrupted entry - leave it alone rather than deleting it here.
       // There's nothing to restore either way; if the user keeps typing,
@@ -184,11 +199,7 @@ export default function EditorScreen() {
   // moment the user types something, or ages out via MAX_DRAFTS eviction.
   useEffect(() => {
     if (!isDraftable || !userId || draftBanner) return
-    const hasContent =
-      name.trim() ||
-      ings.some((i) => i.ingredientName.trim()) ||
-      steps.some((s) => s.trim())
-    if (!hasContent) return
+    if (!hasDraftContent({ name, ings, steps })) return
     const id =
       draftId ??
       (() => {
@@ -631,7 +642,8 @@ export default function EditorScreen() {
             }}
           >
             <span style={{ flex: 1, fontSize: 12, color: "var(--text2)" }}>
-              You have an unsaved draft, "{draftBanner.name}" - saved on this
+              You have an unsaved draft, "
+              {draftBanner.name?.trim() || "Untitled draft"}" - saved on this
               browser only.
             </span>
             <Btn variant="primary" small onClick={restoreDraft}>
