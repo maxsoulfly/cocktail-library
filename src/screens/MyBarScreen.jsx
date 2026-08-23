@@ -377,6 +377,7 @@ export default function MyBarScreen() {
       types={types}
       aliases={aliases}
       liquidColors={catalog.liquidColors}
+      onAliasesChanged={catalog.refetch}
       style={fullWidthStyle}
       onSaved={async () => {
         await catalog.refetch()

@@ -7,16 +7,27 @@ import {
   Input,
   Select,
 } from "@/components/primitives"
+import { resolveIngredientType } from "@/domain/ingredientResolution"
 import {
   BAR_PRIORITIES,
   validateIngredientImport,
 } from "@/schemas/ingredientImport"
-import { updateIngredientType } from "@/services/catalog"
+import {
+  createIngredientAlias,
+  deleteIngredientAlias,
+  updateIngredientType,
+} from "@/services/catalog"
 
 // Shared "edit an existing ingredient type" form - used by both My Bar's
 // inline admin edit pencil and Admin's Ingredient Types tab, so the one real
 // business rule here (reusing validateIngredientImport()'s single-item path
 // for the duplicate-name/parent-hierarchy check) only lives in one place.
+// Aliases live here too (not a separate admin-wide list) per user request -
+// managing "Sec -> Triple Sec" reads more naturally next to Triple Sec's own
+// name/category/color than in a global table of every alias for every type.
+// Only possible on Edit, not the Single Ingredient add form: an alias needs
+// a real ingredient_type_id to attach to, which doesn't exist until the type
+// itself has been created.
 export function IngredientTypeEditor({
   type,
   categories,
@@ -24,6 +35,7 @@ export function IngredientTypeEditor({
   aliases,
   liquidColors,
   onSaved,
+  onAliasesChanged,
   onCancel,
   style,
 }) {
@@ -36,7 +48,55 @@ export function IngredientTypeEditor({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 
+  const typeAliases = aliases.filter((a) => a.ingredient_type_id === type.id)
+  const [newAlias, setNewAlias] = useState("")
+  const [aliasSaving, setAliasSaving] = useState(false)
+  const [aliasError, setAliasError] = useState(null)
+  const [deletingAliasId, setDeletingAliasId] = useState(null)
+
   const otherTypes = types.filter((t) => t.id !== type.id)
+
+  const handleAddAlias = async () => {
+    const aliasText = newAlias.trim()
+    if (!aliasText) return
+    setAliasSaving(true)
+    setAliasError(null)
+    const collision = resolveIngredientType(aliasText, { types, aliases })
+    if (collision) {
+      setAliasError(
+        collision.id === type.id
+          ? `"${aliasText}" already refers to this type`
+          : `"${aliasText}" already refers to "${collision.name}"`,
+      )
+      setAliasSaving(false)
+      return
+    }
+    try {
+      await createIngredientAlias({
+        alias: aliasText,
+        ingredientTypeId: type.id,
+      })
+      setNewAlias("")
+      await onAliasesChanged()
+    } catch (err) {
+      setAliasError(err.message)
+    } finally {
+      setAliasSaving(false)
+    }
+  }
+
+  const handleDeleteAlias = async (id) => {
+    setDeletingAliasId(id)
+    setAliasError(null)
+    try {
+      await deleteIngredientAlias(id)
+      await onAliasesChanged()
+    } catch (err) {
+      setAliasError(err.message)
+    } finally {
+      setDeletingAliasId(null)
+    }
+  }
 
   const handleSave = async () => {
     setSaving(true)
@@ -123,6 +183,79 @@ export function IngredientTypeEditor({
         onChange={setColor}
         colors={liquidColors}
       />
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <label
+          style={{
+            fontSize: 12,
+            fontWeight: 700,
+            color: "var(--text2)",
+            fontFamily: "var(--font-display)",
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+          }}
+        >
+          Aliases
+        </label>
+        {typeAliases.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {typeAliases.map((a) => (
+              <span
+                key={a.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "4px 8px",
+                  background: "var(--surface)",
+                  border: "1px solid var(--border-s)",
+                  borderRadius: "var(--r-sm)",
+                  fontSize: 13,
+                  color: "var(--text)",
+                }}
+              >
+                {a.alias}
+                <button
+                  onClick={() => handleDeleteAlias(a.id)}
+                  disabled={deletingAliasId === a.id}
+                  title={`Remove alias "${a.alias}"`}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: 0,
+                    color: "var(--text3)",
+                    fontSize: 14,
+                    lineHeight: 1,
+                  }}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ flex: 1 }}>
+            <Input
+              placeholder="Add alias (e.g. Sec)"
+              value={newAlias}
+              onChange={setNewAlias}
+            />
+          </div>
+          <Btn
+            small
+            disabled={aliasSaving || !newAlias.trim()}
+            onClick={handleAddAlias}
+          >
+            {aliasSaving ? "Adding..." : "+ Add"}
+          </Btn>
+        </div>
+        {aliasError && (
+          <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
+            {aliasError}
+          </p>
+        )}
+      </div>
       {error && (
         <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
           {error}

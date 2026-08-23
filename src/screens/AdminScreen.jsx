@@ -22,7 +22,6 @@ import {
   SectionTitle,
 } from "@/components/primitives"
 import { FAMILY_SHAPES, GLASS_SHAPES } from "@/data/constants"
-import { resolveIngredientType } from "@/domain/ingredientResolution"
 import {
   BAR_PRIORITIES,
   buildIngredientImportPrompt,
@@ -39,7 +38,6 @@ import {
 import {
   createCocktailFamily,
   createGlass,
-  createIngredientAlias,
   createIngredientCategory,
   createIngredientTypes,
   createLiquidColor,
@@ -47,14 +45,12 @@ import {
   createTasteTag,
   deleteCocktailFamily,
   deleteGlass,
-  deleteIngredientAlias,
   deleteIngredientCategory,
   deleteIngredientType,
   deleteLiquidColor,
   deleteTasteTag,
   updateCocktailFamily,
   updateGlass,
-  updateIngredientAlias,
   updateIngredientCategory,
   updateLiquidColor,
   updateTasteTag,
@@ -596,327 +592,6 @@ function ShapePicker({ kind, value, onChange }) {
           </button>
         )
       })}
-    </div>
-  )
-}
-
-const inputStyle = {
-  background: "var(--surface)",
-  border: "1px solid var(--border-s)",
-  borderRadius: "var(--r-sm)",
-  padding: "10px 14px",
-  color: "var(--text)",
-  fontSize: 14,
-  fontFamily: "var(--font-body)",
-  width: "100%",
-}
-
-// Backlog #2: ingredient_aliases had full RLS and zero application code -
-// real spec scope (Phase 2, §12.3's "resolve through IDs, canonical names,
-// or controlled aliases") that never got built. An alias maps free text to
-// a real ingredient type (e.g. "Sec" -> Triple Sec) - resolveIngredientType()
-// is the one place that mapping is actually consulted, everywhere an
-// ingredient name gets matched. This component is only the CRUD half; each
-// alias is checked against both existing type names and other aliases
-// before saving, so two entries can never claim the same text and make
-// resolution ambiguous - same guarantee the DB's own case-insensitive unique
-// index enforces, just with a friendlier message before that round-trip.
-function AliasManager({ aliases, types, onCreate, onUpdate, onDelete }) {
-  const typeById = new Map(types.map((t) => [t.id, t]))
-
-  const [newAlias, setNewAlias] = useState("")
-  const [newTypeName, setNewTypeName] = useState("")
-  const [creating, setCreating] = useState(false)
-  const [createError, setCreateError] = useState(null)
-
-  const [editingId, setEditingId] = useState(null)
-  const [editAlias, setEditAlias] = useState("")
-  const [editTypeName, setEditTypeName] = useState("")
-  const [saving, setSaving] = useState(false)
-  const [editError, setEditError] = useState(null)
-
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null)
-  const [deleting, setDeleting] = useState(false)
-  const [deleteError, setDeleteError] = useState(null)
-
-  const handleCreate = async () => {
-    const aliasText = newAlias.trim()
-    if (!aliasText || !newTypeName.trim()) return
-    setCreating(true)
-    setCreateError(null)
-    const collision = resolveIngredientType(aliasText, { types, aliases })
-    if (collision) {
-      setCreateError(`"${aliasText}" already refers to "${collision.name}"`)
-      setCreating(false)
-      return
-    }
-    const targetType = resolveIngredientType(newTypeName, { types, aliases })
-    if (!targetType) {
-      setCreateError(
-        `"${newTypeName}" doesn't match an existing ingredient type`,
-      )
-      setCreating(false)
-      return
-    }
-    try {
-      await onCreate({ alias: aliasText, ingredientTypeId: targetType.id })
-      setNewAlias("")
-      setNewTypeName("")
-    } catch (err) {
-      setCreateError(err.message)
-    } finally {
-      setCreating(false)
-    }
-  }
-
-  const startEdit = (a) => {
-    setEditError(null)
-    setEditingId(a.id)
-    setEditAlias(a.alias)
-    setEditTypeName(typeById.get(a.ingredient_type_id)?.name ?? "")
-  }
-
-  const handleSaveEdit = async () => {
-    const aliasText = editAlias.trim()
-    if (!aliasText || !editTypeName.trim()) return
-    setSaving(true)
-    setEditError(null)
-    const otherAliases = aliases.filter((a) => a.id !== editingId)
-    const collision = resolveIngredientType(aliasText, {
-      types,
-      aliases: otherAliases,
-    })
-    if (collision) {
-      setEditError(`"${aliasText}" already refers to "${collision.name}"`)
-      setSaving(false)
-      return
-    }
-    const targetType = resolveIngredientType(editTypeName, {
-      types,
-      aliases: otherAliases,
-    })
-    if (!targetType) {
-      setEditError(
-        `"${editTypeName}" doesn't match an existing ingredient type`,
-      )
-      setSaving(false)
-      return
-    }
-    try {
-      await onUpdate(editingId, {
-        alias: aliasText,
-        ingredientTypeId: targetType.id,
-      })
-      setEditingId(null)
-    } catch (err) {
-      setEditError(err.message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const handleDelete = async (id) => {
-    setDeleting(true)
-    setDeleteError(null)
-    try {
-      await onDelete(id)
-      setConfirmDeleteId(null)
-    } catch (err) {
-      setDeleteError(err.message)
-    } finally {
-      setDeleting(false)
-    }
-  }
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      <SectionTitle>Ingredient Aliases</SectionTitle>
-      <p style={{ margin: 0, fontSize: 12, color: "var(--text3)" }}>
-        Alternate names that resolve to a real ingredient type during import and
-        matching (e.g. "Sec" → Triple Sec) - an explicit admin mapping, never a
-        guess from name similarity. One alias can only ever mean one type.
-      </p>
-      <Card style={{ padding: 0 }}>
-        {aliases.length === 0 ? (
-          <p
-            style={{
-              margin: 0,
-              padding: "14px 16px",
-              fontSize: 13,
-              color: "var(--text3)",
-            }}
-          >
-            None yet.
-          </p>
-        ) : (
-          aliases.map((a, i) => (
-            <div
-              key={a.id}
-              style={{
-                padding: "10px 14px",
-                borderBottom:
-                  i < aliases.length - 1 ? "1px solid var(--border-s)" : "none",
-              }}
-            >
-              {editingId === a.id ? (
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 8 }}
-                >
-                  <Input value={editAlias} onChange={setEditAlias} />
-                  <div>
-                    <input
-                      list="alias-target-types"
-                      value={editTypeName}
-                      onChange={(e) => setEditTypeName(e.target.value)}
-                      style={inputStyle}
-                    />
-                  </div>
-                  {editError && (
-                    <p
-                      style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}
-                    >
-                      {editError}
-                    </p>
-                  )}
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <Btn
-                      variant="primary"
-                      small
-                      disabled={
-                        saving || !editAlias.trim() || !editTypeName.trim()
-                      }
-                      onClick={handleSaveEdit}
-                    >
-                      {saving ? "Saving..." : "Save"}
-                    </Btn>
-                    <Btn
-                      variant="ghost"
-                      small
-                      onClick={() => setEditingId(null)}
-                    >
-                      Cancel
-                    </Btn>
-                  </div>
-                </div>
-              ) : confirmDeleteId === a.id ? (
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 8 }}
-                >
-                  <p style={{ margin: 0, fontSize: 13, color: "var(--coral)" }}>
-                    Delete alias "{a.alias}"?{" "}
-                    {deleteError ? deleteError : "This can't be undone."}
-                  </p>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <Btn
-                      variant="danger"
-                      small
-                      disabled={deleting}
-                      onClick={() => handleDelete(a.id)}
-                    >
-                      Delete
-                    </Btn>
-                    <Btn
-                      variant="ghost"
-                      small
-                      onClick={() => {
-                        setConfirmDeleteId(null)
-                        setDeleteError(null)
-                      }}
-                    >
-                      Cancel
-                    </Btn>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span
-                    style={{
-                      flex: 1,
-                      fontSize: 14,
-                      color: "var(--text)",
-                      fontFamily: "var(--font-body)",
-                    }}
-                  >
-                    {a.alias} <span style={{ color: "var(--text3)" }}>→</span>{" "}
-                    {typeById.get(a.ingredient_type_id)?.name ?? "unknown type"}
-                  </span>
-                  <button
-                    onClick={() => startEdit(a)}
-                    title="Edit alias"
-                    style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      padding: 4,
-                      color: "var(--text3)",
-                      display: "flex",
-                      alignItems: "center",
-                    }}
-                  >
-                    <IconEdit size={14} />
-                  </button>
-                  <button
-                    onClick={() => {
-                      setDeleteError(null)
-                      setConfirmDeleteId(a.id)
-                    }}
-                    title="Delete alias"
-                    style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      padding: 4,
-                      color: "var(--text3)",
-                      display: "flex",
-                      alignItems: "center",
-                    }}
-                  >
-                    <IconTrash size={14} />
-                  </button>
-                </div>
-              )}
-            </div>
-          ))
-        )}
-      </Card>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <div style={{ display: "flex", gap: 8 }}>
-          <div style={{ flex: 1 }}>
-            <Input
-              placeholder="Alias (e.g. Sec)"
-              value={newAlias}
-              onChange={setNewAlias}
-            />
-          </div>
-          <div style={{ flex: 1 }}>
-            <input
-              list="alias-target-types"
-              placeholder="Maps to ingredient type..."
-              value={newTypeName}
-              onChange={(e) => setNewTypeName(e.target.value)}
-              style={inputStyle}
-            />
-          </div>
-        </div>
-        <datalist id="alias-target-types">
-          {types.map((t) => (
-            <option key={t.id} value={t.name} />
-          ))}
-        </datalist>
-        <Btn
-          variant="primary"
-          small
-          disabled={creating || !newAlias.trim() || !newTypeName.trim()}
-          onClick={handleCreate}
-        >
-          {creating ? "Adding..." : "Add Alias"}
-        </Btn>
-      </div>
-      {createError && (
-        <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
-          {createError}
-        </p>
-      )}
     </div>
   )
 }
@@ -3909,22 +3584,6 @@ export default function AdminScreen() {
                 await catalog.refetch()
               }}
             />
-            <AliasManager
-              aliases={catalog.aliases}
-              types={catalog.types}
-              onCreate={async ({ alias, ingredientTypeId }) => {
-                await createIngredientAlias({ alias, ingredientTypeId })
-                await catalog.refetch()
-              }}
-              onUpdate={async (id, { alias, ingredientTypeId }) => {
-                await updateIngredientAlias(id, { alias, ingredientTypeId })
-                await catalog.refetch()
-              }}
-              onDelete={async (id) => {
-                await deleteIngredientAlias(id)
-                await catalog.refetch()
-              }}
-            />
           </div>
         )}
 
@@ -3968,6 +3627,7 @@ export default function AdminScreen() {
                     types={catalog.types}
                     aliases={catalog.aliases}
                     liquidColors={catalog.liquidColors}
+                    onAliasesChanged={catalog.refetch}
                     onSaved={async () => {
                       await catalog.refetch()
                       setEditingAdminTypeId(null)
