@@ -7,6 +7,7 @@ import {
 import { IconTrash } from "@/components/icons"
 import { TopBar } from "@/components/Nav"
 import { Btn, Card, Input } from "@/components/primitives"
+import { resolveIngredientType } from "@/domain/ingredientResolution"
 import {
   createIngredientRequest,
   deleteMyIngredientRequest,
@@ -28,7 +29,7 @@ const formatDate = (iso) =>
 
 export default function RequestIngredientScreen() {
   const navigate = useNavigate()
-  const { userId } = useOutletContext()
+  const { userId, catalog } = useOutletContext()
   const [searchParams] = useSearchParams()
   // Set when arriving via a recipe/product form's "Request it" link (see
   // EditorScreen.jsx, AddProductScreen.jsx) - lets the confirmation screen
@@ -67,10 +68,35 @@ export default function RequestIngredientScreen() {
   }, [userId])
 
   const handleSubmit = async () => {
-    setSaving(true)
     setError(null)
+    const trimmedName = name.trim()
+
+    // Same exact-name-or-alias resolver used everywhere else - no fuzzy
+    // matching, so this only blocks a genuine duplicate, never a
+    // near-miss guess.
+    const existingType = resolveIngredientType(trimmedName, {
+      types: catalog.types,
+      aliases: catalog.aliases,
+    })
+    if (existingType) {
+      setError(`"${existingType.name}" is already in the catalog.`)
+      return
+    }
+    const duplicatePending = myRequests.find(
+      (r) =>
+        r.status === "pending" &&
+        r.name.trim().toLowerCase() === trimmedName.toLowerCase(),
+    )
+    if (duplicatePending) {
+      setError(
+        `You already have a pending request for "${duplicatePending.name}".`,
+      )
+      return
+    }
+
+    setSaving(true)
     try {
-      await createIngredientRequest({ name: name.trim(), note: note.trim() })
+      await createIngredientRequest({ name: trimmedName, note: note.trim() })
       setSent(true)
       loadMyRequests()
     } catch (err) {
