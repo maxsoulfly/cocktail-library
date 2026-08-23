@@ -22,6 +22,7 @@ export function IngredientTypeEditor({
   categories,
   types,
   aliases,
+  liquidColors,
   onSaved,
   onCancel,
   style,
@@ -117,7 +118,11 @@ export function IngredientTypeEditor({
           label: p[0].toUpperCase() + p.slice(1),
         }))}
       />
-      <ColorSwatchPicker value={color} onChange={setColor} />
+      <ColorSwatchPicker
+        value={color}
+        onChange={setColor}
+        colors={liquidColors}
+      />
       {error && (
         <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
           {error}

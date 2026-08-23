@@ -215,6 +215,15 @@ export async function fetchCocktailFamilies() {
   return data
 }
 
+export async function fetchLiquidColors() {
+  const { data, error } = await supabase
+    .from("liquid_colors")
+    .select("id, name, hex")
+    .order("name")
+  if (error) throw error
+  return data
+}
+
 // Shared by glasses/taste_tags/cocktail_families - all three are just
 // `(id, name unique)` with the same admin-insert/update/delete RLS shape (no
 // new grant needed, existed since the RLS-hardening pass with no caller
@@ -317,6 +326,33 @@ export function updateCocktailFamily(id, name, shape) {
 }
 export const deleteCocktailFamily = (id) =>
   deleteNamedRow("cocktail_families", id)
+
+// Liquid colors carry a `hex` value alongside `name`, same reason glasses/
+// cocktail_families can't reuse createNamedRow/updateNamedRow as-is.
+export function createLiquidColor(name, hex) {
+  return supabase
+    .from("liquid_colors")
+    .insert({ name, hex })
+    .select()
+    .single()
+    .then(({ data, error }) => {
+      if (error) throw error
+      return data
+    })
+}
+export function updateLiquidColor(id, name, hex) {
+  return supabase
+    .from("liquid_colors")
+    .update({ name, hex })
+    .eq("id", id)
+    .select()
+    .single()
+    .then(({ data, error }) => {
+      if (error) throw error
+      return data
+    })
+}
+export const deleteLiquidColor = (id) => deleteNamedRow("liquid_colors", id)
 
 // ingredient_categories carries sort_order too (added in
 // 20260816010047_category_order_and_spirit_hierarchy.sql), so it doesn't fit

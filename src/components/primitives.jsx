@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react"
 import { IconCheck, IconChevD } from "@/components/icons"
-import { LIQUID_COLORS } from "@/data/constants"
 
 export const AVAIL_CFG = {
   perfect: {
@@ -406,34 +405,69 @@ export function CategoryPicker({ categories, value, onChange }) {
   )
 }
 
-// Shared between EditorScreen (recipe liquid_color) and AdminScreen (single-
-// ingredient add) - same "pick a drink-appropriate color, no hex knowledge
-// required" idea in both places.
-export function ColorSwatchPicker({ value, onChange }) {
+// Shared between EditorScreen (recipe liquid_color) and the ingredient-type
+// forms (AdminScreen, IngredientTypeEditor) - same "pick a drink-appropriate
+// color, no hex knowledge required" idea in both places. `colors` is the
+// live liquid_colors catalog (admin-managed - see Admin → Catalog), not a
+// hardcoded list, so the swatches on offer can grow over time. The free hex
+// input alongside them means a color missing from the curated list is never
+// a hard blocker either - stored recipes/ingredient types have always just
+// been a plain hex string, this table only supplies the picker's suggestions.
+export function ColorSwatchPicker({ value, onChange, colors }) {
   return (
-    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-      {LIQUID_COLORS.map((c) => (
-        <button
-          key={c.value}
-          type="button"
-          onClick={() => onChange(c.value)}
-          title={c.label}
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        {colors.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => onChange(c.hex)}
+            title={c.name}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              background: c.hex,
+              border: `2px solid ${
+                value === c.hex ? "var(--text)" : "var(--border-s)"
+              }`,
+              boxShadow:
+                value === c.hex
+                  ? "0 0 0 2px var(--bg), 0 0 0 3px var(--cyan)"
+                  : "none",
+              cursor: "pointer",
+            }}
+          />
+        ))}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div
           style={{
-            width: 32,
-            height: 32,
+            width: 24,
+            height: 24,
             borderRadius: "50%",
-            background: c.value,
-            border: `2px solid ${
-              value === c.value ? "var(--text)" : "var(--border-s)"
-            }`,
-            boxShadow:
-              value === c.value
-                ? "0 0 0 2px var(--bg), 0 0 0 3px var(--cyan)"
-                : "none",
-            cursor: "pointer",
+            background: value || "transparent",
+            border: "1px solid var(--border-s)",
+            flexShrink: 0,
           }}
         />
-      ))}
+        <input
+          type="text"
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Or type any hex, e.g. #6b21a8"
+          style={{
+            background: "var(--surface)",
+            border: "1px solid var(--border-s)",
+            borderRadius: "var(--r-sm)",
+            padding: "6px 10px",
+            color: "var(--text)",
+            fontSize: 13,
+            fontFamily: "var(--font-mono)",
+            width: 160,
+          }}
+        />
+      </div>
     </div>
   )
 }

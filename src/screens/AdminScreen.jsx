@@ -42,6 +42,7 @@ import {
   createIngredientAlias,
   createIngredientCategory,
   createIngredientTypes,
+  createLiquidColor,
   createProducts,
   createTasteTag,
   deleteCocktailFamily,
@@ -49,11 +50,13 @@ import {
   deleteIngredientAlias,
   deleteIngredientCategory,
   deleteIngredientType,
+  deleteLiquidColor,
   deleteTasteTag,
   updateCocktailFamily,
   updateGlass,
   updateIngredientAlias,
   updateIngredientCategory,
+  updateLiquidColor,
   updateTasteTag,
 } from "@/services/catalog"
 import {
@@ -126,12 +129,15 @@ const formatDate = (iso) =>
 // Undefined means this table has no shape column at all.
 const SHAPE_KIND_DEFAULTS = { glass: "martini", family: "highball" }
 
+const DEFAULT_NEW_COLOR_HEX = "#888888"
+
 function NamedRowManager({
   title,
   singular,
   items,
   showSortOrder,
   shapeKind,
+  colorField,
   onCreate,
   onUpdate,
   onDelete,
@@ -141,6 +147,7 @@ function NamedRowManager({
   const [newShape, setNewShape] = useState(
     SHAPE_KIND_DEFAULTS[shapeKind] ?? "martini",
   )
+  const [newHex, setNewHex] = useState(DEFAULT_NEW_COLOR_HEX)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState(null)
 
@@ -150,6 +157,7 @@ function NamedRowManager({
   const [editShape, setEditShape] = useState(
     SHAPE_KIND_DEFAULTS[shapeKind] ?? "martini",
   )
+  const [editHex, setEditHex] = useState(DEFAULT_NEW_COLOR_HEX)
   const [saving, setSaving] = useState(false)
   const [editError, setEditError] = useState(null)
 
@@ -169,12 +177,15 @@ function NamedRowManager({
         })
       } else if (shapeKind) {
         await onCreate({ name: newName.trim(), shape: newShape })
+      } else if (colorField) {
+        await onCreate({ name: newName.trim(), hex: newHex.trim() })
       } else {
         await onCreate(newName.trim())
       }
       setNewName("")
       setNewSortOrder("0")
       setNewShape(SHAPE_KIND_DEFAULTS[shapeKind] ?? "martini")
+      setNewHex(DEFAULT_NEW_COLOR_HEX)
     } catch (err) {
       setCreateError(err.message)
     } finally {
@@ -188,6 +199,7 @@ function NamedRowManager({
     setEditName(item.name)
     setEditSortOrder(String(item.sort_order ?? 0))
     setEditShape(item.shape ?? SHAPE_KIND_DEFAULTS[shapeKind] ?? "martini")
+    setEditHex(item.hex ?? DEFAULT_NEW_COLOR_HEX)
   }
 
   const handleSaveEdit = async () => {
@@ -202,6 +214,11 @@ function NamedRowManager({
         })
       } else if (shapeKind) {
         await onUpdate(editingId, { name: editName.trim(), shape: editShape })
+      } else if (colorField) {
+        await onUpdate(editingId, {
+          name: editName.trim(),
+          hex: editHex.trim(),
+        })
       } else {
         await onUpdate(editingId, editName.trim())
       }
@@ -258,7 +275,12 @@ function NamedRowManager({
                 <div
                   style={{ display: "flex", flexDirection: "column", gap: 8 }}
                 >
-                  <div style={{ display: "flex", gap: 8 }}>
+                  <div
+                    style={{ display: "flex", gap: 8, alignItems: "center" }}
+                  >
+                    {colorField && (
+                      <HexColorField value={editHex} onChange={setEditHex} />
+                    )}
                     <div style={{ flex: 1 }}>
                       <Input value={editName} onChange={setEditName} />
                     </div>
@@ -363,6 +385,19 @@ function NamedRowManager({
                       color="var(--text2)"
                     />
                   )}
+                  {colorField && (
+                    <div
+                      title={item.hex}
+                      style={{
+                        width: 18,
+                        height: 18,
+                        borderRadius: "50%",
+                        background: item.hex,
+                        border: "1px solid var(--border-s)",
+                        flexShrink: 0,
+                      }}
+                    />
+                  )}
                   <span
                     style={{
                       flex: 1,
@@ -427,7 +462,8 @@ function NamedRowManager({
       {shapeKind && (
         <ShapePicker kind={shapeKind} value={newShape} onChange={setNewShape} />
       )}
-      <div style={{ display: "flex", gap: 8 }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        {colorField && <HexColorField value={newHex} onChange={setNewHex} />}
         <div style={{ flex: 1 }}>
           <Input
             placeholder={`New ${singular} name`}
@@ -467,6 +503,43 @@ function NamedRowManager({
           {createError}
         </p>
       )}
+    </div>
+  )
+}
+
+// Plain hex text input + live swatch preview, for managing a Liquid Colors
+// palette entry itself. Deliberately not ColorSwatchPicker - that component
+// picks *from* this palette, it can't also be how the palette's own rows get
+// their hex value (there's nothing to pick from yet while creating one).
+function HexColorField({ value, onChange }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div
+        style={{
+          width: 24,
+          height: 24,
+          borderRadius: "50%",
+          background: value || "transparent",
+          border: "1px solid var(--border-s)",
+          flexShrink: 0,
+        }}
+      />
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="#rrggbb"
+        style={{
+          background: "var(--surface)",
+          border: "1px solid var(--border-s)",
+          borderRadius: "var(--r-sm)",
+          padding: "10px 8px",
+          color: "var(--text)",
+          fontSize: 14,
+          fontFamily: "var(--font-mono)",
+          width: 120,
+        }}
+      />
     </div>
   )
 }
@@ -2698,6 +2771,7 @@ export default function AdminScreen() {
                       <ColorSwatchPicker
                         value={singleColor}
                         onChange={setSingleColor}
+                        colors={catalog.liquidColors}
                       />
                     </div>
                     <div>
@@ -3365,6 +3439,7 @@ export default function AdminScreen() {
                                   color: v,
                                 })
                               }
+                              colors={catalog.liquidColors}
                             />
                             {addIngredientError && (
                               <p
@@ -3789,6 +3864,24 @@ export default function AdminScreen() {
               }}
             />
             <NamedRowManager
+              title="Liquid Colors"
+              singular="color"
+              items={catalog.liquidColors}
+              colorField
+              onCreate={async ({ name, hex }) => {
+                await createLiquidColor(name, hex)
+                await catalog.refetch()
+              }}
+              onUpdate={async (id, { name, hex }) => {
+                await updateLiquidColor(id, name, hex)
+                await catalog.refetch()
+              }}
+              onDelete={async (id) => {
+                await deleteLiquidColor(id)
+                await catalog.refetch()
+              }}
+            />
+            <NamedRowManager
               title="Ingredient Categories"
               singular="category"
               items={catalog.categories}
@@ -3853,6 +3946,7 @@ export default function AdminScreen() {
                     categories={catalog.categories}
                     types={catalog.types}
                     aliases={catalog.aliases}
+                    liquidColors={catalog.liquidColors}
                     onSaved={async () => {
                       await catalog.refetch()
                       setEditingAdminTypeId(null)

@@ -18,7 +18,7 @@ import {
   Input,
   Select,
 } from "@/components/primitives"
-import { LIQUID_COLORS, NON_VOLUME_UNITS } from "@/data/constants"
+import { NON_VOLUME_UNITS } from "@/data/constants"
 import { ozToMl } from "@/domain/availability"
 import { resolveIngredientType } from "@/domain/ingredientResolution"
 import { buildRecipeImportPrompt } from "@/schemas/recipeImport"
@@ -122,7 +122,9 @@ export default function EditorScreen() {
   const [desc, setDesc] = useState("")
   const [glassName, setGlassName] = useState("")
   const [familyId, setFamilyId] = useState("")
-  const [liquidColor, setLiquidColor] = useState(LIQUID_COLORS[0].value)
+  // "Clear" (#dbeafe) - can't default from catalog.liquidColors here, that's
+  // an async fetch that hasn't necessarily resolved yet at first render.
+  const [liquidColor, setLiquidColor] = useState("#dbeafe")
   const [ings, setIngs] = useState([
     { ingredientName: "", amount: "", unit: "ml", role: "required" },
   ])
@@ -997,6 +999,7 @@ export default function EditorScreen() {
               <ColorSwatchPicker
                 value={liquidColor}
                 onChange={setLiquidColor}
+                colors={catalog.liquidColors}
               />
             </div>
 
