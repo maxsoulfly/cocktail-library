@@ -22,6 +22,14 @@ Each numbered step is a development chunk boundary for this file.
 
 ## Last completed chunk
 
+**Recipe-draft restore race found during the round-5 QA retest (multi-draft item).** User followed the exact repro steps: new recipe, unmatched ingredient, Request it, "Back to what I was doing" - the restore banner appeared with the correct draft name, but clicking Restore left the form empty. Root cause: `EditorScreen.jsx`'s mount-check effect (reads localStorage, decides whether to show the restore banner) and its autosave effect (decides whether the current form is empty enough to delete the draft) both share `draftId` in their dependency arrays. Landing on `/library/new?draft=<id>` after Request Ingredient is a fresh mount, so both effects fire in the *same commit* - the autosave effect ran against the form's just-mounted blank state (the mount-check effect's `setDraftBanner` update hadn't landed on that commit yet), concluded there was no content, and deleted the very draft the banner was about to offer restoring. Fixed with a ref set at the end of the mount-check effect and read by the autosave effect right after it - a ref rather than state specifically because the write needs to be visible to a same-commit effect, not just a later render.
+
+**Honesty note**: this is a real, demonstrable bug and the right kind of fix for it, found by tracing the exact effect dependencies - but static reading couldn't fully rule out a second contributing factor, since `restoreDraft()` itself reads from the already-in-memory `draftBanner` object (not localStorage), which in theory should populate correctly regardless of this specific race. Needs a real retest of the *exact same steps* before calling this closed, not just build/test passing.
+
+`pnpm test` — 104/104 passing (unchanged, no domain logic touched). `pnpm build` clean. Not yet browser-verified.
+
+## Earlier chunk (real usernames: CocktailCard author display)
+
 **Author name added to `CocktailCard.jsx` (the Library grid), follow-up to the display-names chunk below.** User set real display names on both accounts (Edit Profile confirmed working, header updates and persists) but the name still didn't show on "public cocktails." Root cause: `DetailScreen.jsx` already had a working "by {author}" line, but the actual Library grid card had no author display *at all* - `c.author` was already correctly populated by the earlier RLS/trigger fix, it just was never rendered there. Added the same `c.author &&` line (empty for classics, which have no owner) to `CocktailCard.jsx`.
 
 **User also floated a future idea, explicitly not asking for it yet**: some kind of lightweight social layer (following other members) once usernames are real - noted here as a genuinely open, unscoped idea, not a commitment. Worth raising again if/when it comes up, not assumed into any current work.
