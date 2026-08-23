@@ -22,6 +22,12 @@ Each numbered step is a development chunk boundary for this file.
 
 ## Last completed chunk
 
+**Ingredient requests can no longer be submitted as duplicates.** User caught this from real evidence in Admin → Requests: "Coke" and "test" each showing up twice. `RequestIngredientScreen.jsx`'s `handleSubmit()` now checks, before submitting: (1) does the name already resolve against the catalog via the same exact-name-or-alias `resolveIngredientType()` used everywhere else - no fuzzy matching, so this only blocks a genuine duplicate; (2) does the requester already have a *pending* request with this name (case-insensitive), checked against their own already-loaded `myRequests` list. Scoped to the requester's own pending requests, not a global cross-member check - a member's RLS grant on `ingredient_requests` only lets them read their own rows, so that's the only duplicate this screen can actually see without a broader grant, which wasn't asked for.
+
+`pnpm test` — 105/105 passing (unchanged, no domain logic touched). `pnpm build` clean. Not yet browser-verified.
+
+## Earlier chunk (multi-draft index-wipe + nameless-draft restore fixes)
+
 **Multi-draft QA (step 2) found a serious regression: starting a second concurrent draft wiped the entire draft index, not just displaying it wrong.** User verified directly in DevTools Local Storage (`recipe-drafts:<userId>` was a literal `[]`), not just a UI symptom - both the in-progress first draft and the second were gone.
 
 **Two real, structural problems found in `EditorScreen.jsx`'s draft-persistence effects** (this session's earlier `20260823` race-condition fix addressed a related but different symptom in the same code - see "Earlier chunk" below):
