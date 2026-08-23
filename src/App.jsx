@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from "react"
-import { Navigate, Outlet, Route, Routes } from "react-router-dom"
+import {
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+  useOutletContext,
+} from "react-router-dom"
 import { BottomNav, SideNav } from "@/components/Nav"
 import {
   computeAvail,
@@ -26,6 +32,18 @@ import SignInScreen from "@/screens/SignInScreen"
 import WelcomeScreen from "@/screens/WelcomeScreen"
 import { signOut } from "@/services/auth"
 import { updateProfile } from "@/services/membership"
+
+// The /admin route itself had no gate at all - isAdmin only ever hid the
+// SideNav link, so any authenticated member could reach the Admin screen
+// directly by URL. RLS already default-denies the actual reads/writes
+// underneath, but the screen shouldn't be reachable at all - a wrapper
+// rather than a check inside AdminScreen itself, since AdminScreen calls
+// dozens of hooks unconditionally and an early return before them would
+// violate the rules of hooks.
+function RequireAdmin({ children }) {
+  const { isAdmin } = useOutletContext()
+  return isAdmin ? children : <Navigate to="/home" replace />
+}
 
 function LoadingScreen() {
   return (
@@ -242,7 +260,14 @@ export default function App() {
         />
         <Route path="/lists" element={<ListsScreen />} />
         <Route path="/more" element={<MoreScreen />} />
-        <Route path="/admin" element={<AdminScreen />} />
+        <Route
+          path="/admin"
+          element={
+            <RequireAdmin>
+              <AdminScreen />
+            </RequireAdmin>
+          }
+        />
       </Route>
       <Route path="*" element={<Navigate to="/home" replace />} />
     </Routes>
