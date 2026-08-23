@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
   Link,
   useLocation,
@@ -138,21 +138,33 @@ export default function EditorScreen() {
   // shows draftBanner for that specific one on the next check below.
   const [otherDrafts, setOtherDrafts] = useState([])
 
+  // Set at the end of the mount-check effect below, read by the autosave
+  // effect right after it - a plain ref rather than state so the write is
+  // visible to same-commit effects, not just later renders. Needed because
+  // both effects can fire in the SAME commit right after returning from
+  // Request Ingredient (draftId just appeared in the URL, triggering both):
+  // without this gate, the autosave effect would see the just-mounted
+  // blank form (setDraftBanner's update hasn't landed on this commit yet)
+  // and delete the very draft the other effect is about to offer restoring.
+  const draftCheckedRef = useRef(false)
+
   useEffect(() => {
     if (!isDraftable || !userId) return
     if (draftId) {
       const raw = localStorage.getItem(draftKey)
-      if (!raw) return
-      try {
-        const draft = JSON.parse(raw)
-        if (draft?.name?.trim()) setDraftBanner(draft)
-        else removeDraftIndexEntry(userId, draftId)
-      } catch {
-        removeDraftIndexEntry(userId, draftId)
+      if (raw) {
+        try {
+          const draft = JSON.parse(raw)
+          if (draft?.name?.trim()) setDraftBanner(draft)
+          else removeDraftIndexEntry(userId, draftId)
+        } catch {
+          removeDraftIndexEntry(userId, draftId)
+        }
       }
     } else {
       setOtherDrafts(readDraftIndex(userId))
     }
+    draftCheckedRef.current = true
     // Only ever check once, right after mount - restoring/discarding is a
     // one-time user decision, not something to re-run as the form changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -160,6 +172,7 @@ export default function EditorScreen() {
 
   useEffect(() => {
     if (!isDraftable || !userId || draftBanner) return
+    if (draftId && !draftCheckedRef.current) return
     const hasContent =
       name.trim() ||
       ings.some((i) => i.ingredientName.trim()) ||
