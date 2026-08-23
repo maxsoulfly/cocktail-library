@@ -24,7 +24,7 @@ Each numbered step is a development chunk boundary for this file.
 
 **My Bar family-cluster card could visually grow wider than its slot.** Found during the resumed round-5 QA (My Bar card-grid check) - user's screenshot showed a Whiskey family cluster's "Whiskey Sc..." card noticeably wider than its siblings once it had several owned products attached. Root cause: the cluster's `width:104`/`width:96` wrapper divs correctly fix each card's slot, but nothing on the `Card` itself clipped overflow, so a long unbroken product-name string could spill past that width rather than the existing ellipsis styling actually truncating it. Added `overflow: hidden` to the card - one-line fix, the truncation styling was already there and just needed a box that actually stayed put.
 
-`pnpm test` — 105/105 passing (unchanged, UI-only). `pnpm build` clean. Not yet browser-verified.
+`pnpm test` — 105/105 passing (unchanged, UI-only). `pnpm build` clean. **Browser-confirmed working, 2026-08-23** - all cards in the cluster are the same width, product names ellipsize correctly.
 
 ## Earlier chunk (duplicate ingredient-request fix)
 
