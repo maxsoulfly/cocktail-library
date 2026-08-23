@@ -893,6 +893,7 @@ export default function AdminScreen() {
   const [communityLoading, setCommunityLoading] = useState(true)
   const [confirmUnpublish, setConfirmUnpublish] = useState(null)
   const [unpublishing, setUnpublishing] = useState(false)
+  const [communityQuery, setCommunityQuery] = useState("")
 
   const loadCommunityRecipes = () => {
     setCommunityLoading(true)
@@ -905,6 +906,10 @@ export default function AdminScreen() {
   useEffect(() => {
     loadCommunityRecipes()
   }, [])
+
+  const filteredCommunityRecipes = communityRecipes.filter((c) =>
+    c.name.toLowerCase().includes(communityQuery.toLowerCase()),
+  )
 
   const handleUnpublish = async (id) => {
     setUnpublishing(true)
@@ -923,8 +928,10 @@ export default function AdminScreen() {
   // worked, but reads and feels like a member screen, not an admin one, and
   // there was no way to delete a classic at all despite the RLS "recipes:
   // delete" policy already allowing it for owner_id is null rows.
+  const [classicQuery, setClassicQuery] = useState("")
   const classicRecipes = [...computed]
     .filter((r) => r.source === "classic")
+    .filter((r) => r.name.toLowerCase().includes(classicQuery.toLowerCase()))
     .sort((a, b) => a.name.localeCompare(b.name))
   const [confirmDeleteClassicId, setConfirmDeleteClassicId] = useState(null)
   const [deletingClassic, setDeletingClassic] = useState(false)
@@ -1497,9 +1504,16 @@ export default function AdminScreen() {
               delete one - that's permanent, unlike unpublishing a community
               recipe.
             </p>
+            <Input
+              placeholder="Search classic recipes..."
+              value={classicQuery}
+              onChange={setClassicQuery}
+            />
             {classicRecipes.length === 0 ? (
               <p style={{ margin: 0, fontSize: 14, color: "var(--text3)" }}>
-                No classic recipes yet.
+                {classicQuery
+                  ? "No classic recipes match."
+                  : "No classic recipes yet."}
               </p>
             ) : (
               classicRecipes.map((r) => (
@@ -1759,16 +1773,23 @@ export default function AdminScreen() {
               Published community recipes. Unpublishing returns a recipe to its
               owner's private list without deleting it.
             </p>
+            <Input
+              placeholder="Search community recipes..."
+              value={communityQuery}
+              onChange={setCommunityQuery}
+            />
             {communityLoading ? (
               <p style={{ margin: 0, fontSize: 14, color: "var(--text3)" }}>
                 Loading...
               </p>
-            ) : communityRecipes.length === 0 ? (
+            ) : filteredCommunityRecipes.length === 0 ? (
               <p style={{ margin: 0, fontSize: 14, color: "var(--text3)" }}>
-                No published community recipes.
+                {communityQuery
+                  ? "No community recipes match."
+                  : "No published community recipes."}
               </p>
             ) : (
-              communityRecipes.map((c) => (
+              filteredCommunityRecipes.map((c) => (
                 <Card key={c.id} style={{ padding: "14px 16px" }}>
                   <div
                     style={{
