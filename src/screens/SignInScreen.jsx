@@ -208,52 +208,68 @@ export default function SignInScreen() {
                   style={{ flex: 1, height: 1, background: "var(--border-s)" }}
                 />
               </div>
-              {mode === "join" && (
-                <Input
-                  label="Display Name"
-                  placeholder="What other members will see you as"
-                  value={displayName}
-                  onChange={setDisplayName}
-                  autoComplete="name"
-                />
-              )}
-              <Input
-                label="Email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={setEmail}
-                type="email"
-              />
-              <Input
-                label="Password"
-                placeholder="••••••••"
-                value={password}
-                onChange={setPassword}
-                type="password"
-              />
-              {error && (
-                <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
-                  {error}
-                </p>
-              )}
-              {info && (
-                <p style={{ margin: 0, fontSize: 12, color: "var(--cyan)" }}>
-                  {info}
-                </p>
-              )}
-              <Btn
-                variant="primary"
-                full
-                disabled={
-                  busy ||
-                  !email ||
-                  !password ||
-                  (mode === "join" && !displayName.trim())
-                }
-                onClick={handleEmailSubmit}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  handleEmailSubmit()
+                }}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 14,
+                }}
               >
-                {mode === "join" ? "Create account" : "Sign in"}
-              </Btn>
+                {mode === "join" && (
+                  <Input
+                    label="Display Name"
+                    placeholder="What other members will see you as"
+                    value={displayName}
+                    onChange={setDisplayName}
+                    autoComplete="name"
+                  />
+                )}
+                <Input
+                  label="Email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={setEmail}
+                  type="email"
+                  autoComplete="email"
+                />
+                <Input
+                  label="Password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={setPassword}
+                  type="password"
+                  autoComplete={
+                    mode === "join" ? "new-password" : "current-password"
+                  }
+                />
+                {error && (
+                  <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
+                    {error}
+                  </p>
+                )}
+                {info && (
+                  <p style={{ margin: 0, fontSize: 12, color: "var(--cyan)" }}>
+                    {info}
+                  </p>
+                )}
+                <Btn
+                  type="submit"
+                  variant="primary"
+                  full
+                  disabled={
+                    busy ||
+                    !email ||
+                    !password ||
+                    (mode === "join" && !displayName.trim())
+                  }
+                >
+                  {mode === "join" ? "Create account" : "Sign in"}
+                </Btn>
+              </form>
               {mode !== "join" && (
                 <button
                   onClick={() => {
