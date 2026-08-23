@@ -36,7 +36,7 @@ Each numbered step is a development chunk boundary for this file.
 
 **Verified directly against the live DB** before any UI was built: promoted a real community recipe ("Green Bunker"), confirmed `owner_id`/`source_type`/`original_owner_id` all flipped correctly, a non-admin's demote attempt was rejected, then demoted it back and confirmed every field matched its exact original state; separately confirmed demoting a genuine classic (no `original_owner_id`) is rejected with a clear error.
 
-`pnpm test` — 105/105 passing (unchanged, no domain logic touched). `pnpm build` clean. `db advisors --type security` shows only the two new functions' expected "callable by authenticated" WARNs, same baseline as every other admin function. Not yet browser-verified - needs: promote a real published community recipe from the Moderation tab, confirm it shows up in Classic Recipes with the "originally by" credit and the same credit line now on its Detail page; demote it back and confirm it lands correctly back in Moderation under the original owner.
+`pnpm test` — 105/105 passing (unchanged, no domain logic touched). `pnpm build` clean. `db advisors --type security` shows only the two new functions' expected "callable by authenticated" WARNs, same baseline as every other admin function. **Browser-confirmed working, 2026-08-23** - promote and demote both round-tripped correctly through the real UI.
 
 ## Earlier chunk (oz as a recipe-editor entry unit)
 
