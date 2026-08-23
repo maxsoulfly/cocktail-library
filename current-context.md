@@ -22,6 +22,14 @@ Each numbered step is a development chunk boundary for this file.
 
 ## Last completed chunk
 
+**Author name added to `CocktailCard.jsx` (the Library grid), follow-up to the display-names chunk below.** User set real display names on both accounts (Edit Profile confirmed working, header updates and persists) but the name still didn't show on "public cocktails." Root cause: `DetailScreen.jsx` already had a working "by {author}" line, but the actual Library grid card had no author display *at all* - `c.author` was already correctly populated by the earlier RLS/trigger fix, it just was never rendered there. Added the same `c.author &&` line (empty for classics, which have no owner) to `CocktailCard.jsx`.
+
+**User also floated a future idea, explicitly not asking for it yet**: some kind of lightweight social layer (following other members) once usernames are real - noted here as a genuinely open, unscoped idea, not a commitment. Worth raising again if/when it comes up, not assumed into any current work.
+
+`pnpm test` — 104/104 passing (unchanged, UI-only). `pnpm build` clean. Not yet browser-verified.
+
+## Earlier chunk (private-recipe RLS fix + real usernames)
+
 **Two real bugs from the same user report, both security/privacy-flavored, neither from the numbered backlog.**
 
 **1. Admin's Library "Private" filter leaked other members' private recipes.** Root cause: `recipes: read`'s original RLS (`20260815214307`) let an admin SELECT every recipe in the DB - the migration's own comment cited spec §8.3, but the actual spec text only ever says "A recipe is visible when it is an active shared recipe, or when the current user owns it," no admin clause at all. Same class of bug as `20260815231800` (which tightened UPDATE/DELETE to match the spec after finding the original policies were wider than intended) - that pass missed SELECT. Fixed in `20260823110000_tighten_recipe_read_scope.sql` - confirmed no admin feature depended on the broader grant (Classic Recipes tab only reads `visibility='shared'`; Moderation's query only reads `moderation_status='active'`, both already covered by the policy's first clause) before removing it. Verified directly against the live DB: admin can no longer read the other test account's real private recipe (a genuine `unpublished_by_admin` one from earlier QA testing), the owner still can, admin's own recipe counts unaffected.
@@ -474,7 +482,7 @@ Sixteen migrations total across this session's work (thirteen prior to today, th
 
 ## Exact next recommended action
 
-**Highest priority, another real user report**: (1) ~~as admin, open Library's Private filter and confirm the other test account's recipe no longer shows~~ - **browser-confirmed working, 2026-08-23**. Still needed: (2) via More → Edit Profile, set a real display name on both real accounts (this also happens to be the actual fix for their current email-as-name state - no direct DB edit was made, deliberately); (3) once both have real names, open a published community recipe as the non-admin viewer and confirm the Detail page's "by {name}" line now shows correctly (it silently rendered nothing before this fix); (4) generate a fresh invitation and, if practical, run through the join form to confirm the new required Display Name field works and a fresh signup never falls back to showing an email.
+**Highest priority, another real user report**: (1) ~~Private filter~~ and (2) ~~Edit Profile sets a real name, sticks after refresh~~ - both **browser-confirmed working, 2026-08-23**. (2) surfaced a real gap: the name change didn't show up on "public cocktails" - turned out `CocktailCard.jsx` (the actual Library grid) never rendered an author at all, only `DetailScreen.jsx` did; now fixed (see "Last completed chunk"). Still needed: (3) re-check the Library grid now shows "by {name}" on community recipe cards, and that the Detail page's own line still works too; (4) generate a fresh invitation and, if practical, run through the join form to confirm the new required Display Name field works and a fresh signup never falls back to showing an email.
 
 **The full 2026-08-23 security-fix + Users-tab + new-Admin-tabs QA script is fully browser-confirmed** (see the QA script section above - every step passed, one copy tweak made: "Make Member" → "Demote to Member"). The Library Source-filter visibility change also still needs its first click-through - confirm the chips render right under Availability and still filter correctly.
 
