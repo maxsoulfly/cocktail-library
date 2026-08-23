@@ -70,6 +70,15 @@ export function mlToOz(ml) {
   return `${oz.toFixed(1)} oz`
 }
 
+// Inverse of mlToOz - lets the recipe editor accept an amount typed in oz
+// (common for recipes sourced from US-style measurements) while storage
+// stays canonically ml, per the spec's "store liquid quantities in
+// millilitres" rule. Rounded to the nearest whole ml, matching how amounts
+// are entered/displayed everywhere else in the app.
+export function ozToMl(oz) {
+  return Math.round(oz * 29.5735)
+}
+
 /**
  * @param {{ amount: number, unitLabel: string }} recipeIng
  * @param {'ml'|'oz'} unit

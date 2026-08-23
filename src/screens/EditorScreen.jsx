@@ -19,6 +19,7 @@ import {
   Select,
 } from "@/components/primitives"
 import { LIQUID_COLORS, NON_VOLUME_UNITS } from "@/data/constants"
+import { ozToMl } from "@/domain/availability"
 import { resolveIngredientType } from "@/domain/ingredientResolution"
 import { buildRecipeImportPrompt } from "@/schemas/recipeImport"
 import { parseRecipePaste } from "@/schemas/recipePaste"
@@ -469,7 +470,14 @@ export default function EditorScreen() {
     try {
       const glass = glasses.find((g) => g.name === effectiveGlassName)
       const components = resolvedIngs.map((i) => {
-        const isVolume = i.unit === "ml"
+        const isVolume = i.unit === "ml" || i.unit === "oz"
+        // oz is an entry convenience only - storage stays canonically ml
+        // (per the spec's measurement rules), so an oz-entered amount is
+        // converted once here and saved exactly like a plain ml entry.
+        const amountMl =
+          i.unit === "oz"
+            ? ozToMl(Number(i.amount) || 0)
+            : Number(i.amount) || 0
         const alternativeIds = (i.alternativeNames ?? [])
           .map(
             (altName) =>
@@ -481,7 +489,7 @@ export default function EditorScreen() {
           .filter(Boolean)
         return {
           ingredientTypeId: i.matchedType.id,
-          amount: isVolume ? Number(i.amount) || 0 : 0,
+          amount: isVolume ? amountMl : 0,
           unitLabel: isVolume ? "ml" : `${i.amount} ${i.unit}`.trim(),
           role: i.role,
           alternativeIds,
@@ -1095,7 +1103,7 @@ export default function EditorScreen() {
                             small
                             value={ing.unit}
                             onChange={(v) => updateIng(i, "unit", v)}
-                            options={["ml", ...NON_VOLUME_UNITS]}
+                            options={["ml", "oz", ...NON_VOLUME_UNITS]}
                           />
                         </div>
                         <div style={{ width: 92, flexShrink: 0 }}>

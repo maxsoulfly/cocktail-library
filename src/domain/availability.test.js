@@ -3,6 +3,7 @@ import {
   computeAvail,
   formatAmount,
   mlToOz,
+  ozToMl,
   resolveOwnedIngredientTypes,
 } from "./availability"
 
@@ -160,6 +161,16 @@ describe("mlToOz", () => {
 
   it("falls back to a decimal for uncommon amounts", () => {
     expect(mlToOz(100)).toBe("3.4 oz")
+  })
+})
+
+describe("ozToMl", () => {
+  it("converts common bar measures to whole ml, the inverse of mlToOz", () => {
+    expect(ozToMl(0.5)).toBe(15)
+    expect(ozToMl(0.75)).toBe(22)
+    expect(ozToMl(1)).toBe(30)
+    expect(ozToMl(1.5)).toBe(44)
+    expect(ozToMl(2)).toBe(59)
   })
 })
 
