@@ -22,6 +22,12 @@ Each numbered step is a development chunk boundary for this file.
 
 ## Last completed chunk
 
+**Recipe batch-import validator could offer a "+Add" doomed to fail.** Found while resuming the round-5 QA (recipe-import inline "Add ingredient" retest) - user pasted an older "Pistachio Margarita" JSON and got "Unresolved ingredient(s) flagged for review: Salt" with a "+Add 'Salt'" button, but clicking it failed with "'Salt' already exists in the catalog." Confirmed directly against the live DB that Salt genuinely does exist now (added during earlier testing this same session) - the pasted JSON was just stale, generated back when it didn't. Root cause: `unresolvedIngredients` entries were surfaced and offered for "+Add" based only on what the AI flagged *at generation time*, never re-checked against the live catalog. Now re-resolved via the same `resolveIngredientType()` real components use - a name that still doesn't resolve behaves exactly as before; one that now does gets a clearer message instead of a doomed "+Add" button (still can't be silently promoted into a real component either way, since a bare `unresolvedIngredients` name never captured an amount/unit). 1 new unit test.
+
+`pnpm test` — 106/106 passing (105 previous + 1 new). `pnpm build` clean. Not yet browser-verified - needs: paste that exact stale JSON again (or any JSON with an `unresolvedIngredients` name that's now real) and confirm the message changed instead of offering "+Add".
+
+## Earlier chunk (My Bar card-overflow fix)
+
 **My Bar family-cluster card could visually grow wider than its slot.** Found during the resumed round-5 QA (My Bar card-grid check) - user's screenshot showed a Whiskey family cluster's "Whiskey Sc..." card noticeably wider than its siblings once it had several owned products attached. Root cause: the cluster's `width:104`/`width:96` wrapper divs correctly fix each card's slot, but nothing on the `Card` itself clipped overflow, so a long unbroken product-name string could spill past that width rather than the existing ellipsis styling actually truncating it. Added `overflow: hidden` to the card - one-line fix, the truncation styling was already there and just needed a box that actually stayed put.
 
 `pnpm test` — 105/105 passing (unchanged, UI-only). `pnpm build` clean. **Browser-confirmed working, 2026-08-23** - all cards in the cluster are the same width, product names ellipsize correctly.
