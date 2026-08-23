@@ -1075,10 +1075,14 @@ export default function AdminScreen() {
     loadPendingRequests()
   }, [])
 
-  const handleResolveRequest = async (id, status) => {
+  // The only remaining manual resolution - "fulfilled" now only ever
+  // happens as a side effect of successfully adding the ingredient (see
+  // handleAddSingle), never as its own button, so there's nothing left to
+  // accidentally mark done without actually creating the type.
+  const handleDismissRequest = async (id) => {
     setResolvingRequestId(id)
     try {
-      await resolveIngredientRequest(id, status)
+      await resolveIngredientRequest(id, "dismissed")
       loadPendingRequests()
     } finally {
       setResolvingRequestId(null)
@@ -2189,8 +2193,9 @@ export default function AdminScreen() {
             style={{ display: "flex", flexDirection: "column", gap: 12 }}
           >
             <p style={{ margin: 0, fontSize: 13, color: "var(--text2)" }}>
-              Ingredients members have asked for. Fulfilling one is just
-              bookkeeping - use Batch Import to actually add the type.
+              Ingredients members have asked for. "+" adds it to the catalog and
+              marks the request fulfilled in one step; "×" dismisses a request
+              without adding anything.
             </p>
             {requestsLoading ? (
               <p style={{ margin: 0, fontSize: 14, color: "var(--text3)" }}>
@@ -2254,22 +2259,7 @@ export default function AdminScreen() {
                         <IconPlus size={14} />
                       </button>
                       <button
-                        onClick={() => handleResolveRequest(r.id, "fulfilled")}
-                        disabled={resolvingRequestId === r.id}
-                        title="Mark fulfilled"
-                        style={{
-                          background: "rgba(52,211,153,0.1)",
-                          border: "1px solid rgba(52,211,153,0.25)",
-                          borderRadius: 6,
-                          padding: "6px 8px",
-                          cursor: "pointer",
-                          color: "var(--green)",
-                        }}
-                      >
-                        <IconCheck size={14} />
-                      </button>
-                      <button
-                        onClick={() => handleResolveRequest(r.id, "dismissed")}
+                        onClick={() => handleDismissRequest(r.id)}
                         disabled={resolvingRequestId === r.id}
                         title="Dismiss"
                         style={{
