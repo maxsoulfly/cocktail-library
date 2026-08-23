@@ -26,11 +26,11 @@ Each numbered step is a development chunk boundary for this file.
 
 **Real inconsistency found and fixed while wiring this up**: the per-ingredient row's "owned" dot in `DetailScreen.jsx` was checking `owned.has(ri.ingId)` directly and never consulted `alternativeIds` at all - so a recipe correctly badged "perfect" overall (via a substitute) would still show that row's dot as unowned/red. Fixed by using the new `substitutions` map: `isOwned = owned.has(ri.ingId) || Boolean(substitution)`.
 
-`pnpm test` — 104/104 passing (102 previous + 2 new `computeAvail` substitution tests). `pnpm build` clean. Not yet browser-verified - needs a real recipe with a substitution to confirm the row now shows green + "Substituting: X" correctly.
+`pnpm test` — 104/104 passing (102 previous + 2 new `computeAvail` substitution tests). `pnpm build` clean. **Browser-confirmed working by the user, 2026-08-23.**
 
 ## Earlier chunk (Change Password fix + password-generator autofill)
 
-**Change Password, a real bug fix (not from the numbered backlog)**: the "Change Password" row in `MoreScreen.jsx`'s Account section was a literal no-op (`onClick={() => {}}`) - user reported "change password doesn't work" and this was the root cause, not a deeper auth issue. Added `changePassword(newPassword)` to `src/services/auth.js` (`supabase.auth.updateUser({ password })`) and wired the row to expand an inline new-password/confirm form (min-length + match validation, error/success feedback) directly in `MoreScreen.jsx`, matching the existing inline-form style already used for "Forgot password" in `SignInScreen.jsx`.
+**Change Password, a real bug fix (not from the numbered backlog)**: the "Change Password" row in `MoreScreen.jsx`'s Account section was a literal no-op (`onClick={() => {}}`) - user reported "change password doesn't work" and this was the root cause, not a deeper auth issue. Real-world trigger, for context: a second non-admin test account was running in an incognito window, so yesterday's password wasn't saved by the browser and got forgotten - this feature was actually needed, not just a QA-checklist item. Added `changePassword(newPassword)` to `src/services/auth.js` (`supabase.auth.updateUser({ password })`) and wired the row to expand an inline new-password/confirm form (min-length + match validation, error/success feedback) directly in `MoreScreen.jsx`, matching the existing inline-form style already used for "Forgot password" in `SignInScreen.jsx`.
 
 **Follow-up same session**: wired the new form so Chrome's password-generator autofill actually has a chance to trigger - `Input`/`Btn` primitives (`src/components/primitives.jsx`) gained `autoComplete`/`name` and an explicit button `type` (`Btn` now defaults to `type="button"` so its many non-form call sites elsewhere are unaffected), and the password panel is now a real `<form>` (`autoComplete="new-password"` on both fields, a hidden `autoComplete="username"` field for context, `Save` as `type="submit"`) instead of a plain `<div>` with `onClick` handlers.
 
@@ -371,7 +371,7 @@ Thirteen migrations total across this session's work - backlog #4 (substitutions
 
 ## Tests / build checks last run
 
-2026-08-23 (Change Password fix + password-generator autofill wiring): `pnpm test` — 102/102 passing (unchanged). `pnpm build` clean, both after the initial fix and after the autofill follow-up. Not yet browser-verified beyond dev-server HMR reload - needs a real click-through: open Change Password, confirm Save actually updates the password (can sign out and sign back in with the new one), and confirm Chrome offers its password-generator suggestion when focusing the New Password field.
+2026-08-23 (Change Password fix + password-generator autofill wiring): `pnpm test` — 102/102 passing (unchanged). `pnpm build` clean, both after the initial fix and after the autofill follow-up. **Browser-confirmed working by the user, 2026-08-23** (Save actually changes the password - confirmed via the exact real-world case above, a forgotten incognito-account password).
 
 2026-08-22 (recipe-draft localStorage auto-save + Add Product copy): `pnpm test` — 102/102 passing (UI-only, no schema/domain change). `pnpm build` — no errors. `pnpm format` — clean. Not yet browser-verified - needs a real test: start a new recipe, type a name and an unmatched ingredient, close the tab, reopen New Recipe, confirm the "Restore draft" banner appears and repopulates every field correctly (including substitution alternatives); confirm the draft is gone after a real successful save.
 
@@ -391,11 +391,9 @@ Thirteen migrations total across this session's work - backlog #4 (substitutions
 
 ## Exact next recommended action
 
-Three things now need their own browser click-through, none done yet: Change Password (Save actually updates the password + Chrome's generator offer), the substitute-match display (a recipe with a real substitution shows the green dot + "Substituting: X" line), and the full QA round 5 checklist below.
+Change Password and the substitute-match display are both **browser-confirmed working, 2026-08-23** - the Google-password-generator-suggestion half of Change Password specifically wasn't re-confirmed (the user's test was a real forgotten-password recovery, not a fresh-suggestion check), worth a quick look next time that screen's open but not urgent.
 
 User is mid-QA-walkthrough (round 5) - resume from item 2 of the checklist ("Paste a Recipe (AI)"), now unblocked by the `CategoryPicker` fix, and browser-verify the new glass/family/My-Bar pictogram work, the glass `ShapePicker`, the 19-glass catalog, the My Bar family-cluster boxes, and the flattened Aperitif/Digestif types while at it. Once the user finishes the current checklist pass: continue numbered backlog #5 (remaining polish items)-#8 unless redirected. Ask about the untracked "Juice"/"Wine" *category* mystery whenever convenient - not urgent. Also worth asking at some point whether Whiskey should get the same Aperitif/Digestif flattening treatment - user explicitly deferred that decision, not forgot it.
-
-**2026-08-23 session note**: since the QA walkthrough itself is the user's own browser-driven work, not something this agent can do standalone, this session did the next two code-only chunks that didn't depend on it - Change Password and the substitute-match display - while the round-5 walkthrough queue above still waits for the user's own testing pass.
 
 **Process note for future verification**: when a table's INSERT/UPDATE RLS policy checks a column against `auth.uid()`, verify by simulating the exact payload the client actually sends (letting column defaults apply, not supplying the column explicitly in test SQL) - this session's earlier "verified against the live DB" claim for ingredient requests tested the policy shape but not the client's actual call shape, which is exactly why this bug went undetected until a real user hit it.
 
