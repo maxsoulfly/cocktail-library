@@ -318,7 +318,7 @@ Substitution alternatives: adding a substitute, saving, and re-opening the recip
 
 Concrete steps for the "Checks still needed" items below, in priority order. Needs both accounts open at once: admin in the normal window, the non-admin test account in incognito (matches the user's existing setup). Being fed to the user in small portions, one section at a time, per their request - mark each step's checkbox-equivalent (~~strikethrough~~) as they report it back, don't dump the whole remaining list on them at once.
 
-1. **`/admin` redirect (the actual security bug reported)**: in incognito, type `/admin` into the URL bar directly. Expected: lands on `/home`, not the Admin screen.
+1. ~~**`/admin` redirect (the actual security bug reported)**~~ — **browser-confirmed working, 2026-08-23**: non-admin hitting `/admin` directly now redirects to `/home`.
 2. **Users tab - block**: admin window → More → Admin Dashboard → Users tab → find the non-admin account (should show "Active") → Block → confirm. Switch to incognito, refresh, expected: "Your access has been revoked" screen instead of the app.
 3. **Users tab - unblock**: admin window → Unblock that same account → confirm status flips to "Active". Refresh incognito, expected: normal app access restored.
 4. **Users tab - promote/demote**: admin window → Make Admin on the non-admin account → confirm. In incognito, refresh, check for an Admin Dashboard link/access. Admin window → Make Member on that account to demote back → confirm the link disappears from incognito after a refresh.
@@ -329,7 +329,7 @@ Concrete steps for the "Checks still needed" items below, in priority order. Nee
 
 ## Checks still needed (not yet browser-verified)
 
-- **`/admin` access-control fix, urgent retest**: sign in as the non-admin test account and hit `/admin` directly by URL - confirm it now redirects to `/home` instead of rendering the Admin screen. This was the actual bug the user hit and reported.
+- ~~**`/admin` access-control fix, urgent retest**~~ — **browser-confirmed working, 2026-08-23**: non-admin hitting `/admin` directly now redirects to `/home` instead of rendering the Admin screen.
 - **New Admin "Users" tab**: from the non-admin account's own browser session (not just the DB-level check already done), have the admin block them from the Users tab and confirm the app actually locks them out live (the "Your access has been revoked" screen, not just a DB-level RLS check) - then unblock and confirm normal access returns. Also promote the test account to admin and confirm they actually gain real Admin nav access, then demote back.
 - ~~**Editing *any* existing recipe, urgent retest**~~ — **browser-confirmed working, 2026-08-23**: the glass-shape regression's Save crash is gone; editing a recipe with a since-renamed glass prefills correctly and saves.
 - ~~**Admin Dashboard's 5 stat cards, all now clickable**~~ — **browser-confirmed working, 2026-08-23** (all led to the right places under the previous Library/My Bar destinations). **Superseded same day**: Classic Recipes and Ingredient Types now open their own new Admin tabs instead (see "Last completed chunk") - needs a fresh recheck, not the same test as before.
