@@ -9,26 +9,16 @@ import {
   IconSearch,
   IconTrash,
 } from "@/components/icons"
+import { IngredientTypeEditor } from "@/components/IngredientTypeEditor"
 import {
   Btn,
   Card,
-  CategoryPicker,
-  ColorSwatchPicker,
   FilterChip,
   Input,
   OwnedToggle,
-  Select,
 } from "@/components/primitives"
 import { resolveIngredientType } from "@/domain/ingredientResolution"
-import {
-  BAR_PRIORITIES,
-  validateIngredientImport,
-} from "@/schemas/ingredientImport"
-import {
-  deleteProduct,
-  updateIngredientType,
-  updateProduct,
-} from "@/services/catalog"
+import { deleteProduct, updateProduct } from "@/services/catalog"
 
 export default function MyBarScreen() {
   const navigate = useNavigate()
@@ -119,73 +109,11 @@ export default function MyBarScreen() {
 
   // Ingredient-type correction - once a type was created (Single Ingredient,
   // batch import, or a live data fix), nothing could ever edit it again, not
-  // even an admin. Reuses validateIngredientImport()'s single-item path so
-  // there's one rule set, not a second hand-rolled check - excludes the type
-  // being edited from the candidate list first, otherwise saving with its
-  // own unchanged name would fail the "already exists in the catalog" check.
-  const [editingType, setEditingType] = useState(null)
-  const [editTypeSaving, setEditTypeSaving] = useState(false)
-  const [editTypeError, setEditTypeError] = useState(null)
-
-  const startEditType = (t) => {
-    setEditTypeError(null)
-    setEditingType({
-      id: t.id,
-      name: t.name,
-      categoryId: t.category_id,
-      parentTypeId: t.parent_type_id ?? "",
-      barPriority: t.bar_priority,
-      color: t.color ?? "",
-      description: t.description ?? "",
-    })
-  }
-
-  const handleSaveEditType = async () => {
-    if (!editingType) return
-    setEditTypeSaving(true)
-    setEditTypeError(null)
-    const otherTypes = types.filter((t) => t.id !== editingType.id)
-    const categoryName =
-      categories.find((c) => c.id === editingType.categoryId)?.name ?? ""
-    const parentTypeName = editingType.parentTypeId
-      ? otherTypes.find((t) => t.id === editingType.parentTypeId)?.name
-      : undefined
-    const { results } = validateIngredientImport(
-      [
-        {
-          name: editingType.name.trim(),
-          category: categoryName,
-          parentType: parentTypeName,
-          barPriority: editingType.barPriority,
-          color: editingType.color.trim() || undefined,
-          description: editingType.description.trim() || undefined,
-        },
-      ],
-      { categories, types: otherTypes, aliases },
-    )
-    const [result] = results
-    if (!result.valid) {
-      setEditTypeError(result.errors.join("; "))
-      setEditTypeSaving(false)
-      return
-    }
-    try {
-      await updateIngredientType(editingType.id, {
-        name: result.resolved.name,
-        categoryId: result.resolved.category_id,
-        parentTypeId: result.resolved.parent_type_id,
-        barPriority: result.resolved.bar_priority,
-        color: result.resolved.color,
-        description: result.resolved.description,
-      })
-      await catalog.refetch()
-      setEditingType(null)
-    } catch (err) {
-      setEditTypeError(err.message)
-    } finally {
-      setEditTypeSaving(false)
-    }
-  }
+  // even an admin. The form itself is IngredientTypeEditor, shared with
+  // Admin's own Ingredient Types tab - here we just track which type (if
+  // any) is currently being edited.
+  const [editingTypeId, setEditingTypeId] = useState(null)
+  const startEditType = (t) => setEditingTypeId(t.id)
 
   // Which type rows have their full product list expanded - separate from
   // ownership, since browsing what's in the shared catalog (e.g. products an
@@ -436,76 +364,18 @@ export default function MyBarScreen() {
   }
 
   const renderEditTypeForm = (type, fullWidthStyle) => (
-    <Card
-      style={{
-        ...fullWidthStyle,
-        padding: 14,
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
+    <IngredientTypeEditor
+      type={type}
+      categories={categories}
+      types={types}
+      aliases={aliases}
+      style={fullWidthStyle}
+      onSaved={async () => {
+        await catalog.refetch()
+        setEditingTypeId(null)
       }}
-    >
-      <Input
-        label="Name"
-        value={editingType.name}
-        onChange={(v) => setEditingType({ ...editingType, name: v })}
-      />
-      <CategoryPicker
-        categories={categories}
-        value={editingType.categoryId}
-        onChange={(v) =>
-          setEditingType({ ...editingType, categoryId: v, parentTypeId: "" })
-        }
-      />
-      <Select
-        value={editingType.parentTypeId}
-        onChange={(v) => setEditingType({ ...editingType, parentTypeId: v })}
-        options={[
-          { value: "", label: "No parent type" },
-          ...types
-            .filter(
-              (t) =>
-                t.category_id === editingType.categoryId &&
-                t.id !== editingType.id,
-            )
-            .map((t) => ({ value: t.id, label: t.name })),
-        ]}
-      />
-      <Select
-        value={editingType.barPriority}
-        onChange={(v) => setEditingType({ ...editingType, barPriority: v })}
-        options={BAR_PRIORITIES.map((p) => ({
-          value: p,
-          label: p[0].toUpperCase() + p.slice(1),
-        }))}
-      />
-      <ColorSwatchPicker
-        value={editingType.color}
-        onChange={(v) => setEditingType({ ...editingType, color: v })}
-      />
-      {editTypeError && (
-        <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
-          {editTypeError}
-        </p>
-      )}
-      <div style={{ display: "flex", gap: 8 }}>
-        <Btn
-          variant="primary"
-          small
-          disabled={
-            editTypeSaving ||
-            !editingType.name.trim() ||
-            !editingType.categoryId
-          }
-          onClick={handleSaveEditType}
-        >
-          {editTypeSaving ? "Saving..." : "Save"}
-        </Btn>
-        <Btn variant="ghost" small onClick={() => setEditingType(null)}>
-          Cancel
-        </Btn>
-      </div>
-    </Card>
+      onCancel={() => setEditingTypeId(null)}
+    />
   )
 
   const renderExpandedProducts = (type, fullWidthStyle) => {
@@ -867,7 +737,7 @@ export default function MyBarScreen() {
                     // product panel both participate as direct grid items
                     // instead of being nested inside one grid cell.
                     <div key={parent.id} style={{ display: "contents" }}>
-                      {editingType?.id === parent.id
+                      {editingTypeId === parent.id
                         ? renderEditTypeForm(parent, { gridColumn: "1 / -1" })
                         : renderTypeCard(parent, false)}
                       {expandedTypeIds.has(parent.id) &&
@@ -907,14 +777,14 @@ export default function MyBarScreen() {
                       {parent.name} family
                     </div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                      {editingType?.id !== parent.id && (
+                      {editingTypeId !== parent.id && (
                         <div style={{ width: 104 }}>
                           {renderTypeCard(parent, false)}
                         </div>
                       )}
                       {children.map(
                         (child) =>
-                          editingType?.id !== child.id && (
+                          editingTypeId !== child.id && (
                             <div key={child.id} style={{ width: 96 }}>
                               {renderTypeCard(child, true)}
                             </div>
@@ -923,7 +793,7 @@ export default function MyBarScreen() {
                     </div>
                     {[parent, ...children].map(
                       (t) =>
-                        editingType?.id === t.id && (
+                        editingTypeId === t.id && (
                           <div key={`edit-${t.id}`}>
                             {renderEditTypeForm(t, { width: "100%" })}
                           </div>

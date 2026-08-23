@@ -98,6 +98,23 @@ export async function updateIngredientType(
   return data
 }
 
+// Admin-only via the pre-existing "ingredient_types: admin delete" RLS
+// policy - existed since the RLS-hardening pass with no caller until now.
+// No pre-check for in-use: a child type, product, recipe component, or
+// substitution alternative referencing this type all have their own
+// restricting FK, so the DB rejects the delete with a real error naming the
+// referencing table (same precedent as glasses/taste tags/families).
+// ingredient_aliases and user_inventory rows pointing at this type cascade
+// away, since a dangling alias or ownership record for a deleted type is
+// meaningless, not something worth blocking on.
+export async function deleteIngredientType(id) {
+  const { error } = await supabase
+    .from("ingredient_types")
+    .delete()
+    .eq("id", id)
+  if (error) throw error
+}
+
 export async function fetchProducts() {
   const { data, error } = await supabase
     .from("products")
