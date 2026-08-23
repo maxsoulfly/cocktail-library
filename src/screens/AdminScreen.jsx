@@ -1085,14 +1085,20 @@ export default function AdminScreen() {
     }
   }
 
-  // Jumps to the single-add form pre-filled with a request's name - doesn't
-  // resolve the request itself, since "added to the catalog" and "marked
-  // fulfilled" are separate admin actions (the admin might want to double-
-  // check the result before dismissing the request).
-  const startSingleAddFromRequest = (name) => {
+  // Jumps to the single-add form pre-filled with a request's name.
+  // singleFromRequestId is threaded through so a successful save can also
+  // mark the request fulfilled - originally these were kept as two
+  // separate manual steps, but real usage found that confusing ("I added
+  // it, why does it still show as pending, do I need to press + again?"),
+  // with no actual benefit: nothing meaningfully different could happen
+  // between "add succeeded" and "mark fulfilled" that would warrant a
+  // separate confirm.
+  const [singleFromRequestId, setSingleFromRequestId] = useState(null)
+  const startSingleAddFromRequest = (name, requestId) => {
     setImportSuccessMessage(null)
     setImportMode("single")
     setSingleName(name)
+    setSingleFromRequestId(requestId)
     setTab("import")
   }
 
@@ -1417,7 +1423,14 @@ export default function AdminScreen() {
     try {
       await createIngredientTypes([result.resolved])
       await catalog.refetch()
-      setImportSuccessMessage(`Added "${result.resolved.name}".`)
+      let message = `Added "${result.resolved.name}".`
+      if (singleFromRequestId) {
+        await resolveIngredientRequest(singleFromRequestId, "fulfilled")
+        loadPendingRequests()
+        setSingleFromRequestId(null)
+        message += " The matching request is marked fulfilled too."
+      }
+      setImportSuccessMessage(message)
       setSingleName("")
       setSingleParentTypeId("")
       setSingleColor("")
@@ -2227,7 +2240,7 @@ export default function AdminScreen() {
                     </div>
                     <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                       <button
-                        onClick={() => startSingleAddFromRequest(r.name)}
+                        onClick={() => startSingleAddFromRequest(r.name, r.id)}
                         title="Add to catalog"
                         style={{
                           background: "rgba(34,211,238,0.1)",
@@ -2299,7 +2312,10 @@ export default function AdminScreen() {
               ].map((e) => (
                 <button
                   key={e.id}
-                  onClick={() => setImportEntity(e.id)}
+                  onClick={() => {
+                    setSingleFromRequestId(null)
+                    setImportEntity(e.id)
+                  }}
                   style={{
                     flex: 1,
                     padding: "10px",
@@ -2347,6 +2363,7 @@ export default function AdminScreen() {
                       key={m.id}
                       onClick={() => {
                         setImportSuccessMessage(null)
+                        setSingleFromRequestId(null)
                         setImportMode(m.id)
                       }}
                       style={{
