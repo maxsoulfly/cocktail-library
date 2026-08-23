@@ -22,6 +22,12 @@ Each numbered step is a development chunk boundary for this file.
 
 ## Last completed chunk
 
+**My Bar family-cluster card could visually grow wider than its slot.** Found during the resumed round-5 QA (My Bar card-grid check) - user's screenshot showed a Whiskey family cluster's "Whiskey Sc..." card noticeably wider than its siblings once it had several owned products attached. Root cause: the cluster's `width:104`/`width:96` wrapper divs correctly fix each card's slot, but nothing on the `Card` itself clipped overflow, so a long unbroken product-name string could spill past that width rather than the existing ellipsis styling actually truncating it. Added `overflow: hidden` to the card - one-line fix, the truncation styling was already there and just needed a box that actually stayed put.
+
+`pnpm test` — 105/105 passing (unchanged, UI-only). `pnpm build` clean. Not yet browser-verified.
+
+## Earlier chunk (duplicate ingredient-request fix)
+
 **Ingredient requests can no longer be submitted as duplicates.** User caught this from real evidence in Admin → Requests: "Coke" and "test" each showing up twice. `RequestIngredientScreen.jsx`'s `handleSubmit()` now checks, before submitting: (1) does the name already resolve against the catalog via the same exact-name-or-alias `resolveIngredientType()` used everywhere else - no fuzzy matching, so this only blocks a genuine duplicate; (2) does the requester already have a *pending* request with this name (case-insensitive), checked against their own already-loaded `myRequests` list. Scoped to the requester's own pending requests, not a global cross-member check - a member's RLS grant on `ingredient_requests` only lets them read their own rows, so that's the only duplicate this screen can actually see without a broader grant, which wasn't asked for.
 
 `pnpm test` — 105/105 passing (unchanged, no domain logic touched). `pnpm build` clean. **Browser-confirmed working, 2026-08-23**.
