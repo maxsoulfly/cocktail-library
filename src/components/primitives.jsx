@@ -178,6 +178,7 @@ export function Btn({
   full,
   small,
   disabled,
+  type = "button",
 }) {
   const styles = {
     primary: {
@@ -203,6 +204,7 @@ export function Btn({
   }
   return (
     <button
+      type={type}
       onClick={onClick}
       disabled={disabled}
       style={{
@@ -228,7 +230,15 @@ export function Btn({
   )
 }
 
-export function Input({ placeholder, value, onChange, type = "text", label }) {
+export function Input({
+  placeholder,
+  value,
+  onChange,
+  type = "text",
+  label,
+  autoComplete,
+  name,
+}) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       {label && (
@@ -247,6 +257,8 @@ export function Input({ placeholder, value, onChange, type = "text", label }) {
       )}
       <input
         type={type}
+        name={name}
+        autoComplete={autoComplete}
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}

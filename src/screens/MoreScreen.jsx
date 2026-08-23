@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { useNavigate, useOutletContext } from "react-router-dom"
 import {
   IconChevR,
@@ -9,7 +10,8 @@ import {
   IconUser,
   IconX,
 } from "@/components/icons"
-import { Card, SectionTitle } from "@/components/primitives"
+import { Btn, Card, Input, SectionTitle } from "@/components/primitives"
+import { changePassword } from "@/services/auth"
 
 function Row({ icon, label, right, onClick, danger }) {
   return (
@@ -60,6 +62,45 @@ export default function MoreScreen() {
   const handleSignOut = async () => {
     await signOut()
     // App-level auth listener picks up the cleared session and routes to Welcome.
+  }
+
+  const [changingPassword, setChangingPassword] = useState(false)
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [pwBusy, setPwBusy] = useState(false)
+  const [pwError, setPwError] = useState(null)
+  const [pwInfo, setPwInfo] = useState(null)
+
+  const closePasswordForm = () => {
+    setChangingPassword(false)
+    setNewPassword("")
+    setConfirmPassword("")
+    setPwError(null)
+    setPwInfo(null)
+  }
+
+  const handleChangePassword = async () => {
+    setPwError(null)
+    setPwInfo(null)
+    if (newPassword.length < 6) {
+      setPwError("Password must be at least 6 characters.")
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setPwError("Passwords don't match.")
+      return
+    }
+    setPwBusy(true)
+    try {
+      await changePassword(newPassword)
+      setNewPassword("")
+      setConfirmPassword("")
+      setPwInfo("Password updated.")
+    } catch (err) {
+      setPwError(err.message)
+    } finally {
+      setPwBusy(false)
+    }
   }
 
   return (
@@ -264,8 +305,77 @@ export default function MoreScreen() {
           <Row
             icon={<IconLock size={18} />}
             label="Change Password"
-            onClick={() => {}}
+            onClick={() =>
+              changingPassword ? closePasswordForm() : setChangingPassword(true)
+            }
           />
+          {changingPassword && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                handleChangePassword()
+              }}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+                padding: "14px 16px",
+                borderBottom: "1px solid var(--border-s)",
+              }}
+            >
+              {/* Hidden username field gives browser password managers the
+                  account context they expect for a "new password" form -
+                  without it Chrome's generator heuristic is less reliable. */}
+              <input
+                type="text"
+                name="username"
+                autoComplete="username"
+                value={email || ""}
+                readOnly
+                hidden
+              />
+              <Input
+                label="New Password"
+                placeholder="••••••••"
+                value={newPassword}
+                onChange={setNewPassword}
+                type="password"
+                name="new-password"
+                autoComplete="new-password"
+              />
+              <Input
+                label="Confirm New Password"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={setConfirmPassword}
+                type="password"
+                name="confirm-password"
+                autoComplete="new-password"
+              />
+              {pwError && (
+                <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
+                  {pwError}
+                </p>
+              )}
+              {pwInfo && (
+                <p style={{ margin: 0, fontSize: 12, color: "var(--cyan)" }}>
+                  {pwInfo}
+                </p>
+              )}
+              <div style={{ display: "flex", gap: 10 }}>
+                <Btn
+                  type="submit"
+                  variant="primary"
+                  disabled={pwBusy || !newPassword || !confirmPassword}
+                >
+                  Save
+                </Btn>
+                <Btn variant="ghost" onClick={closePasswordForm}>
+                  Cancel
+                </Btn>
+              </div>
+            </form>
+          )}
           <Row
             icon={<IconX size={18} />}
             label="Sign Out"
