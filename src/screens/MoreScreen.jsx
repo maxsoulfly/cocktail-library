@@ -12,6 +12,7 @@ import {
 } from "@/components/icons"
 import { Btn, Card, Input, SectionTitle } from "@/components/primitives"
 import { changePassword } from "@/services/auth"
+import { updateProfile } from "@/services/membership"
 
 function Row({ icon, label, right, onClick, danger }) {
   return (
@@ -53,15 +54,66 @@ function Row({ icon, label, right, onClick, danger }) {
 
 export default function MoreScreen() {
   const navigate = useNavigate()
-  const { unit, setUnit, theme, setTheme, isAdmin, profile, email, signOut } =
-    useOutletContext()
+  const {
+    unit,
+    setUnit,
+    theme,
+    setTheme,
+    isAdmin,
+    profile,
+    email,
+    userId,
+    signOut,
+  } = useOutletContext()
 
-  const displayName = profile?.display_name || email || "Member"
+  // profile is a prop handed down from App.jsx with no refetch plumbed
+  // through this far - the same reason theme/unit are tracked as their own
+  // local AppShell state rather than read live off profile. display_name
+  // doesn't need that broader treatment for a one-off edit like this: an
+  // optimistic local override is enough, and a real page load picks up the
+  // saved value from the database anyway.
+  const [displayNameOverride, setDisplayNameOverride] = useState(null)
+  const displayName =
+    displayNameOverride ?? profile?.display_name ?? email ?? "Member"
   const initial = displayName.charAt(0).toUpperCase()
 
   const handleSignOut = async () => {
     await signOut()
     // App-level auth listener picks up the cleared session and routes to Welcome.
+  }
+
+  const [editingProfile, setEditingProfile] = useState(false)
+  const [newDisplayName, setNewDisplayName] = useState("")
+  const [profileBusy, setProfileBusy] = useState(false)
+  const [profileError, setProfileError] = useState(null)
+
+  const openProfileForm = () => {
+    setNewDisplayName(displayName)
+    setProfileError(null)
+    setEditingProfile(true)
+  }
+  const closeProfileForm = () => {
+    setEditingProfile(false)
+    setProfileError(null)
+  }
+
+  const handleSaveProfile = async () => {
+    const trimmed = newDisplayName.trim()
+    if (!trimmed) {
+      setProfileError("Display name can't be empty.")
+      return
+    }
+    setProfileBusy(true)
+    setProfileError(null)
+    try {
+      await updateProfile(userId, { display_name: trimmed })
+      setDisplayNameOverride(trimmed)
+      setEditingProfile(false)
+    } catch (err) {
+      setProfileError(err.message)
+    } finally {
+      setProfileBusy(false)
+    }
   }
 
   const [changingPassword, setChangingPassword] = useState(false)
@@ -300,8 +352,48 @@ export default function MoreScreen() {
           <Row
             icon={<IconUser size={18} />}
             label="Edit Profile"
-            onClick={() => {}}
+            onClick={editingProfile ? closeProfileForm : openProfileForm}
           />
+          {editingProfile && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                handleSaveProfile()
+              }}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+                padding: "14px 16px",
+                borderBottom: "1px solid var(--border-s)",
+              }}
+            >
+              <Input
+                label="Display Name"
+                placeholder="What other members will see you as"
+                value={newDisplayName}
+                onChange={setNewDisplayName}
+                autoComplete="name"
+              />
+              {profileError && (
+                <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
+                  {profileError}
+                </p>
+              )}
+              <div style={{ display: "flex", gap: 10 }}>
+                <Btn
+                  type="submit"
+                  variant="primary"
+                  disabled={profileBusy || !newDisplayName.trim()}
+                >
+                  Save
+                </Btn>
+                <Btn variant="ghost" onClick={closeProfileForm}>
+                  Cancel
+                </Btn>
+              </div>
+            </form>
+          )}
           <Row
             icon={<IconLock size={18} />}
             label="Change Password"

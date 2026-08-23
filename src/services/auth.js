@@ -18,8 +18,16 @@ export function clearPendingInviteCode() {
   sessionStorage.removeItem(PENDING_INVITE_CODE_KEY)
 }
 
-export async function signUpWithEmail(email, password) {
-  const { data, error } = await supabase.auth.signUp({ email, password })
+// displayName becomes raw_user_meta_data.full_name, which handle_new_user()
+// (the auth.users -> profiles trigger) prefers over its bare "New Member"
+// fallback - collecting it here is what keeps a fresh signup's profile from
+// ever defaulting to their email address as a public display name.
+export async function signUpWithEmail(email, password, displayName) {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { full_name: displayName } },
+  })
   if (error) throw error
   return data
 }

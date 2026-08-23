@@ -21,6 +21,7 @@ export default function SignInScreen() {
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [displayName, setDisplayName] = useState("")
   const [view, setView] = useState("form") // form | recover
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
@@ -43,7 +44,7 @@ export default function SignInScreen() {
     setBusy(true)
     try {
       if (mode === "join") {
-        const data = await signUpWithEmail(email, password)
+        const data = await signUpWithEmail(email, password, displayName.trim())
         if (!data.session) {
           setInfo(
             "Check your email to confirm your account, then come back and sign in.",
@@ -207,6 +208,15 @@ export default function SignInScreen() {
                   style={{ flex: 1, height: 1, background: "var(--border-s)" }}
                 />
               </div>
+              {mode === "join" && (
+                <Input
+                  label="Display Name"
+                  placeholder="What other members will see you as"
+                  value={displayName}
+                  onChange={setDisplayName}
+                  autoComplete="name"
+                />
+              )}
               <Input
                 label="Email"
                 placeholder="you@example.com"
@@ -234,7 +244,12 @@ export default function SignInScreen() {
               <Btn
                 variant="primary"
                 full
-                disabled={busy || !email || !password}
+                disabled={
+                  busy ||
+                  !email ||
+                  !password ||
+                  (mode === "join" && !displayName.trim())
+                }
                 onClick={handleEmailSubmit}
               >
                 {mode === "join" ? "Create account" : "Sign in"}
