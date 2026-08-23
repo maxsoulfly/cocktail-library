@@ -64,6 +64,60 @@ function LoadingScreen() {
   )
 }
 
+// A blocked member has a real memberships row (revoked_at set), unlike
+// someone who's never joined at all - showing JoinScreen's "enter an invite
+// code" form here would be actively misleading, since redeem_invitation()
+// rejects a user who already has a membership row regardless of revoked
+// status. This is a distinct, deliberately blunt dead end instead.
+function RevokedScreen() {
+  return (
+    <div
+      style={{
+        minHeight: "100dvh",
+        background: "var(--bg)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 12,
+        padding: 24,
+        textAlign: "center",
+      }}
+    >
+      <p
+        style={{
+          margin: 0,
+          fontFamily: "var(--font-display)",
+          fontWeight: 700,
+          fontSize: 18,
+          color: "var(--text)",
+        }}
+      >
+        Your access has been revoked
+      </p>
+      <p style={{ margin: 0, color: "var(--text2)", fontSize: 14 }}>
+        Contact an administrator if you think this is a mistake.
+      </p>
+      <button
+        onClick={() => signOut()}
+        style={{
+          marginTop: 8,
+          background: "none",
+          border: "1px solid var(--border-s)",
+          borderRadius: "var(--r-sm)",
+          padding: "8px 16px",
+          cursor: "pointer",
+          color: "var(--text2)",
+          fontSize: 13,
+          fontFamily: "var(--font-display)",
+        }}
+      >
+        Sign Out
+      </button>
+    </div>
+  )
+}
+
 // Wraps every authenticated screen: side/bottom nav plus the shared app state
 // handed down via router Outlet context.
 //
@@ -223,6 +277,7 @@ export default function App() {
   const {
     loading: memberLoading,
     isMember,
+    isRevoked,
     profile,
     refetch,
   } = useMembership(userId)
@@ -239,6 +294,10 @@ export default function App() {
   }
 
   if (memberLoading) return <LoadingScreen />
+
+  if (isRevoked) {
+    return <RevokedScreen />
+  }
 
   if (!isMember) {
     return <JoinScreen onRedeemed={refetch} />

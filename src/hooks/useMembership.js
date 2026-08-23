@@ -6,12 +6,18 @@ export function useMembership(userId) {
     loading: true,
     profile: null,
     isMember: false,
+    isRevoked: false,
   })
   const [refreshToken, setRefreshToken] = useState(0)
 
   useEffect(() => {
     if (!userId) {
-      setState({ loading: false, profile: null, isMember: false })
+      setState({
+        loading: false,
+        profile: null,
+        isMember: false,
+        isRevoked: false,
+      })
       return
     }
     let active = true
@@ -19,10 +25,21 @@ export function useMembership(userId) {
     Promise.all([fetchProfile(userId), fetchMembership(userId)])
       .then(([profile, membership]) => {
         if (active)
-          setState({ loading: false, profile, isMember: Boolean(membership) })
+          setState({
+            loading: false,
+            profile,
+            isMember: Boolean(membership) && !membership.revoked_at,
+            isRevoked: Boolean(membership?.revoked_at),
+          })
       })
       .catch(() => {
-        if (active) setState({ loading: false, profile: null, isMember: false })
+        if (active)
+          setState({
+            loading: false,
+            profile: null,
+            isMember: false,
+            isRevoked: false,
+          })
       })
     return () => {
       active = false
