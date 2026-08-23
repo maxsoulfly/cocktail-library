@@ -20,7 +20,16 @@ function mapRecipe(row) {
     description: row.description,
     source: deriveSource(row),
     ownerId: row.owner_id,
-    author: row.owner?.display_name ?? undefined,
+    // A promoted classic has owner_id null (see 20260823130000 - admin
+    // manages it exactly like any other classic) but keeps its original
+    // community author attached via original_owner_id for credit - falling
+    // back to it here means the existing "by {author}" line on
+    // DetailScreen/CocktailCard just works for a promoted classic with no
+    // extra UI needed, same as it already does for an ordinary community
+    // recipe.
+    author:
+      row.owner?.display_name ?? row.original_owner?.display_name ?? undefined,
+    originalOwnerId: row.original_owner_id,
     // `glass` is the glass's real name - EditorScreen matches it back
     // against the live glasses list by name to prefill/save the picker, so
     // this has to stay a name, not the shape key. `glassShape` is the
@@ -56,10 +65,11 @@ function mapRecipe(row) {
 }
 
 const RECIPE_SELECT = `
-  id, name, description, source_type, visibility, moderation_status, owner_id, liquid_color, steps,
+  id, name, description, source_type, visibility, moderation_status, owner_id, original_owner_id, liquid_color, steps,
   glass:glasses(name, shape),
   family:cocktail_families(name),
-  owner:profiles(display_name),
+  owner:profiles!recipes_owner_id_fkey(display_name),
+  original_owner:profiles!recipes_original_owner_id_fkey(display_name),
   recipe_components(id, ingredient_type_id, amount, unit_label, role, sort_order, ingredient_types(name, color), recipe_component_alternatives(ingredient_type_id)),
   recipe_taste_tags(taste_tags(name))
 `
@@ -313,13 +323,32 @@ export async function unpublishRecipe(id) {
   if (error) throw error
 }
 
+// Admin-only, both via SECURITY DEFINER functions - see
+// 20260823130000_classic_promotion.sql for why owner_id/original_owner_id
+// get swapped rather than just flipping source_type in place.
+export async function promoteRecipeToClassic(id) {
+  const { error } = await supabase.rpc("admin_promote_recipe_to_classic", {
+    p_recipe_id: id,
+  })
+  if (error) throw error
+}
+
+export async function demoteRecipeToCommunity(id) {
+  const { error } = await supabase.rpc("admin_demote_recipe_to_community", {
+    p_recipe_id: id,
+  })
+  if (error) throw error
+}
+
 // Admin moderation tab: currently-shared community recipes only - there's no
 // pre-publish review queue (publishing is immediate per the spec), just
 // after-the-fact unpublishing.
 export async function fetchCommunityRecipes() {
   const { data, error } = await supabase
     .from("recipes")
-    .select("id, name, published_at, owner:profiles(display_name)")
+    .select(
+      "id, name, published_at, owner:profiles!recipes_owner_id_fkey(display_name)",
+    )
     .eq("source_type", "user")
     .eq("visibility", "shared")
     .eq("moderation_status", "active")

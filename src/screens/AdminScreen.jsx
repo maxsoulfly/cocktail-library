@@ -68,7 +68,9 @@ import {
 import {
   createClassicRecipes,
   deleteRecipe,
+  demoteRecipeToCommunity,
   fetchCommunityRecipes,
+  promoteRecipeToClassic,
   unpublishRecipe,
 } from "@/services/recipes"
 import {
@@ -928,6 +930,26 @@ export default function AdminScreen() {
     }
   }
 
+  // Promote a published community recipe into the classic catalog - the
+  // admin_promote_recipe_to_classic() function does the real work (nulls
+  // owner_id, sets original_owner_id for credit - see
+  // 20260823130000_classic_promotion.sql); this just needs to refetch both
+  // lists the promoted row moves between.
+  const [confirmPromote, setConfirmPromote] = useState(null)
+  const [promoting, setPromoting] = useState(false)
+
+  const handlePromote = async (id) => {
+    setPromoting(true)
+    try {
+      await promoteRecipeToClassic(id)
+      loadCommunityRecipes()
+      await refetchRecipes()
+    } finally {
+      setPromoting(false)
+      setConfirmPromote(null)
+    }
+  }
+
   // Classic Recipes tab: the ownerless catalog, split out from Community
   // (published member recipes) into its own admin list per the user's
   // request - browsing/editing/deleting classics through Library/Detail
@@ -950,6 +972,30 @@ export default function AdminScreen() {
     } finally {
       setDeletingClassic(false)
       setConfirmDeleteClassicId(null)
+    }
+  }
+
+  // Demote a promoted classic back to an ordinary community recipe under
+  // its original author - only possible when originalOwnerId is set (the
+  // function itself also refuses a "true" classic with no original
+  // community author to hand it back to, this is just the UI reflecting
+  // that same rule so there's nothing to click that can only ever fail).
+  const [confirmDemoteId, setConfirmDemoteId] = useState(null)
+  const [demoting, setDemoting] = useState(false)
+  const [demoteError, setDemoteError] = useState(null)
+
+  const handleDemote = async (id) => {
+    setDemoting(true)
+    setDemoteError(null)
+    try {
+      await demoteRecipeToCommunity(id)
+      await refetchRecipes()
+      loadCommunityRecipes()
+      setConfirmDemoteId(null)
+    } catch (err) {
+      setDemoteError(err.message)
+    } finally {
+      setDemoting(false)
     }
   }
 
@@ -1586,7 +1632,8 @@ export default function AdminScreen() {
             <p style={{ margin: 0, fontSize: 13, color: "var(--text2)" }}>
               The ownerless classic catalog. Edit any of these directly, or
               delete one - that's permanent, unlike unpublishing a community
-              recipe.
+              recipe. A classic promoted from a community recipe (via the
+              Moderation tab) can be demoted back to its original author.
             </p>
             <Input
               placeholder="Search classic recipes..."
@@ -1623,6 +1670,8 @@ export default function AdminScreen() {
                       </div>
                       <div style={{ fontSize: 12, color: "var(--text3)" }}>
                         {r.family ?? "No family"} · {r.glass}
+                        {r.originalOwnerId &&
+                          ` · originally by ${r.author ?? "a member"}`}
                       </div>
                     </div>
                     <button
@@ -1663,7 +1712,71 @@ export default function AdminScreen() {
                     >
                       <IconTrash size={12} /> Delete
                     </button>
+                    {r.originalOwnerId && (
+                      <button
+                        onClick={() => {
+                          setDemoteError(null)
+                          setConfirmDemoteId(r.id)
+                        }}
+                        style={{
+                          background: "rgba(167,139,250,0.1)",
+                          border: "1px solid rgba(167,139,250,0.25)",
+                          borderRadius: 8,
+                          padding: "6px 12px",
+                          cursor: "pointer",
+                          color: "var(--violet)",
+                          fontSize: 12,
+                          fontFamily: "var(--font-display)",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Demote to Community
+                      </button>
+                    )}
                   </div>
+                  {confirmDemoteId === r.id && (
+                    <div
+                      style={{
+                        marginTop: 12,
+                        padding: "12px",
+                        background: "rgba(167,139,250,0.08)",
+                        borderRadius: 8,
+                        border: "1px solid rgba(167,139,250,0.25)",
+                      }}
+                    >
+                      <p
+                        style={{
+                          margin: "0 0 10px",
+                          fontSize: 13,
+                          color: "var(--text2)",
+                        }}
+                      >
+                        {demoteError
+                          ? demoteError
+                          : `Demote "${r.name}" back to a community recipe owned by ${r.author ?? "its original author"}?`}
+                      </p>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <Btn
+                          variant="primary"
+                          small
+                          disabled={demoting}
+                          onClick={() => handleDemote(r.id)}
+                        >
+                          Demote
+                        </Btn>
+                        <Btn
+                          variant="ghost"
+                          small
+                          onClick={() => {
+                            setConfirmDemoteId(null)
+                            setDemoteError(null)
+                          }}
+                        >
+                          Cancel
+                        </Btn>
+                      </div>
+                    </div>
+                  )}
                   {confirmDeleteClassicId === r.id && (
                     <div
                       style={{
@@ -2121,26 +2234,85 @@ export default function AdminScreen() {
                           ` · published ${formatDate(c.published_at)}`}
                       </div>
                     </div>
-                    <button
-                      onClick={() => setConfirmUnpublish(c.id)}
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button
+                        onClick={() => setConfirmPromote(c.id)}
+                        style={{
+                          background: "rgba(167,139,250,0.1)",
+                          border: "1px solid rgba(167,139,250,0.25)",
+                          borderRadius: 8,
+                          padding: "6px 12px",
+                          cursor: "pointer",
+                          color: "var(--violet)",
+                          fontSize: 12,
+                          fontFamily: "var(--font-display)",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Promote to Classic
+                      </button>
+                      <button
+                        onClick={() => setConfirmUnpublish(c.id)}
+                        style={{
+                          background: "rgba(251,113,133,0.1)",
+                          border: "1px solid rgba(251,113,133,0.25)",
+                          borderRadius: 8,
+                          padding: "6px 12px",
+                          cursor: "pointer",
+                          color: "var(--coral)",
+                          fontSize: 12,
+                          fontFamily: "var(--font-display)",
+                          fontWeight: 600,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <IconLock size={12} /> Unpublish
+                      </button>
+                    </div>
+                  </div>
+                  {confirmPromote === c.id && (
+                    <div
                       style={{
-                        background: "rgba(251,113,133,0.1)",
-                        border: "1px solid rgba(251,113,133,0.25)",
+                        marginTop: 12,
+                        padding: "12px",
+                        background: "rgba(167,139,250,0.08)",
                         borderRadius: 8,
-                        padding: "6px 12px",
-                        cursor: "pointer",
-                        color: "var(--coral)",
-                        fontSize: 12,
-                        fontFamily: "var(--font-display)",
-                        fontWeight: 600,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
+                        border: "1px solid rgba(167,139,250,0.25)",
                       }}
                     >
-                      <IconLock size={12} /> Unpublish
-                    </button>
-                  </div>
+                      <p
+                        style={{
+                          margin: "0 0 10px",
+                          fontSize: 13,
+                          color: "var(--text2)",
+                        }}
+                      >
+                        Promote "{c.name}" to the classic catalog? It becomes
+                        ownerless/admin-managed, but stays credited to{" "}
+                        {c.owner?.display_name ?? "its author"} - this can be
+                        reversed from the Classic Recipes tab.
+                      </p>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <Btn
+                          variant="primary"
+                          small
+                          disabled={promoting}
+                          onClick={() => handlePromote(c.id)}
+                        >
+                          Promote
+                        </Btn>
+                        <Btn
+                          variant="ghost"
+                          small
+                          onClick={() => setConfirmPromote(null)}
+                        >
+                          Cancel
+                        </Btn>
+                      </div>
+                    </div>
+                  )}
                   {confirmUnpublish === c.id && (
                     <div
                       style={{
