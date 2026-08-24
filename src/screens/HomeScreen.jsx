@@ -49,87 +49,27 @@ export default function HomeScreen() {
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"
 
   return (
-    <div
-      style={{ paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))" }}
-    >
-      <div
-        style={{
-          padding: "20px 20px 0",
-          background: "var(--bg2)",
-          borderBottom: "1px solid var(--border-s)",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 16,
-          }}
-        >
+    <div className="pb-[calc(96px_+_env(safe-area-inset-bottom,0px))]">
+      <div className="pt-5 px-5 pb-0 bg-bg2 border-b border-bdr">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <p
-              style={{
-                margin: 0,
-                fontSize: 12,
-                color: "var(--text2)",
-                fontFamily: "var(--font-display)",
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-              }}
-            >
+            <p className="text-xs text-tx2 font-display font-semibold uppercase tracking-[0.06em]">
               {greeting}
             </p>
-            <h1
-              style={{
-                margin: "2px 0 0",
-                fontSize: 24,
-                fontFamily: "var(--font-display)",
-                fontWeight: 800,
-                color: "var(--text)",
-                letterSpacing: "-0.02em",
-              }}
-            >
+            <h1 className="mt-0.5 text-2xl font-display font-extrabold text-tx tracking-[-0.02em]">
               {firstName}
             </h1>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="flex gap-2">
             <button
               onClick={() => navigate("/lists")}
-              style={{
-                background: "var(--surface)",
-                border: "1px solid var(--border-s)",
-                borderRadius: "var(--r-sm)",
-                padding: "6px 12px",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                color: "var(--coral)",
-                fontSize: 12,
-                fontFamily: "var(--font-display)",
-                fontWeight: 600,
-              }}
+              className="bg-surface border border-bdr rounded-sm py-1.5 px-3 cursor-pointer flex items-center gap-1.5 text-coral text-xs font-display font-semibold"
             >
               <IconHeart size={14} /> {favorites.size}
             </button>
             <button
               onClick={() => navigate("/lists")}
-              style={{
-                background: "var(--surface)",
-                border: "1px solid var(--border-s)",
-                borderRadius: "var(--r-sm)",
-                padding: "6px 12px",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                color: "var(--violet)",
-                fontSize: 12,
-                fontFamily: "var(--font-display)",
-                fontWeight: 600,
-              }}
+              className="bg-surface border border-bdr rounded-sm py-1.5 px-3 cursor-pointer flex items-center gap-1.5 text-violet text-xs font-display font-semibold"
             >
               <IconBookmark size={14} /> {wantToMake.size}
             </button>
@@ -137,62 +77,25 @@ export default function HomeScreen() {
         </div>
         <button
           onClick={() => navigate("/library")}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            background: "var(--surface)",
-            border: "1px solid var(--border-s)",
-            borderRadius: "var(--r)",
-            padding: "10px 14px",
-            width: "100%",
-            cursor: "text",
-            marginBottom: 16,
-          }}
+          className="flex items-center gap-2.5 bg-surface border border-bdr rounded py-2.5 px-3.5 w-full cursor-text mb-4"
         >
-          <IconSearch size={16} style={{ color: "var(--text3)" }} />
-          <span
-            style={{
-              color: "var(--text3)",
-              fontSize: 14,
-              fontFamily: "var(--font-body)",
-            }}
-          >
+          <IconSearch size={16} className="text-tx3" />
+          <span className="text-tx3 text-sm font-body">
             Search cocktails...
           </span>
         </button>
       </div>
 
-      <div style={{ padding: "20px 20px 0" }}>
+      <div className="pt-5 px-5 pb-0">
         {perfect.length > 0 && (
-          <div style={{ marginBottom: 24 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: 12,
-              }}
-            >
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
               <SectionTitle>Ready to Pour</SectionTitle>
-              <span
-                style={{
-                  fontSize: 12,
-                  fontFamily: "var(--font-mono)",
-                  color: "var(--perfect)",
-                }}
-              >
+              <span className="text-xs font-mono text-perfect">
                 ✦ {perfect.length}
               </span>
             </div>
-            <div
-              style={{
-                display: "flex",
-                gap: 10,
-                overflowX: "auto",
-                paddingBottom: 4,
-              }}
-            >
+            <div className="flex gap-2.5 overflow-x-auto pb-1">
               {perfect.map((c) => (
                 <SmallCard
                   key={c.id}
@@ -205,34 +108,14 @@ export default function HomeScreen() {
         )}
 
         {good.length > 0 && (
-          <div style={{ marginBottom: 24 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: 12,
-              }}
-            >
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
               <SectionTitle>Good Enough</SectionTitle>
-              <span
-                style={{
-                  fontSize: 12,
-                  fontFamily: "var(--font-mono)",
-                  color: "var(--good)",
-                }}
-              >
+              <span className="text-xs font-mono text-good">
                 ◎ {good.length}
               </span>
             </div>
-            <div
-              style={{
-                display: "flex",
-                gap: 10,
-                overflowX: "auto",
-                paddingBottom: 4,
-              }}
-            >
+            <div className="flex gap-2.5 overflow-x-auto pb-1">
               {good.map((c) => (
                 <SmallCard
                   key={c.id}
@@ -245,37 +128,18 @@ export default function HomeScreen() {
         )}
 
         {almost.length > 0 && (
-          <div style={{ marginBottom: 24 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: 12,
-              }}
-            >
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
               <SectionTitle>Almost There</SectionTitle>
-              <span
-                style={{
-                  fontSize: 12,
-                  fontFamily: "var(--font-mono)",
-                  color: "var(--almost)",
-                }}
-              >
+              <span className="text-xs font-mono text-almost">
                 ◐ {almost.length}
               </span>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div className="flex flex-col gap-2">
               {almost.map((c) => (
                 <Card
                   key={c.id}
-                  style={{
-                    padding: "12px 16px",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                  }}
+                  className="py-3 px-4 cursor-pointer flex items-center gap-3"
                   onClick={() => navigate(`/library/${c.id}`)}
                 >
                   <GlassSvg
@@ -284,26 +148,18 @@ export default function HomeScreen() {
                     size={40}
                     avail="almost"
                   />
-                  <div style={{ flex: 1 }}>
-                    <div
-                      style={{
-                        fontSize: 15,
-                        fontFamily: "var(--font-display)",
-                        fontWeight: 700,
-                        color: "var(--text)",
-                        marginBottom: 2,
-                      }}
-                    >
+                  <div className="flex-1">
+                    <div className="text-[15px] font-display font-bold text-tx mb-0.5">
                       {c.name}
                     </div>
-                    <div style={{ fontSize: 12, color: "var(--text2)" }}>
+                    <div className="text-xs text-tx2">
                       Missing:{" "}
-                      <span style={{ color: "var(--almost)", fontWeight: 600 }}>
+                      <span className="text-almost font-semibold">
                         {c.missingRequired[0]}
                       </span>
                     </div>
                   </div>
-                  <IconChevR size={16} style={{ color: "var(--text3)" }} />
+                  <IconChevR size={16} className="text-tx3" />
                 </Card>
               ))}
             </div>
@@ -311,38 +167,30 @@ export default function HomeScreen() {
         )}
 
         {buyNext.length > 0 && (
-          <div style={{ marginBottom: 24 }}>
+          <div className="mb-6">
             <SectionTitle>Buy Next</SectionTitle>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div className="flex flex-col gap-2">
               {buyNext.map((candidate) => {
                 const ing = ingredientTypesById.get(candidate.ingredientTypeId)
                 return (
                   <Card
                     key={candidate.ingredientTypeId}
+                    className="py-3.5 px-4"
                     style={{
-                      padding: "14px 16px",
                       border: "1px solid rgba(251,191,36,0.25)",
                       background: "rgba(251,191,36,0.05)",
                     }}
                   >
-                    <div
-                      style={{ display: "flex", alignItems: "center", gap: 12 }}
-                    >
+                    <div className="flex items-center gap-3">
                       <div
+                        className="w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0"
                         style={{
-                          width: 36,
-                          height: 36,
-                          borderRadius: 10,
                           background: ing
                             ? `${ing.color}30`
                             : "var(--surface3)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
                           border: ing
                             ? `1px solid ${ing.color}50`
                             : "1px solid var(--border-s)",
-                          flexShrink: 0,
                         }}
                       >
                         <IconBottle
@@ -350,29 +198,14 @@ export default function HomeScreen() {
                           style={{ color: ing?.color ?? "var(--text2)" }}
                         />
                       </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div
-                          style={{
-                            fontSize: 15,
-                            fontFamily: "var(--font-display)",
-                            fontWeight: 700,
-                            color: "var(--text)",
-                            marginBottom: 2,
-                          }}
-                        >
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[15px] font-display font-bold text-tx mb-0.5">
                           {candidate.name}
                         </div>
-                        <div style={{ fontSize: 12, color: "var(--text2)" }}>
+                        <div className="text-xs text-tx2">
                           {candidate.reason}
                         </div>
-                        <div
-                          style={{
-                            fontSize: 11,
-                            color: "var(--almost)",
-                            fontFamily: "var(--font-mono)",
-                            marginTop: 4,
-                          }}
-                        >
+                        <div className="text-[11px] text-almost font-mono mt-1">
                           +{candidate.unlockCount}{" "}
                           {candidate.unlockCount === 1
                             ? "cocktail"
@@ -384,19 +217,7 @@ export default function HomeScreen() {
                           inventory.toggleType(candidate.ingredientTypeId)
                         }
                         title="Mark as owned in My Bar"
-                        style={{
-                          background: "var(--surface3)",
-                          border: "1px solid var(--border-s)",
-                          borderRadius: "var(--r-sm)",
-                          width: 36,
-                          height: 36,
-                          flexShrink: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          cursor: "pointer",
-                          color: "var(--green)",
-                        }}
+                        className="bg-surface3 border border-bdr rounded-sm w-9 h-9 shrink-0 flex items-center justify-center cursor-pointer text-green"
                       >
                         <IconCheck size={16} />
                       </button>

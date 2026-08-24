@@ -1,4 +1,5 @@
 import { useState } from "react"
+import clsx from "clsx"
 import { useNavigate, useOutletContext } from "react-router-dom"
 import {
   IconChevR,
@@ -18,36 +19,17 @@ function Row({ icon, label, right, onClick, danger }) {
   return (
     <div
       onClick={onClick}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        padding: "14px 16px",
-        cursor: onClick ? "pointer" : "default",
-        borderBottom: "1px solid var(--border-s)",
-        color: danger ? "var(--coral)" : "var(--text)",
-      }}
+      className={clsx(
+        "flex items-center gap-3 py-3.5 px-4 border-b border-bdr",
+        onClick ? "cursor-pointer" : "cursor-default",
+        danger ? "text-coral" : "text-tx",
+      )}
     >
-      <span
-        style={{
-          color: danger ? "var(--coral)" : "var(--text2)",
-          flexShrink: 0,
-        }}
-      >
+      <span className={clsx("shrink-0", danger ? "text-coral" : "text-tx2")}>
         {icon}
       </span>
-      <span
-        style={{
-          flex: 1,
-          fontSize: 15,
-          fontFamily: "var(--font-body)",
-          fontWeight: 500,
-        }}
-      >
-        {label}
-      </span>
-      {right ??
-        (onClick && <IconChevR size={16} style={{ color: "var(--text3)" }} />)}
+      <span className="flex-1 text-[15px] font-body font-medium">{label}</span>
+      {right ?? (onClick && <IconChevR size={16} className="text-tx3" />)}
     </div>
   )
 }
@@ -156,167 +138,69 @@ export default function MoreScreen() {
   }
 
   return (
-    <div
-      style={{ paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))" }}
-    >
-      <div
-        style={{
-          padding: "20px 20px 16px",
-          borderBottom: "1px solid var(--border-s)",
-          background: "var(--bg2)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div
-            style={{
-              width: 52,
-              height: 52,
-              borderRadius: "50%",
-              background:
-                "linear-gradient(135deg, var(--cyan) 0%, var(--violet) 100%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <span
-              style={{
-                fontSize: 20,
-                fontFamily: "var(--font-display)",
-                fontWeight: 700,
-                color: "#07091a",
-              }}
-            >
+    <div className="pb-[calc(96px_+_env(safe-area-inset-bottom,0px))]">
+      <div className="pt-5 px-5 pb-4 border-b border-bdr bg-bg2">
+        <div className="flex items-center gap-3.5">
+          <div className="w-13 h-13 rounded-full bg-linear-to-br from-cyan to-violet flex items-center justify-center">
+            <span className="text-xl font-display font-bold text-[#07091a]">
               {initial}
             </span>
           </div>
           <div>
-            <div
-              style={{
-                fontSize: 18,
-                fontFamily: "var(--font-display)",
-                fontWeight: 800,
-                color: "var(--text)",
-                letterSpacing: "-0.01em",
-              }}
-            >
+            <div className="text-lg font-display font-extrabold text-tx tracking-[-0.01em]">
               {displayName}
             </div>
-            {email && (
-              <div style={{ fontSize: 13, color: "var(--text2)" }}>{email}</div>
-            )}
+            {email && <div className="text-[13px] text-tx2">{email}</div>}
           </div>
         </div>
       </div>
 
-      <div style={{ padding: "20px" }}>
+      <div className="p-5">
         <SectionTitle>Preferences</SectionTitle>
-        <Card style={{ marginBottom: 20, overflow: "hidden" }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "14px 16px",
-              borderBottom: "1px solid var(--border-s)",
-            }}
-          >
-            <span style={{ color: "var(--text2)", flexShrink: 0 }}>
+        <Card className="mb-5 overflow-hidden">
+          <div className="flex items-center gap-3 py-3.5 px-4 border-b border-bdr">
+            <span className="text-tx2 shrink-0">
               <IconGlass size={18} />
             </span>
-            <span
-              style={{
-                flex: 1,
-                fontSize: 15,
-                fontFamily: "var(--font-body)",
-                fontWeight: 500,
-                color: "var(--text)",
-              }}
-            >
+            <span className="flex-1 text-[15px] font-body font-medium text-tx">
               Measurement
             </span>
-            <div
-              style={{
-                display: "flex",
-                background: "var(--surface3)",
-                border: "1px solid var(--border-s)",
-                borderRadius: 8,
-                overflow: "hidden",
-              }}
-            >
+            <div className="flex bg-surface3 border border-bdr rounded-sm overflow-hidden">
               {["ml", "oz"].map((u) => (
                 <button
                   key={u}
                   onClick={() => setUnit(u)}
-                  style={{
-                    padding: "5px 14px",
-                    background: unit === u ? "var(--cyan)" : "none",
-                    color: unit === u ? "#07091a" : "var(--text2)",
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: 13,
-                    fontFamily: "var(--font-mono)",
-                    fontWeight: 700,
-                    transition: "all 0.15s",
-                  }}
+                  className={clsx(
+                    "py-[5px] px-3.5 border-none cursor-pointer text-[13px] font-mono font-bold transition-all duration-150",
+                    unit === u ? "bg-cyan text-[#07091a]" : "text-tx2",
+                  )}
                 >
                   {u}
                 </button>
               ))}
             </div>
           </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "14px 16px",
-            }}
-          >
-            <span style={{ color: "var(--text2)", flexShrink: 0 }}>
+          <div className="flex items-center gap-3 py-3.5 px-4">
+            <span className="text-tx2 shrink-0">
               <IconInfo size={18} />
             </span>
-            <span
-              style={{
-                flex: 1,
-                fontSize: 15,
-                fontFamily: "var(--font-body)",
-                fontWeight: 500,
-                color: "var(--text)",
-              }}
-            >
+            <span className="flex-1 text-[15px] font-body font-medium text-tx">
               Theme
             </span>
-            <div
-              style={{
-                display: "flex",
-                background: "var(--surface3)",
-                border: "1px solid var(--border-s)",
-                borderRadius: 8,
-                overflow: "hidden",
-              }}
-            >
+            <div className="flex bg-surface3 border border-bdr rounded-sm overflow-hidden">
               {["dark", "light"].map((t) => (
                 <button
                   key={t}
                   onClick={() => setTheme(t)}
-                  style={{
-                    padding: "5px 14px",
-                    background:
-                      theme === t
-                        ? t === "dark"
-                          ? "var(--violet)"
-                          : "var(--amber)"
-                        : "none",
-                    color: theme === t ? "#07091a" : "var(--text2)",
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: 13,
-                    fontFamily: "var(--font-display)",
-                    fontWeight: 600,
-                    textTransform: "capitalize",
-                    transition: "all 0.15s",
-                  }}
+                  className={clsx(
+                    "py-[5px] px-3.5 border-none cursor-pointer text-[13px] font-display font-semibold capitalize transition-all duration-150",
+                    theme === t
+                      ? clsx(
+                          "text-[#07091a]",
+                          t === "dark" ? "bg-violet" : "bg-amber",
+                        )
+                      : "text-tx2",
+                  )}
                 >
                   {t}
                 </button>
@@ -328,7 +212,7 @@ export default function MoreScreen() {
         {isAdmin && (
           <>
             <SectionTitle>Admin</SectionTitle>
-            <Card style={{ marginBottom: 20, overflow: "hidden" }}>
+            <Card className="mb-5 overflow-hidden">
               <Row
                 icon={<IconCrown size={18} />}
                 label="Admin Dashboard"
@@ -339,7 +223,7 @@ export default function MoreScreen() {
         )}
 
         <SectionTitle>Catalog</SectionTitle>
-        <Card style={{ marginBottom: 20, overflow: "hidden" }}>
+        <Card className="mb-5 overflow-hidden">
           <Row
             icon={<IconPlus size={18} />}
             label="Request an Ingredient"
@@ -348,7 +232,7 @@ export default function MoreScreen() {
         </Card>
 
         <SectionTitle>Account</SectionTitle>
-        <Card style={{ overflow: "hidden" }}>
+        <Card className="overflow-hidden">
           <Row
             icon={<IconUser size={18} />}
             label="Edit Profile"
@@ -360,13 +244,7 @@ export default function MoreScreen() {
                 e.preventDefault()
                 handleSaveProfile()
               }}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 12,
-                padding: "14px 16px",
-                borderBottom: "1px solid var(--border-s)",
-              }}
+              className="flex flex-col gap-3 py-3.5 px-4 border-b border-bdr"
             >
               <Input
                 label="Display Name"
@@ -376,11 +254,9 @@ export default function MoreScreen() {
                 autoComplete="name"
               />
               {profileError && (
-                <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
-                  {profileError}
-                </p>
+                <p className="text-xs text-coral">{profileError}</p>
               )}
-              <div style={{ display: "flex", gap: 10 }}>
+              <div className="flex gap-2.5">
                 <Btn
                   type="submit"
                   variant="primary"
@@ -407,13 +283,7 @@ export default function MoreScreen() {
                 e.preventDefault()
                 handleChangePassword()
               }}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 12,
-                padding: "14px 16px",
-                borderBottom: "1px solid var(--border-s)",
-              }}
+              className="flex flex-col gap-3 py-3.5 px-4 border-b border-bdr"
             >
               {/* Hidden username field gives browser password managers the
                   account context they expect for a "new password" form -
@@ -444,17 +314,9 @@ export default function MoreScreen() {
                 name="confirm-password"
                 autoComplete="new-password"
               />
-              {pwError && (
-                <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
-                  {pwError}
-                </p>
-              )}
-              {pwInfo && (
-                <p style={{ margin: 0, fontSize: 12, color: "var(--cyan)" }}>
-                  {pwInfo}
-                </p>
-              )}
-              <div style={{ display: "flex", gap: 10 }}>
+              {pwError && <p className="text-xs text-coral">{pwError}</p>}
+              {pwInfo && <p className="text-xs text-cyan">{pwInfo}</p>}
+              <div className="flex gap-2.5">
                 <Btn
                   type="submit"
                   variant="primary"
