@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react"
+import clsx from "clsx"
 import { IconCheck, IconChevD } from "@/components/icons"
 
 export const AVAIL_CFG = {
@@ -28,62 +29,44 @@ export const AVAIL_CFG = {
   },
 }
 
+const AVAIL_TONE = {
+  perfect: "text-perfect border-perfect",
+  good: "text-good border-good",
+  almost: "text-almost border-almost",
+  unavail: "text-unavail border-unavail",
+}
+
 export function AvailBadge({ avail, small }) {
   const c = AVAIL_CFG[avail]
   return (
     <span
-      style={{
-        color: c.color,
-        border: `1px solid ${c.color}`,
-        borderRadius: 999,
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-        padding: small ? "2px 8px" : "3px 10px",
-        fontSize: small ? 11 : 12,
-        fontFamily: "var(--font-mono)",
-        fontWeight: 500,
-        opacity: avail === "unavail" ? 0.6 : 1,
-      }}
+      className={clsx(
+        "inline-flex items-center gap-1 rounded-full border font-mono font-medium",
+        AVAIL_TONE[avail],
+        small ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-[3px] text-xs",
+        avail === "unavail" && "opacity-60",
+      )}
     >
-      <span style={{ fontSize: small ? 10 : 11 }}>{c.icon}</span>
+      <span className={small ? "text-[10px]" : "text-[11px]"}>{c.icon}</span>
       {c.label}
     </span>
   )
 }
 
 const SOURCE_CFG = {
-  classic: {
-    label: "Classic",
-    color: "var(--violet)",
-    bg: "rgba(167,139,250,0.12)",
-  },
-  community: {
-    label: "Community",
-    color: "var(--cyan)",
-    bg: "rgba(34,211,238,0.1)",
-  },
-  private: {
-    label: "Private",
-    color: "var(--text3)",
-    bg: "rgba(100,120,160,0.1)",
-  },
+  classic: { label: "Classic", tone: "text-violet bg-violet/12" },
+  community: { label: "Community", tone: "text-cyan bg-cyan/10" },
+  private: { label: "Private", tone: "text-tx3 bg-tx3/10" },
 }
 
 export function SourceBadge({ source }) {
   const cfg = SOURCE_CFG[source]
   return (
     <span
-      style={{
-        color: cfg.color,
-        background: cfg.bg,
-        borderRadius: 6,
-        padding: "2px 8px",
-        fontSize: 11,
-        fontWeight: 600,
-        fontFamily: "var(--font-display)",
-        letterSpacing: "0.02em",
-      }}
+      className={clsx(
+        "rounded-[6px] px-2 py-0.5 text-[11px] font-semibold font-display tracking-[0.02em]",
+        cfg.tone,
+      )}
     >
       {cfg.label}
     </span>
@@ -92,17 +75,7 @@ export function SourceBadge({ source }) {
 
 export function TasteTag({ label }) {
   return (
-    <span
-      style={{
-        background: "var(--surface3)",
-        color: "var(--text2)",
-        borderRadius: 6,
-        padding: "2px 8px",
-        fontSize: 11,
-        fontFamily: "var(--font-body)",
-        border: "1px solid var(--border-s)",
-      }}
-    >
+    <span className="bg-surface3 text-tx2 border border-bdr rounded-[6px] px-2 py-0.5 text-[11px] font-body">
       {label}
     </span>
   )
@@ -112,20 +85,12 @@ export function FilterChip({ label, active, onClick }) {
   return (
     <button
       onClick={onClick}
-      style={{
-        borderRadius: 999,
-        padding: "5px 14px",
-        fontSize: 13,
-        fontFamily: "var(--font-display)",
-        fontWeight: active ? 600 : 400,
-        border: `1px solid ${active ? "var(--cyan)" : "var(--border-s)"}`,
-        background: active ? "rgba(34,211,238,0.12)" : "var(--surface)",
-        color: active ? "var(--cyan)" : "var(--text2)",
-        cursor: "pointer",
-        transition: "all 0.15s",
-        whiteSpace: "nowrap",
-        boxShadow: active ? "0 0 10px rgba(34,211,238,0.2)" : "none",
-      }}
+      className={clsx(
+        "rounded-full px-3.5 py-[5px] text-[13px] font-display whitespace-nowrap transition-all duration-150 border cursor-pointer",
+        active
+          ? "font-semibold border-cyan bg-cyan/12 text-cyan shadow-[0_0_10px_rgba(34,211,238,0.2)]"
+          : "font-normal border-bdr bg-surface text-tx2",
+      )}
     >
       {label}
     </button>
@@ -136,38 +101,29 @@ export function OwnedToggle({ owned, onChange }) {
   return (
     <button
       onClick={() => onChange(!owned)}
-      style={{
-        width: 44,
-        height: 24,
-        borderRadius: 12,
-        border: "none",
-        cursor: "pointer",
-        background: owned ? "var(--cyan)" : "var(--surface3)",
-        transition: "background 0.2s",
-        position: "relative",
-        flexShrink: 0,
-        boxShadow: owned ? "0 0 8px rgba(34,211,238,0.4)" : "none",
-      }}
+      className={clsx(
+        "w-11 h-6 rounded-full border-none relative shrink-0 cursor-pointer transition-colors duration-200",
+        owned ? "bg-cyan shadow-[0_0_8px_rgba(34,211,238,0.4)]" : "bg-surface3",
+      )}
     >
       <span
-        style={{
-          position: "absolute",
-          top: 2,
-          left: owned ? 22 : 2,
-          width: 20,
-          height: 20,
-          borderRadius: "50%",
-          background: "white",
-          transition: "left 0.18s",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
+        className={clsx(
+          "absolute top-0.5 w-5 h-5 rounded-full bg-white flex items-center justify-center transition-[left] duration-[180ms]",
+          owned ? "left-[22px]" : "left-0.5",
+        )}
       >
-        {owned && <IconCheck size={12} style={{ color: "var(--cyan)" }} />}
+        {owned && <IconCheck size={12} className="text-cyan" />}
       </span>
     </button>
   )
+}
+
+const BTN_VARIANT = {
+  primary:
+    "bg-cyan text-[#07091a] shadow-[0_0_16px_rgba(34,211,238,0.35)] border-none",
+  secondary: "bg-surface3 text-tx border border-bdr",
+  ghost: "bg-transparent text-tx2 border border-bdr",
+  danger: "bg-coral/15 text-coral border border-coral/30",
 }
 
 export function Btn({
@@ -179,50 +135,18 @@ export function Btn({
   disabled,
   type = "button",
 }) {
-  const styles = {
-    primary: {
-      background: "var(--cyan)",
-      color: "#07091a",
-      boxShadow: "0 0 16px rgba(34,211,238,0.35)",
-    },
-    secondary: {
-      background: "var(--surface3)",
-      color: "var(--text)",
-      border: "1px solid var(--border-s)",
-    },
-    ghost: {
-      background: "transparent",
-      color: "var(--text2)",
-      border: "1px solid var(--border-s)",
-    },
-    danger: {
-      background: "rgba(251,113,133,0.15)",
-      color: "var(--coral)",
-      border: "1px solid rgba(251,113,133,0.3)",
-    },
-  }
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      style={{
-        ...styles[variant],
-        borderRadius: "var(--r)",
-        padding: small ? "6px 14px" : "10px 20px",
-        fontSize: small ? 13 : 14,
-        fontFamily: "var(--font-display)",
-        fontWeight: 600,
-        cursor: disabled ? "not-allowed" : "pointer",
-        width: full ? "100%" : undefined,
-        border: styles[variant].border ?? "none",
-        opacity: disabled ? 0.5 : 1,
-        transition: "opacity 0.15s, box-shadow 0.15s",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 6,
-      }}
+      className={clsx(
+        "rounded font-display font-semibold inline-flex items-center justify-center gap-1.5 transition-[opacity,box-shadow] duration-150",
+        BTN_VARIANT[variant],
+        small ? "px-3.5 py-1.5 text-[13px]" : "px-5 py-2.5 text-sm",
+        full && "w-full",
+        disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
+      )}
     >
       {children}
     </button>
@@ -239,18 +163,9 @@ export function Input({
   name,
 }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+    <div className="flex flex-col gap-1.5">
       {label && (
-        <label
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            color: "var(--text2)",
-            fontFamily: "var(--font-display)",
-            textTransform: "uppercase",
-            letterSpacing: "0.06em",
-          }}
-        >
+        <label className="text-xs font-semibold text-tx2 font-display uppercase tracking-[0.06em]">
           {label}
         </label>
       )}
@@ -261,16 +176,7 @@ export function Input({
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        style={{
-          background: "var(--surface)",
-          border: "1px solid var(--border-s)",
-          borderRadius: "var(--r-sm)",
-          padding: "10px 14px",
-          color: "var(--text)",
-          fontSize: 14,
-          fontFamily: "var(--font-body)",
-          width: "100%",
-        }}
+        className="bg-surface border border-bdr rounded-sm px-3.5 py-2.5 text-tx text-sm font-body w-full"
       />
     </div>
   )
@@ -300,45 +206,20 @@ export function Select({ value, onChange, options, small }) {
   const current = normalized.find((o) => o.value === value)
 
   return (
-    <div ref={ref} style={{ position: "relative" }}>
+    <div ref={ref} className="relative">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        style={{
-          background: "var(--surface)",
-          border: "1px solid var(--border-s)",
-          borderRadius: "var(--r-sm)",
-          padding: small ? "8px 8px" : "10px 14px",
-          color: "var(--text2)",
-          fontSize: small ? 12 : 14,
-          fontFamily: "var(--font-mono)",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          gap: 4,
-          whiteSpace: "nowrap",
-          width: "100%",
-          justifyContent: "space-between",
-        }}
+        className={clsx(
+          "bg-surface border border-bdr rounded-sm text-tx2 font-mono cursor-pointer flex items-center gap-1 whitespace-nowrap w-full justify-between",
+          small ? "p-2 text-xs" : "px-3.5 py-2.5 text-sm",
+        )}
       >
         {current?.label ?? value}
-        <IconChevD size={12} style={{ flexShrink: 0, opacity: 0.6 }} />
+        <IconChevD size={12} className="shrink-0 opacity-60" />
       </button>
       {open && (
-        <div
-          style={{
-            position: "absolute",
-            top: "calc(100% + 4px)",
-            left: 0,
-            zIndex: 20,
-            background: "var(--surface2)",
-            border: "1px solid var(--border-s)",
-            borderRadius: "var(--r-sm)",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
-            minWidth: "100%",
-            overflow: "hidden",
-          }}
-        >
+        <div className="absolute top-[calc(100%_+_4px)] left-0 z-20 bg-surface2 border border-bdr rounded-sm shadow-[0_8px_24px_rgba(0,0,0,0.35)] min-w-full overflow-hidden">
           {normalized.map((o) => (
             <button
               key={o.value}
@@ -347,20 +228,10 @@ export function Select({ value, onChange, options, small }) {
                 onChange(o.value)
                 setOpen(false)
               }}
-              style={{
-                display: "block",
-                width: "100%",
-                textAlign: "left",
-                padding: "8px 12px",
-                background:
-                  o.value === value ? "rgba(34,211,238,0.12)" : "none",
-                border: "none",
-                cursor: "pointer",
-                color: o.value === value ? "var(--cyan)" : "var(--text)",
-                fontSize: 13,
-                fontFamily: "var(--font-body)",
-                whiteSpace: "nowrap",
-              }}
+              className={clsx(
+                "block w-full text-left py-2 px-3 border-none cursor-pointer text-[13px] font-body whitespace-nowrap",
+                o.value === value ? "bg-cyan/12 text-cyan" : "text-tx",
+              )}
             >
               {o.label}
             </button>
@@ -378,25 +249,18 @@ export function Select({ value, onChange, options, small }) {
 // without a second tap.
 export function CategoryPicker({ categories, value, onChange }) {
   return (
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+    <div className="flex gap-2 flex-wrap">
       {categories.map((c) => (
         <button
           key={c.id}
           type="button"
           onClick={() => onChange(c.id)}
-          style={{
-            padding: "8px 12px",
-            borderRadius: "var(--r-sm)",
-            border: `1px solid ${
-              value === c.id ? "var(--cyan)" : "var(--border-s)"
-            }`,
-            background:
-              value === c.id ? "rgba(34,211,238,0.12)" : "var(--surface)",
-            color: value === c.id ? "var(--cyan)" : "var(--text2)",
-            fontSize: 13,
-            fontFamily: "var(--font-body)",
-            cursor: "pointer",
-          }}
+          className={clsx(
+            "py-2 px-3 rounded-sm border text-[13px] font-body cursor-pointer",
+            value === c.id
+              ? "border-cyan bg-cyan/12 text-cyan"
+              : "border-bdr bg-surface text-tx2",
+          )}
         >
           {c.name}
         </button>
@@ -415,57 +279,35 @@ export function CategoryPicker({ categories, value, onChange }) {
 // been a plain hex string, this table only supplies the picker's suggestions.
 export function ColorSwatchPicker({ value, onChange, colors }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+    <div className="flex flex-col gap-2.5">
+      <div className="flex gap-2.5 flex-wrap">
         {colors.map((c) => (
           <button
             key={c.id}
             type="button"
             onClick={() => onChange(c.hex)}
             title={c.name}
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: "50%",
-              background: c.hex,
-              border: `2px solid ${
-                value === c.hex ? "var(--text)" : "var(--border-s)"
-              }`,
-              boxShadow:
-                value === c.hex
-                  ? "0 0 0 2px var(--bg), 0 0 0 3px var(--cyan)"
-                  : "none",
-              cursor: "pointer",
-            }}
+            className={clsx(
+              "w-8 h-8 rounded-full cursor-pointer border-2",
+              value === c.hex
+                ? "border-tx shadow-[0_0_0_2px_var(--bg),0_0_0_3px_var(--cyan)]"
+                : "border-bdr",
+            )}
+            style={{ background: c.hex }}
           />
         ))}
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div className="flex items-center gap-2">
         <div
-          style={{
-            width: 24,
-            height: 24,
-            borderRadius: "50%",
-            background: value || "transparent",
-            border: "1px solid var(--border-s)",
-            flexShrink: 0,
-          }}
+          className="w-6 h-6 rounded-full border border-bdr shrink-0"
+          style={{ background: value || "transparent" }}
         />
         <input
           type="text"
           value={value ?? ""}
           onChange={(e) => onChange(e.target.value)}
           placeholder="Or type any hex, e.g. #6b21a8"
-          style={{
-            background: "var(--surface)",
-            border: "1px solid var(--border-s)",
-            borderRadius: "var(--r-sm)",
-            padding: "6px 10px",
-            color: "var(--text)",
-            fontSize: 13,
-            fontFamily: "var(--font-mono)",
-            width: 160,
-          }}
+          className="bg-surface border border-bdr rounded-sm py-1.5 px-2.5 text-tx text-[13px] font-mono w-40"
         />
       </div>
     </div>
@@ -475,14 +317,9 @@ export function ColorSwatchPicker({ value, onChange, colors }) {
 export function Card({ children, style, className, onClick }) {
   return (
     <div
-      className={className}
+      className={clsx("bg-surface border border-bdr rounded-lg", className)}
       onClick={onClick}
-      style={{
-        background: "var(--surface)",
-        border: "1px solid var(--border-s)",
-        borderRadius: "var(--r-lg)",
-        ...style,
-      }}
+      style={style}
     >
       {children}
     </div>
@@ -503,10 +340,16 @@ export function Card({ children, style, className, onClick }) {
 // paragraph, no separate error line (AdminScreen's shape - pass an
 // already-combined message string rather than a separate `error`, matching
 // the single-paragraph output it always had).
+// Kept as inline style rather than a className: Card's own base classes
+// already set border-color via `border-bdr`, so a second border-color
+// *class* here would compete with Card's for the same property at equal
+// specificity, with the winner decided by Tailwind's generated stylesheet
+// order rather than by which one was meant to override. An inline style
+// always wins deterministically over any class regardless of source order.
 const CONFIRM_BORDER = {
-  cyan: "1px solid rgba(34,211,238,0.25)",
-  neutral: "1px solid var(--border-s)",
-  coral: "1px solid rgba(251,113,133,0.3)",
+  cyan: "rgba(34,211,238,0.25)",
+  neutral: "var(--border-s)",
+  coral: "rgba(251,113,133,0.3)",
 }
 
 export function ConfirmPanel({
@@ -535,10 +378,8 @@ export function ConfirmPanel({
 
   if (layout === "row") {
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: 10, ...style }}>
-        <span style={{ flex: 1, fontSize: 12, color: "var(--coral)" }}>
-          {message}
-        </span>
+      <div className="flex items-center gap-2.5" style={style}>
+        <span className="flex-1 text-xs text-coral">{message}</span>
         {buttons}
       </div>
     )
@@ -546,45 +387,28 @@ export function ConfirmPanel({
 
   if (layout === "stack") {
     return (
-      <div
-        style={{ display: "flex", flexDirection: "column", gap: 8, ...style }}
-      >
-        <p style={{ margin: 0, fontSize: 13, color: "var(--coral)" }}>
-          {message}
-        </p>
-        <div style={{ display: "flex", gap: 8 }}>{buttons}</div>
+      <div className="flex flex-col gap-2" style={style}>
+        <p className="m-0 text-[13px] text-coral">{message}</p>
+        <div className="flex gap-2">{buttons}</div>
       </div>
     )
   }
 
   return (
-    <Card style={{ padding: 16, border: CONFIRM_BORDER[borderTone], ...style }}>
-      <p style={{ margin: "0 0 12px", fontSize: 14, color: "var(--text2)" }}>
-        {message}
-      </p>
-      {error && (
-        <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--coral)" }}>
-          {error}
-        </p>
-      )}
-      <div style={{ display: "flex", gap: 8 }}>{buttons}</div>
+    <Card
+      className="p-4"
+      style={{ borderColor: CONFIRM_BORDER[borderTone], ...style }}
+    >
+      <p className="mb-3 text-sm text-tx2">{message}</p>
+      {error && <p className="mb-3 text-xs text-coral">{error}</p>}
+      <div className="flex gap-2">{buttons}</div>
     </Card>
   )
 }
 
 export function SectionTitle({ children }) {
   return (
-    <h2
-      style={{
-        margin: "0 0 12px",
-        fontSize: 13,
-        fontWeight: 700,
-        fontFamily: "var(--font-display)",
-        color: "var(--text2)",
-        textTransform: "uppercase",
-        letterSpacing: "0.08em",
-      }}
-    >
+    <h2 className="mb-3 text-[13px] font-bold font-display text-tx2 uppercase tracking-[0.08em]">
       {children}
     </h2>
   )

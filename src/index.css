@@ -69,6 +69,7 @@
   --color-surface2: var(--surface2);
   --color-surface3: var(--surface3);
   --color-bdr: var(--border-s);
+  --color-hairline: var(--border);
   --color-tx: var(--text);
   --color-tx2: var(--text2);
   --color-tx3: var(--text3);
