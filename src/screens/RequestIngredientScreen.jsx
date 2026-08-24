@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import clsx from "clsx"
 import {
   useNavigate,
   useOutletContext,
@@ -15,9 +16,9 @@ import {
 } from "@/services/ingredientRequests"
 
 const STATUS_LABELS = {
-  pending: { label: "Pending", color: "var(--amber)" },
-  fulfilled: { label: "Fulfilled", color: "var(--green)" },
-  dismissed: { label: "Dismissed", color: "var(--text3)" },
+  pending: { label: "Pending", tone: "text-amber" },
+  fulfilled: { label: "Fulfilled", tone: "text-green" },
+  dismissed: { label: "Dismissed", tone: "text-tx3" },
 }
 
 const formatDate = (iso) =>
@@ -117,31 +118,13 @@ export default function RequestIngredientScreen() {
 
   if (sent) {
     return (
-      <div
-        style={{
-          paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))",
-        }}
-      >
+      <div className="pb-[calc(96px_+_env(safe-area-inset-bottom,0px))]">
         <TopBar title="Request an Ingredient" onBack={() => navigate(-1)} />
-        <div
-          style={{
-            padding: "60px 24px",
-            textAlign: "center",
-            color: "var(--text2)",
-          }}
-        >
-          <p
-            style={{
-              margin: "0 0 12px",
-              fontSize: 16,
-              fontFamily: "var(--font-display)",
-              fontWeight: 600,
-              color: "var(--text)",
-            }}
-          >
+        <div className="py-15 px-6 text-center text-tx2">
+          <p className="mb-3 text-base font-display font-semibold text-tx">
             Request sent
           </p>
-          <p style={{ margin: "0 0 20px", fontSize: 14 }}>
+          <p className="mb-5 text-sm">
             An admin will review "{name}" and add it to the catalog if it fits.
             {returnTo &&
               " Whatever you were working on is still there, unsaved changes and all."}
@@ -165,26 +148,10 @@ export default function RequestIngredientScreen() {
   }
 
   return (
-    <div
-      style={{ paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))" }}
-    >
+    <div className="pb-[calc(96px_+_env(safe-area-inset-bottom,0px))]">
       <TopBar title="Request an Ingredient" onBack={() => navigate(-1)} />
-      <div
-        style={{
-          padding: "20px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 20,
-        }}
-      >
-        <p
-          style={{
-            margin: 0,
-            fontSize: 13,
-            color: "var(--text2)",
-            lineHeight: 1.5,
-          }}
-        >
+      <div className="p-5 flex flex-col gap-5">
+        <p className="text-[13px] text-tx2 leading-normal">
           Missing an ingredient type - a juice, a garnish, anything else? Only
           admins can add new types to the catalog, but you can ask for one here.
         </p>
@@ -195,18 +162,7 @@ export default function RequestIngredientScreen() {
           onChange={setName}
         />
         <div>
-          <label
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              color: "var(--text2)",
-              fontFamily: "var(--font-display)",
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              display: "block",
-              marginBottom: 6,
-            }}
-          >
+          <label className="text-xs font-bold text-tx2 font-display uppercase tracking-[0.06em] block mb-1.5">
             Note (optional)
           </label>
           <textarea
@@ -214,24 +170,10 @@ export default function RequestIngredientScreen() {
             onChange={(e) => setNote(e.target.value)}
             placeholder="What's it for, or which category do you think it belongs in?"
             rows={3}
-            style={{
-              background: "var(--surface)",
-              border: "1px solid var(--border-s)",
-              borderRadius: "var(--r-sm)",
-              padding: "10px 14px",
-              color: "var(--text)",
-              fontSize: 14,
-              fontFamily: "var(--font-body)",
-              width: "100%",
-              resize: "vertical",
-            }}
+            className="bg-surface border border-bdr rounded-sm py-2.5 px-3.5 text-tx text-sm font-body w-full resize-y"
           />
         </div>
-        {error && (
-          <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
-            {error}
-          </p>
-        )}
+        {error && <p className="text-xs text-coral">{error}</p>}
         <Btn
           variant="primary"
           full
@@ -242,72 +184,37 @@ export default function RequestIngredientScreen() {
         </Btn>
 
         <div>
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              color: "var(--text3)",
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              fontFamily: "var(--font-display)",
-              marginBottom: 8,
-            }}
-          >
+          <div className="text-xs font-bold text-tx3 uppercase tracking-[0.06em] font-display mb-2">
             Your Requests
           </div>
           {requestsLoading ? (
-            <p style={{ margin: 0, fontSize: 13, color: "var(--text3)" }}>
-              Loading...
-            </p>
+            <p className="text-[13px] text-tx3">Loading...</p>
           ) : myRequests.length === 0 ? (
-            <p style={{ margin: 0, fontSize: 13, color: "var(--text3)" }}>
+            <p className="text-[13px] text-tx3">
               You haven't requested anything yet.
             </p>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div className="flex flex-col gap-2">
               {myRequests.map((r) => (
-                <Card key={r.id} style={{ padding: "12px 14px" }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: 10,
-                    }}
-                  >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 8,
-                        }}
-                      >
-                        <span style={{ fontSize: 14, color: "var(--text)" }}>
-                          {r.name}
-                        </span>
+                <Card key={r.id} className="py-3 px-3.5">
+                  <div className="flex items-start gap-2.5">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-tx">{r.name}</span>
                         <span
-                          style={{
-                            fontSize: 11,
-                            fontFamily: "var(--font-mono)",
-                            color: STATUS_LABELS[r.status].color,
-                          }}
+                          className={clsx(
+                            "text-[11px] font-mono",
+                            STATUS_LABELS[r.status].tone,
+                          )}
                         >
                           {STATUS_LABELS[r.status].label}
                         </span>
                       </div>
-                      <div style={{ fontSize: 12, color: "var(--text3)" }}>
+                      <div className="text-xs text-tx3">
                         {formatDate(r.created_at)}
                       </div>
                       {r.note && (
-                        <p
-                          style={{
-                            margin: "6px 0 0",
-                            fontSize: 13,
-                            color: "var(--text2)",
-                          }}
-                        >
-                          {r.note}
-                        </p>
+                        <p className="mt-1.5 text-[13px] text-tx2">{r.note}</p>
                       )}
                     </div>
                     {r.status === "pending" && (
@@ -315,15 +222,7 @@ export default function RequestIngredientScreen() {
                         onClick={() => handleWithdraw(r.id)}
                         disabled={deletingId === r.id}
                         title="Withdraw request"
-                        style={{
-                          background: "rgba(251,113,133,0.1)",
-                          border: "1px solid rgba(251,113,133,0.25)",
-                          borderRadius: 6,
-                          padding: "6px 8px",
-                          cursor: "pointer",
-                          color: "var(--coral)",
-                          flexShrink: 0,
-                        }}
+                        className="bg-coral/10 border border-coral/25 rounded-[6px] py-1.5 px-2 cursor-pointer text-coral shrink-0"
                       >
                         <IconTrash size={14} />
                       </button>

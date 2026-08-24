@@ -88,96 +88,33 @@ export default function SignInScreen() {
         : "Sign in to your Cocktail Library account."
 
   return (
-    <div
-      style={{
-        minHeight: "100dvh",
-        background: "var(--bg)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "32px 24px",
-      }}
-    >
+    <div className="min-h-dvh bg-bg flex flex-col items-center justify-center py-8 px-6">
       <div
+        className="absolute inset-0"
         style={{
-          position: "absolute",
-          inset: 0,
           backgroundImage:
             "radial-gradient(circle at 60% 30%, rgba(167,139,250,0.07) 0%, transparent 50%)",
         }}
       />
-      <div
-        style={{
-          position: "relative",
-          width: "100%",
-          maxWidth: 400,
-          display: "flex",
-          flexDirection: "column",
-          gap: 24,
-        }}
-      >
+      <div className="relative w-full max-w-100 flex flex-col gap-6">
         <button
           onClick={() => navigate("/")}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "var(--text2)",
-            fontSize: 14,
-            padding: 0,
-          }}
+          className="flex items-center gap-1.5 bg-transparent border-none cursor-pointer text-tx2 text-sm p-0"
         >
           <IconBack size={16} /> Back
         </button>
         <div>
-          <h1
-            style={{
-              margin: "0 0 6px",
-              fontFamily: "var(--font-display)",
-              fontWeight: 800,
-              fontSize: 28,
-              color: "var(--text)",
-              letterSpacing: "-0.02em",
-            }}
-          >
+          <h1 className="mb-1.5 font-display font-extrabold text-[28px] text-tx tracking-[-0.02em]">
             {heading}
           </h1>
-          <p style={{ margin: 0, color: "var(--text2)", fontSize: 14 }}>
-            {subheading}
-          </p>
+          <p className="text-tx2 text-sm">{subheading}</p>
         </div>
-        <Card
-          style={{
-            padding: 24,
-            display: "flex",
-            flexDirection: "column",
-            gap: 14,
-          }}
-        >
+        <Card className="p-6 flex flex-col gap-3.5">
           {view === "form" ? (
             <>
               <button
                 onClick={handleGoogle}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 10,
-                  background: "var(--surface3)",
-                  border: "1px solid var(--border-s)",
-                  borderRadius: "var(--r-sm)",
-                  padding: "11px 16px",
-                  cursor: "pointer",
-                  color: "var(--text)",
-                  fontSize: 14,
-                  fontFamily: "var(--font-display)",
-                  fontWeight: 600,
-                  width: "100%",
-                }}
+                className="flex items-center justify-center gap-2.5 bg-surface3 border border-bdr rounded-sm py-[11px] px-4 cursor-pointer text-tx text-sm font-display font-semibold w-full"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24">
                   <path
@@ -199,25 +136,17 @@ export default function SignInScreen() {
                 </svg>
                 Continue with Google
               </button>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div
-                  style={{ flex: 1, height: 1, background: "var(--border-s)" }}
-                />
-                <span style={{ fontSize: 12, color: "var(--text3)" }}>or</span>
-                <div
-                  style={{ flex: 1, height: 1, background: "var(--border-s)" }}
-                />
+              <div className="flex items-center gap-2.5">
+                <div className="flex-1 h-px bg-bdr" />
+                <span className="text-xs text-tx3">or</span>
+                <div className="flex-1 h-px bg-bdr" />
               </div>
               <form
                 onSubmit={(e) => {
                   e.preventDefault()
                   handleEmailSubmit()
                 }}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 14,
-                }}
+                className="flex flex-col gap-3.5"
               >
                 {mode === "join" && (
                   <Input
@@ -246,16 +175,8 @@ export default function SignInScreen() {
                     mode === "join" ? "new-password" : "current-password"
                   }
                 />
-                {error && (
-                  <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
-                    {error}
-                  </p>
-                )}
-                {info && (
-                  <p style={{ margin: 0, fontSize: 12, color: "var(--cyan)" }}>
-                    {info}
-                  </p>
-                )}
+                {error && <p className="text-xs text-coral">{error}</p>}
+                {info && <p className="text-xs text-cyan">{info}</p>}
                 <Btn
                   type="submit"
                   variant="primary"
@@ -277,15 +198,7 @@ export default function SignInScreen() {
                     setError(null)
                     setInfo(null)
                   }}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    color: "var(--cyan)",
-                    fontSize: 13,
-                    padding: 0,
-                    textAlign: "center",
-                  }}
+                  className="bg-transparent border-none cursor-pointer text-cyan text-[13px] p-0 text-center"
                 >
                   Forgot your password?
                 </button>
@@ -300,16 +213,8 @@ export default function SignInScreen() {
                 onChange={setEmail}
                 type="email"
               />
-              {error && (
-                <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
-                  {error}
-                </p>
-              )}
-              {info && (
-                <p style={{ margin: 0, fontSize: 12, color: "var(--cyan)" }}>
-                  {info}
-                </p>
-              )}
+              {error && <p className="text-xs text-coral">{error}</p>}
+              {info && <p className="text-xs text-cyan">{info}</p>}
               <Btn
                 variant="primary"
                 full
@@ -324,37 +229,15 @@ export default function SignInScreen() {
                   setError(null)
                   setInfo(null)
                 }}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  color: "var(--text2)",
-                  fontSize: 13,
-                  padding: 0,
-                  textAlign: "center",
-                }}
+                className="bg-transparent border-none cursor-pointer text-tx2 text-[13px] p-0 text-center"
               >
                 Back to sign in
               </button>
             </>
           )}
         </Card>
-        <p
-          style={{
-            textAlign: "center",
-            fontSize: 12,
-            color: "var(--text3)",
-            margin: 0,
-          }}
-        >
-          <IconLock
-            size={12}
-            style={{
-              display: "inline",
-              verticalAlign: "middle",
-              marginRight: 4,
-            }}
-          />
+        <p className="text-center text-xs text-tx3">
+          <IconLock size={12} className="inline align-middle mr-1" />
           Cocktail Library is invite-only. No accounts without an invitation.
         </p>
       </div>
