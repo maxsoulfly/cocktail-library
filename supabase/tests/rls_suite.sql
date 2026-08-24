@@ -34,15 +34,21 @@
 -- insert (Supabase Auth owns that table), so real accounts are the only
 -- practical fixture identities without standing up a local instance.
 --
--- Coverage so far: recipes, ingredient_types, memberships (the three
--- tables that already had a real RLS bug found and fixed this session),
--- plus the five simple "member read, admin write" lookup tables (glasses,
--- taste_tags, cocktail_families, liquid_colors, ingredient_categories) via
--- one generic pg_temp.test_lookup_table() helper, since they all share the
--- identical policy shape. Not yet covered: products, ingredient_aliases,
--- invitations, ingredient_requests, user_inventory, recipe_components,
--- recipe_component_alternatives, lists. Add a new section per table
--- following the pattern below as a follow-up chunk.
+-- Coverage: all ~15 RLS-protected tables. recipes, ingredient_types,
+-- memberships (the three tables that already had a real RLS bug found and
+-- fixed this session) and the five simple "member read, admin write" lookup
+-- tables (glasses, taste_tags, cocktail_families, liquid_colors,
+-- ingredient_categories, plus ingredient_aliases which shares the identical
+-- shape) via one generic pg_temp.test_lookup_table() helper. products,
+-- invitations, ingredient_requests each have their own dedicated block
+-- (real per-row owner/admin logic, not a flat lookup-table shape).
+-- user_inventory, user_favorites, user_want_to_make are all "strictly
+-- private, no admin override" - the latter two share a generic
+-- pg_temp.test_private_user_recipe_table() helper, user_inventory gets its
+-- own block for its polymorphic ingredient_type_id/product_id shape.
+-- recipe_components/recipe_component_alternatives both gate through the
+-- recipe_is_editable()/recipe_is_visible() helper functions rather than
+-- their own ownership columns.
 
 begin;
 
@@ -93,7 +99,9 @@ create temporary table rls_fixture_ids (
   member_owner_id uuid,
   member_other_id uuid,
   glass_id uuid,
-  category_id uuid
+  category_id uuid,
+  type_a_id uuid,
+  type_b_id uuid
 ) on commit drop;
 
 insert into rls_fixture_ids
@@ -108,7 +116,9 @@ select
      where p.role = 'member' and m.revoked_at is null
      order by m.granted_at asc offset 1 limit 1),
   (select id from public.glasses limit 1),
-  (select id from public.ingredient_categories limit 1);
+  (select id from public.ingredient_categories limit 1),
+  (select id from public.ingredient_types order by id limit 1),
+  (select id from public.ingredient_types order by id offset 1 limit 1);
 grant all on rls_fixture_ids to authenticated, anon;
 
 do $$
@@ -121,6 +131,9 @@ begin
   perform pg_temp.assert(f.member_owner_id <> f.member_other_id, 'fixture: the two member accounts are distinct');
   perform pg_temp.assert(f.glass_id is not null, 'fixture: a real glass exists');
   perform pg_temp.assert(f.category_id is not null, 'fixture: a real ingredient category exists');
+  perform pg_temp.assert(f.type_a_id is not null, 'fixture: a real ingredient type exists (a)');
+  perform pg_temp.assert(f.type_b_id is not null, 'fixture: a second real ingredient type exists (b)');
+  perform pg_temp.assert(f.type_a_id <> f.type_b_id, 'fixture: the two ingredient types are distinct');
 end;
 $$;
 
@@ -426,6 +439,428 @@ do $$ begin
 end $$;
 do $$ begin
   perform pg_temp.test_lookup_table('ingredient_categories', 'name, sort_order', $vals$'RLS_TEST category', 999$vals$, 'name', 'RLS_TEST category renamed');
+end $$;
+
+-- ingredient_aliases shares the exact same "member read, admin write" shape
+-- as the five lookup tables above - the only difference is its insert needs
+-- a real ingredient_type_id, which isn't known until runtime, so the values
+-- string is built dynamically instead of being a literal like the others.
+do $$
+declare f record; v_vals text;
+begin
+  select * into f from rls_fixture_ids;
+  v_vals := format('%L, %L', f.type_a_id, 'RLS_TEST alias');
+  perform pg_temp.test_lookup_table('ingredient_aliases', 'ingredient_type_id, alias', v_vals, 'alias', 'RLS_TEST alias renamed');
+end $$;
+
+-- ── products ─────────────────────────────────────────────────────────────
+-- Shared catalog: any member can read and insert (their own created_by),
+-- but only admin can update/delete - unlike the lookup tables, ordinary
+-- members DO get an insert path here (spec: members can add products, never
+-- new ingredient types).
+
+create temporary table rls_product_ids (new_id uuid) on commit drop;
+insert into rls_product_ids (new_id) values (null);
+grant all on rls_product_ids to authenticated, anon;
+
+do $$
+declare f record; v_id uuid; n int; affected int;
+begin
+  select * into f from rls_fixture_ids;
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+
+  insert into public.products (ingredient_type_id, name)
+  values (f.type_a_id, 'RLS_TEST product')
+  returning id into v_id;
+  update rls_product_ids set new_id = v_id;
+  perform pg_temp.assert(true, 'products: an ordinary member can insert a product (created_by defaults to their own id)');
+
+  begin
+    insert into public.products (ingredient_type_id, name, created_by)
+    values (f.type_a_id, 'RLS_TEST forged product', f.member_other_id);
+    perform pg_temp.assert(false, 'products: a member inserting with someone else''s created_by should be denied');
+  exception when insufficient_privilege then
+    perform pg_temp.assert(true, 'products: a member cannot insert a product credited to someone else');
+  end;
+
+  select count(*) into n from public.products where id = v_id;
+  perform pg_temp.assert(n = 1, 'products: any member can read the shared catalog');
+
+  perform pg_temp.set_identity('anon', null);
+  select count(*) into n from public.products where id = v_id;
+  perform pg_temp.assert(n = 0, 'products: anon cannot read the catalog');
+
+  perform pg_temp.set_identity('authenticated', f.member_other_id);
+  update public.products set name = 'RLS_TEST hijacked product' where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 0, 'products: an ordinary member cannot update a product (admin-only, even a stranger''s)');
+
+  delete from public.products where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 0, 'products: an ordinary member cannot delete a product');
+
+  perform pg_temp.set_identity('authenticated', f.admin_id);
+  update public.products set name = 'RLS_TEST renamed product' where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 1, 'products: admin can update a product');
+
+  delete from public.products where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 1, 'products: admin can delete a product');
+end;
+$$;
+
+-- ── invitations ──────────────────────────────────────────────────────────
+-- Single "ALL" policy gated on is_admin() alone - no owner branch at all,
+-- so even the admin who created a given invitation has no special claim
+-- over it beyond just being admin. Ordinary members get zero access,
+-- including to their own eventual invitation (redemption goes through the
+-- separate redeem_invitation() SECURITY DEFINER function, never direct
+-- table access).
+
+do $$
+declare f record; v_id uuid; n int; affected int;
+begin
+  select * into f from rls_fixture_ids;
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+
+  select count(*) into n from public.invitations;
+  perform pg_temp.assert(n = 0, 'invitations: an ordinary member cannot read any invitation');
+
+  begin
+    insert into public.invitations (code, created_by, expires_at)
+    values ('RLS_TEST_INVITE', f.member_owner_id, now() + interval '1 day');
+    perform pg_temp.assert(false, 'invitations: an ordinary member inserting an invitation should be denied');
+  exception when insufficient_privilege then
+    perform pg_temp.assert(true, 'invitations: an ordinary member cannot insert an invitation');
+  end;
+
+  perform pg_temp.set_identity('authenticated', f.admin_id);
+  insert into public.invitations (code, created_by, expires_at)
+  values ('RLS_TEST_INVITE', f.admin_id, now() + interval '1 day')
+  returning id into v_id;
+  perform pg_temp.assert(true, 'invitations: admin can insert an invitation');
+
+  select count(*) into n from public.invitations where id = v_id;
+  perform pg_temp.assert(n = 1, 'invitations: admin can read an invitation');
+
+  perform pg_temp.set_identity('authenticated', f.member_other_id);
+  update public.invitations set revoked_at = now() where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 0, 'invitations: an ordinary member cannot revoke an invitation');
+
+  perform pg_temp.set_identity('authenticated', f.admin_id);
+  update public.invitations set revoked_at = now() where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 1, 'invitations: admin can revoke an invitation');
+
+  delete from public.invitations where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 1, 'invitations: admin can delete an invitation');
+end;
+$$;
+
+-- ── ingredient_requests ──────────────────────────────────────────────────
+-- Own-row read/insert for members (plus admin read-all), owner can only
+-- delete while still 'pending', and only admin can update (resolve) a
+-- request at all - two separate real-world behaviors worth both covering:
+-- the pending-delete window closing once resolved, and admin-only resolve.
+
+create temporary table rls_request_ids (pending_id uuid, resolved_id uuid) on commit drop;
+insert into rls_request_ids (pending_id, resolved_id) values (null, null);
+grant all on rls_request_ids to authenticated, anon;
+
+do $$
+declare f record; v_id uuid; n int; affected int;
+begin
+  select * into f from rls_fixture_ids;
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+
+  insert into public.ingredient_requests (requested_by, name)
+  values (f.member_owner_id, 'RLS_TEST resolved-request ingredient')
+  returning id into v_id;
+  update rls_request_ids set resolved_id = v_id;
+  perform pg_temp.assert(true, 'ingredient_requests: a member can insert their own request');
+
+  begin
+    insert into public.ingredient_requests (requested_by, name)
+    values (f.member_other_id, 'RLS_TEST forged request');
+    perform pg_temp.assert(false, 'ingredient_requests: a member inserting with someone else''s requested_by should be denied');
+  exception when insufficient_privilege then
+    perform pg_temp.assert(true, 'ingredient_requests: a member cannot insert a request credited to someone else');
+  end;
+
+  select count(*) into n from public.ingredient_requests where id = v_id;
+  perform pg_temp.assert(n = 1, 'ingredient_requests: the requester can read their own request');
+
+  perform pg_temp.set_identity('authenticated', f.member_other_id);
+  select count(*) into n from public.ingredient_requests where id = v_id;
+  perform pg_temp.assert(n = 0, 'ingredient_requests: a different member cannot read someone else''s request');
+
+  update public.ingredient_requests set status = 'fulfilled' where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 0, 'ingredient_requests: an ordinary member cannot resolve a request (admin-only)');
+
+  delete from public.ingredient_requests where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 0, 'ingredient_requests: a different member cannot delete someone else''s request');
+
+  perform pg_temp.set_identity('authenticated', f.admin_id);
+  select count(*) into n from public.ingredient_requests where id = v_id;
+  perform pg_temp.assert(n = 1, 'ingredient_requests: admin can read any request');
+
+  update public.ingredient_requests set status = 'fulfilled' where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 1, 'ingredient_requests: admin can resolve a request');
+
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+  delete from public.ingredient_requests where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 0, 'ingredient_requests: the owner cannot delete their own request once it''s no longer pending (regression case)');
+end;
+$$;
+
+do $$
+declare f record; v_id uuid; affected int;
+begin
+  select * into f from rls_fixture_ids;
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+
+  insert into public.ingredient_requests (requested_by, name)
+  values (f.member_owner_id, 'RLS_TEST pending-request ingredient')
+  returning id into v_id;
+  update rls_request_ids set pending_id = v_id;
+
+  delete from public.ingredient_requests where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 1, 'ingredient_requests: the owner can delete their own request while it''s still pending');
+end;
+$$;
+
+-- ── user_inventory ───────────────────────────────────────────────────────
+-- Strictly private per the table's own comment - no admin-read override,
+-- unlike profiles/memberships. Worth asserting explicitly, not just trusting
+-- the comment, since this is exactly the class of thing this suite exists
+-- to catch drift on (see liquid_colors in the last chunk).
+
+do $$
+declare f record; v_type_id uuid; v_id uuid; n int; affected int;
+begin
+  select * into f from rls_fixture_ids;
+
+  -- Still the real connecting (superuser) role here, before set_identity -
+  -- pick a type member_owner doesn't already own in their real My Bar data,
+  -- since type_a_id/type_b_id are just "the first two types that exist" and
+  -- may already be in a real account's inventory (unique per user+type).
+  select id into v_type_id from public.ingredient_types
+    where id not in (
+      select ingredient_type_id from public.user_inventory
+      where user_id in (f.member_owner_id, f.member_other_id) and ingredient_type_id is not null
+    )
+    limit 1;
+  perform pg_temp.assert(v_type_id is not null, 'fixture: an ingredient type not already in either member''s inventory exists');
+
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+
+  insert into public.user_inventory (user_id, ingredient_type_id)
+  values (f.member_owner_id, v_type_id)
+  returning id into v_id;
+  perform pg_temp.assert(true, 'user_inventory: a member can insert their own inventory row');
+
+  begin
+    insert into public.user_inventory (user_id, ingredient_type_id)
+    values (f.member_other_id, v_type_id);
+    perform pg_temp.assert(false, 'user_inventory: a member inserting with someone else''s user_id should be denied');
+  exception when insufficient_privilege then
+    perform pg_temp.assert(true, 'user_inventory: a member cannot insert an inventory row for someone else');
+  end;
+
+  select count(*) into n from public.user_inventory where id = v_id;
+  perform pg_temp.assert(n = 1, 'user_inventory: the owner can read their own inventory row');
+
+  perform pg_temp.set_identity('authenticated', f.member_other_id);
+  select count(*) into n from public.user_inventory where id = v_id;
+  perform pg_temp.assert(n = 0, 'user_inventory: a different member cannot read someone else''s inventory row');
+
+  perform pg_temp.set_identity('authenticated', f.admin_id);
+  select count(*) into n from public.user_inventory where id = v_id;
+  perform pg_temp.assert(n = 0, 'user_inventory: strictly private - even admin cannot read someone else''s inventory row');
+
+  perform pg_temp.set_identity('authenticated', f.member_other_id);
+  delete from public.user_inventory where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 0, 'user_inventory: a different member cannot delete someone else''s inventory row');
+
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+  delete from public.user_inventory where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 1, 'user_inventory: the owner can delete their own inventory row');
+end;
+$$;
+
+-- ── recipe_components / recipe_component_alternatives ───────────────────
+-- Neither table has its own owner column - both gate entirely through
+-- recipe_is_editable(recipe_id)/recipe_is_visible(recipe_id), which read
+-- the parent recipe's own owner_id/visibility. Reuses the private_id/
+-- shared_id fixtures the recipes section already created above (still live
+-- in this transaction - nothing here has been committed yet).
+
+create temporary table rls_component_ids (comp_id uuid, alt_id uuid) on commit drop;
+insert into rls_component_ids (comp_id, alt_id) values (null, null);
+grant all on rls_component_ids to authenticated, anon;
+
+do $$
+declare f record; r record; v_id uuid; n int; affected int;
+begin
+  select * into f from rls_fixture_ids;
+  select * into r from rls_recipe_ids;
+
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+  insert into public.recipe_components (recipe_id, ingredient_type_id, amount, unit_label, role)
+  values (r.private_id, f.type_a_id, 30, 'ml', 'required')
+  returning id into v_id;
+  update rls_component_ids set comp_id = v_id;
+  perform pg_temp.assert(true, 'recipe_components: the recipe owner can insert a component');
+
+  perform pg_temp.set_identity('authenticated', f.member_other_id);
+  begin
+    insert into public.recipe_components (recipe_id, ingredient_type_id, amount, unit_label, role)
+    values (r.private_id, f.type_b_id, 15, 'ml', 'required');
+    perform pg_temp.assert(false, 'recipe_components: a non-owner member inserting into someone else''s private recipe should be denied');
+  exception when insufficient_privilege then
+    perform pg_temp.assert(true, 'recipe_components: a non-owner member cannot insert into a private recipe they don''t own');
+  end;
+
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+  select count(*) into n from public.recipe_components where id = v_id;
+  perform pg_temp.assert(n = 1, 'recipe_components: the owner can read their own private recipe''s components');
+
+  perform pg_temp.set_identity('authenticated', f.member_other_id);
+  select count(*) into n from public.recipe_components where id = v_id;
+  perform pg_temp.assert(n = 0, 'recipe_components: a non-owner member cannot read a private recipe''s components');
+
+  perform pg_temp.set_identity('anon', null);
+  select count(*) into n from public.recipe_components where id = v_id;
+  perform pg_temp.assert(n = 0, 'recipe_components: anon cannot read a private recipe''s components');
+
+  perform pg_temp.set_identity('authenticated', f.member_other_id);
+  update public.recipe_components set amount = 999 where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 0, 'recipe_components: a non-owner member cannot update a component on a private recipe');
+
+  delete from public.recipe_components where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 0, 'recipe_components: a non-owner member cannot delete a component on a private recipe');
+
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+  update public.recipe_components set amount = 45 where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 1, 'recipe_components: the owner can update a component on their own recipe');
+end;
+$$;
+
+do $$
+declare f record; r record; c record; v_id uuid; n int; affected int;
+begin
+  select * into f from rls_fixture_ids;
+  select * into r from rls_recipe_ids;
+  select * into c from rls_component_ids;
+
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+  insert into public.recipe_component_alternatives (recipe_id, recipe_component_id, ingredient_type_id)
+  values (r.private_id, c.comp_id, f.type_b_id)
+  returning id into v_id;
+  update rls_component_ids set alt_id = v_id;
+  perform pg_temp.assert(true, 'recipe_component_alternatives: the recipe owner can insert a substitution alternative');
+
+  perform pg_temp.set_identity('authenticated', f.member_other_id);
+  select count(*) into n from public.recipe_component_alternatives where id = v_id;
+  perform pg_temp.assert(n = 0, 'recipe_component_alternatives: a non-owner member cannot read alternatives on a private recipe');
+
+  delete from public.recipe_component_alternatives where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 0, 'recipe_component_alternatives: a non-owner member cannot delete an alternative on a private recipe');
+
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+  select count(*) into n from public.recipe_component_alternatives where id = v_id;
+  perform pg_temp.assert(n = 1, 'recipe_component_alternatives: the owner can read their own recipe''s alternatives');
+
+  delete from public.recipe_component_alternatives where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 1, 'recipe_component_alternatives: the owner can delete an alternative on their own recipe');
+
+  delete from public.recipe_components where id = c.comp_id;
+end;
+$$;
+
+-- ── user_favorites / user_want_to_make ───────────────────────────────────
+-- Both share the identical "strictly private, select/insert/delete own row
+-- only, no update, no admin override" shape - one generic helper instead of
+-- two near-duplicate blocks, same reasoning as the lookup-table helper
+-- above. Uses the shared_id recipe fixture from the recipes section (any
+-- live recipe id works as the FK target; favorites/want-to-make don't
+-- re-check recipe visibility themselves).
+create function pg_temp.test_private_user_recipe_table(p_table text, p_recipe_id uuid) returns void
+language plpgsql as $$
+declare
+  f record;
+  n int;
+  affected int;
+begin
+  select * into f from rls_fixture_ids;
+
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+  execute format('insert into public.%I (user_id, recipe_id) values ($1, $2)', p_table)
+    using f.member_owner_id, p_recipe_id;
+  perform pg_temp.assert(true, format('%s: a member can insert their own row', p_table));
+
+  begin
+    execute format('insert into public.%I (user_id, recipe_id) values ($1, $2)', p_table)
+      using f.member_other_id, p_recipe_id;
+    perform pg_temp.assert(false, format('%s: a member inserting with someone else''s user_id should be denied', p_table));
+  exception when insufficient_privilege then
+    perform pg_temp.assert(true, format('%s: a member cannot insert a row for someone else', p_table));
+  end;
+
+  execute format('select count(*) from public.%I where user_id = $1 and recipe_id = $2', p_table)
+    into n using f.member_owner_id, p_recipe_id;
+  perform pg_temp.assert(n = 1, format('%s: the owner can read their own row', p_table));
+
+  perform pg_temp.set_identity('authenticated', f.member_other_id);
+  execute format('select count(*) from public.%I where user_id = $1 and recipe_id = $2', p_table)
+    into n using f.member_owner_id, p_recipe_id;
+  perform pg_temp.assert(n = 0, format('%s: a different member cannot read someone else''s row', p_table));
+
+  perform pg_temp.set_identity('authenticated', f.admin_id);
+  execute format('select count(*) from public.%I where user_id = $1 and recipe_id = $2', p_table)
+    into n using f.member_owner_id, p_recipe_id;
+  perform pg_temp.assert(n = 0, format('%s: strictly private - even admin cannot read someone else''s row', p_table));
+
+  perform pg_temp.set_identity('authenticated', f.member_other_id);
+  execute format('delete from public.%I where user_id = $1 and recipe_id = $2', p_table)
+    using f.member_owner_id, p_recipe_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 0, format('%s: a different member cannot delete someone else''s row', p_table));
+
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+  execute format('delete from public.%I where user_id = $1 and recipe_id = $2', p_table)
+    using f.member_owner_id, p_recipe_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 1, format('%s: the owner can delete their own row', p_table));
+end;
+$$;
+
+do $$
+declare r record;
+begin
+  select * into r from rls_recipe_ids;
+  perform pg_temp.test_private_user_recipe_table('user_favorites', r.shared_id);
+end $$;
+do $$
+declare r record;
+begin
+  select * into r from rls_recipe_ids;
+  perform pg_temp.test_private_user_recipe_table('user_want_to_make', r.shared_id);
 end $$;
 
 rollback;
