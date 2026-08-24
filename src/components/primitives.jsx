@@ -489,6 +489,89 @@ export function Card({ children, style, className, onClick }) {
   )
 }
 
+// Shared "are you sure?" panel - message + confirm/cancel buttons, with an
+// optional separate error line. Consolidates 3 independently-duplicated
+// confirm implementations (DetailScreen's publish/unpublish/delete panels,
+// MyBarScreen's product-delete row, AdminScreen's NamedRowManager
+// delete-confirm) that differ only in container shape, not in the underlying
+// pattern. `layout="card"` wraps in a bordered Card (DetailScreen's shape,
+// `borderTone` picked independently of `confirmVariant` - e.g. Unpublish is
+// danger-styled but neutral-bordered); `layout="row"` is a single horizontal
+// flex row with no Card and no separate error line (MyBarScreen's shape -
+// callers supply their own row padding/border/background via `style`);
+// `layout="stack"` is an unwrapped vertical flex column, one message
+// paragraph, no separate error line (AdminScreen's shape - pass an
+// already-combined message string rather than a separate `error`, matching
+// the single-paragraph output it always had).
+const CONFIRM_BORDER = {
+  cyan: "1px solid rgba(34,211,238,0.25)",
+  neutral: "1px solid var(--border-s)",
+  coral: "1px solid rgba(251,113,133,0.3)",
+}
+
+export function ConfirmPanel({
+  message,
+  error,
+  confirmLabel = "Delete",
+  cancelLabel = "Cancel",
+  confirmVariant = "danger",
+  onConfirm,
+  onCancel,
+  busy,
+  layout = "card",
+  borderTone = "neutral",
+  style,
+}) {
+  const buttons = (
+    <>
+      <Btn variant={confirmVariant} small disabled={busy} onClick={onConfirm}>
+        {confirmLabel}
+      </Btn>
+      <Btn variant="ghost" small onClick={onCancel}>
+        {cancelLabel}
+      </Btn>
+    </>
+  )
+
+  if (layout === "row") {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 10, ...style }}>
+        <span style={{ flex: 1, fontSize: 12, color: "var(--coral)" }}>
+          {message}
+        </span>
+        {buttons}
+      </div>
+    )
+  }
+
+  if (layout === "stack") {
+    return (
+      <div
+        style={{ display: "flex", flexDirection: "column", gap: 8, ...style }}
+      >
+        <p style={{ margin: 0, fontSize: 13, color: "var(--coral)" }}>
+          {message}
+        </p>
+        <div style={{ display: "flex", gap: 8 }}>{buttons}</div>
+      </div>
+    )
+  }
+
+  return (
+    <Card style={{ padding: 16, border: CONFIRM_BORDER[borderTone], ...style }}>
+      <p style={{ margin: "0 0 12px", fontSize: 14, color: "var(--text2)" }}>
+        {message}
+      </p>
+      {error && (
+        <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--coral)" }}>
+          {error}
+        </p>
+      )}
+      <div style={{ display: "flex", gap: 8 }}>{buttons}</div>
+    </Card>
+  )
+}
+
 export function SectionTitle({ children }) {
   return (
     <h2
