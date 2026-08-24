@@ -4,32 +4,17 @@
 // their hex value (there's nothing to pick from yet while creating one).
 export function HexColorField({ value, onChange }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    <div className="flex items-center gap-2">
       <div
-        style={{
-          width: 24,
-          height: 24,
-          borderRadius: "50%",
-          background: value || "transparent",
-          border: "1px solid var(--border-s)",
-          flexShrink: 0,
-        }}
+        className="w-6 h-6 rounded-full border border-bdr shrink-0"
+        style={{ background: value || "transparent" }}
       />
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="#rrggbb"
-        style={{
-          background: "var(--surface)",
-          border: "1px solid var(--border-s)",
-          borderRadius: "var(--r-sm)",
-          padding: "10px 8px",
-          color: "var(--text)",
-          fontSize: 14,
-          fontFamily: "var(--font-mono)",
-          width: 120,
-        }}
+        className="bg-surface border border-bdr rounded-sm py-2.5 px-2 text-tx text-sm font-mono w-30"
       />
     </div>
   )

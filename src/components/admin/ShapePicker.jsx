@@ -1,3 +1,4 @@
+import clsx from "clsx"
 import { FamilyIcon } from "@/components/FamilyIcon"
 import { GlassSvg } from "@/components/GlassSvg"
 import { FAMILY_SHAPES, GLASS_SHAPES } from "@/data/constants"
@@ -9,7 +10,7 @@ import { FAMILY_SHAPES, GLASS_SHAPES } from "@/data/constants"
 export function ShapePicker({ kind, value, onChange }) {
   const shapes = kind === "family" ? FAMILY_SHAPES : GLASS_SHAPES
   return (
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+    <div className="flex gap-2 flex-wrap">
       {shapes.map((shape) => {
         const active = value === shape
         const iconColor = active ? "var(--cyan)" : "var(--text2)"
@@ -19,17 +20,10 @@ export function ShapePicker({ kind, value, onChange }) {
             type="button"
             onClick={() => onChange(shape)}
             title={shape}
-            style={{
-              padding: "6px 10px 4px",
-              borderRadius: "var(--r-sm)",
-              border: `1px solid ${active ? "var(--cyan)" : "var(--border-s)"}`,
-              background: active ? "rgba(34,211,238,0.12)" : "var(--surface)",
-              cursor: "pointer",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 2,
-            }}
+            className={clsx(
+              "pt-1.5 px-2.5 pb-1 rounded-sm border cursor-pointer flex flex-col items-center gap-0.5",
+              active ? "border-cyan bg-cyan/12" : "border-bdr bg-surface",
+            )}
           >
             {kind === "family" ? (
               <FamilyIcon shape={shape} size={24} color={iconColor} />
@@ -37,11 +31,10 @@ export function ShapePicker({ kind, value, onChange }) {
               <GlassSvg type={shape} size={24} color={iconColor} />
             )}
             <span
-              style={{
-                fontSize: 10,
-                color: iconColor,
-                textTransform: "capitalize",
-              }}
+              className={clsx(
+                "text-[10px] capitalize",
+                active ? "text-cyan" : "text-tx2",
+              )}
             >
               {shape.replace(/_/g, " ")}
             </span>

@@ -39,73 +39,37 @@ export function RequestsTab({
   }
 
   return (
-    <div
-      className="fade-in"
-      style={{ display: "flex", flexDirection: "column", gap: 12 }}
-    >
-      <p style={{ margin: 0, fontSize: 13, color: "var(--text2)" }}>
+    <div className="fade-in flex flex-col gap-3">
+      <p className="text-[13px] text-tx2">
         Ingredients members have asked for. "+" adds it to the catalog and marks
         the request fulfilled in one step; "×" dismisses a request without
         adding anything.
       </p>
       {requestsLoading ? (
-        <p style={{ margin: 0, fontSize: 14, color: "var(--text3)" }}>
-          Loading...
-        </p>
+        <p className="text-sm text-tx3">Loading...</p>
       ) : pendingRequests.length === 0 ? (
-        <p style={{ margin: 0, fontSize: 14, color: "var(--text3)" }}>
-          No pending requests.
-        </p>
+        <p className="text-sm text-tx3">No pending requests.</p>
       ) : (
         pendingRequests.map((r) => (
-          <Card key={r.id} style={{ padding: "14px 16px" }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "flex-start",
-                gap: 10,
-              }}
-            >
-              <div style={{ flex: 1 }}>
-                <div
-                  style={{
-                    fontSize: 15,
-                    fontFamily: "var(--font-display)",
-                    fontWeight: 700,
-                    color: "var(--text)",
-                    marginBottom: 3,
-                  }}
-                >
+          <Card key={r.id} className="py-3.5 px-4">
+            <div className="flex items-start gap-2.5">
+              <div className="flex-1">
+                <div className="text-[15px] font-display font-bold text-tx mb-[3px]">
                   {r.name}
                 </div>
-                <div style={{ fontSize: 12, color: "var(--text3)" }}>
+                <div className="text-xs text-tx3">
                   by {r.requester?.display_name ?? "unknown"} ·{" "}
                   {formatDate(r.created_at)}
                 </div>
                 {r.note && (
-                  <p
-                    style={{
-                      margin: "6px 0 0",
-                      fontSize: 13,
-                      color: "var(--text2)",
-                    }}
-                  >
-                    {r.note}
-                  </p>
+                  <p className="mt-1.5 text-[13px] text-tx2">{r.note}</p>
                 )}
               </div>
-              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+              <div className="flex gap-1.5 shrink-0">
                 <button
                   onClick={() => onAddToCatalog(r.name, r.id)}
                   title="Add to catalog"
-                  style={{
-                    background: "rgba(34,211,238,0.1)",
-                    border: "1px solid rgba(34,211,238,0.25)",
-                    borderRadius: 6,
-                    padding: "6px 8px",
-                    cursor: "pointer",
-                    color: "var(--cyan)",
-                  }}
+                  className="bg-cyan/10 border border-cyan/25 rounded-[6px] py-1.5 px-2 cursor-pointer text-cyan"
                 >
                   <IconPlus size={14} />
                 </button>
@@ -113,14 +77,7 @@ export function RequestsTab({
                   onClick={() => handleDismissRequest(r.id)}
                   disabled={resolvingRequestId === r.id}
                   title="Dismiss"
-                  style={{
-                    background: "rgba(251,113,133,0.1)",
-                    border: "1px solid rgba(251,113,133,0.25)",
-                    borderRadius: 6,
-                    padding: "6px 8px",
-                    cursor: "pointer",
-                    color: "var(--coral)",
-                  }}
+                  className="bg-coral/10 border border-coral/25 rounded-[6px] py-1.5 px-2 cursor-pointer text-coral"
                 >
                   <IconX size={14} />
                 </button>

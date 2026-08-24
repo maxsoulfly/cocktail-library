@@ -7,6 +7,9 @@ import {
 } from "@/components/primitives"
 import { BAR_PRIORITIES } from "@/schemas/ingredientImport"
 
+const FIELD_LABEL =
+  "text-xs font-bold text-tx2 font-display uppercase tracking-[0.06em] block mb-1.5"
+
 export function ImportIngredientsSingle({
   catalog,
   singleName,
@@ -26,7 +29,7 @@ export function ImportIngredientsSingle({
   onAddSingle,
 }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div className="flex flex-col gap-3">
       <Input
         label="Name"
         placeholder="e.g. Passionfruit Juice"
@@ -34,20 +37,7 @@ export function ImportIngredientsSingle({
         onChange={setSingleName}
       />
       <div>
-        <label
-          style={{
-            fontSize: 12,
-            fontWeight: 700,
-            color: "var(--text2)",
-            fontFamily: "var(--font-display)",
-            textTransform: "uppercase",
-            letterSpacing: "0.06em",
-            display: "block",
-            marginBottom: 6,
-          }}
-        >
-          Category
-        </label>
+        <label className={FIELD_LABEL}>Category</label>
         <CategoryPicker
           categories={catalog.categories}
           value={singleCategoryId}
@@ -59,20 +49,7 @@ export function ImportIngredientsSingle({
       </div>
       {singleCategoryId && (
         <div>
-          <label
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              color: "var(--text2)",
-              fontFamily: "var(--font-display)",
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              display: "block",
-              marginBottom: 6,
-            }}
-          >
-            Parent type (optional)
-          </label>
+          <label className={FIELD_LABEL}>Parent type (optional)</label>
           <Select
             value={singleParentTypeId}
             onChange={setSingleParentTypeId}
@@ -86,20 +63,7 @@ export function ImportIngredientsSingle({
         </div>
       )}
       <div>
-        <label
-          style={{
-            fontSize: 12,
-            fontWeight: 700,
-            color: "var(--text2)",
-            fontFamily: "var(--font-display)",
-            textTransform: "uppercase",
-            letterSpacing: "0.06em",
-            display: "block",
-            marginBottom: 6,
-          }}
-        >
-          Bar priority
-        </label>
+        <label className={FIELD_LABEL}>Bar priority</label>
         <Select
           value={singleBarPriority}
           onChange={setSingleBarPriority}
@@ -110,20 +74,7 @@ export function ImportIngredientsSingle({
         />
       </div>
       <div>
-        <label
-          style={{
-            fontSize: 12,
-            fontWeight: 700,
-            color: "var(--text2)",
-            fontFamily: "var(--font-display)",
-            textTransform: "uppercase",
-            letterSpacing: "0.06em",
-            display: "block",
-            marginBottom: 6,
-          }}
-        >
-          Color (optional)
-        </label>
+        <label className={FIELD_LABEL}>Color (optional)</label>
         <ColorSwatchPicker
           value={singleColor}
           onChange={setSingleColor}
@@ -131,48 +82,15 @@ export function ImportIngredientsSingle({
         />
       </div>
       <div>
-        <label
-          style={{
-            fontSize: 12,
-            fontWeight: 700,
-            color: "var(--text2)",
-            fontFamily: "var(--font-display)",
-            textTransform: "uppercase",
-            letterSpacing: "0.06em",
-            display: "block",
-            marginBottom: 6,
-          }}
-        >
-          Description (optional)
-        </label>
+        <label className={FIELD_LABEL}>Description (optional)</label>
         <textarea
           value={singleDescription}
           onChange={(e) => setSingleDescription(e.target.value)}
           rows={2}
-          style={{
-            background: "var(--surface)",
-            border: "1px solid var(--border-s)",
-            borderRadius: "var(--r-sm)",
-            padding: "10px 14px",
-            color: "var(--text)",
-            fontSize: 14,
-            fontFamily: "var(--font-body)",
-            width: "100%",
-            resize: "vertical",
-          }}
+          className="bg-surface border border-bdr rounded-sm py-2.5 px-3.5 text-tx text-sm font-body w-full resize-y"
         />
       </div>
-      {singleError && (
-        <p
-          style={{
-            margin: 0,
-            fontSize: 12,
-            color: "var(--coral)",
-          }}
-        >
-          {singleError}
-        </p>
-      )}
+      {singleError && <p className="text-xs text-coral">{singleError}</p>}
       <Btn
         variant="primary"
         full

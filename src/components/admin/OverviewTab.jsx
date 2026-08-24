@@ -1,3 +1,4 @@
+import clsx from "clsx"
 import { Card } from "@/components/primitives"
 
 export function OverviewTab({
@@ -42,55 +43,28 @@ export function OverviewTab({
   ]
 
   return (
-    <div
-      className="fade-in"
-      style={{ display: "flex", flexDirection: "column", gap: 16 }}
-    >
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(2, 1fr)",
-          gap: 10,
-        }}
-      >
+    <div className="fade-in flex flex-col gap-4">
+      <div className="grid grid-cols-2 gap-2.5">
         {cards.map(({ label, val, color, onClick }, i, arr) => (
           <Card
             key={label}
             onClick={onClick}
-            style={{
-              padding: "16px",
-              textAlign: "center",
-              cursor: "pointer",
-              gridColumn:
-                i === arr.length - 1 && arr.length % 2 === 1
-                  ? "1 / -1"
-                  : undefined,
-            }}
+            className={clsx(
+              "p-4 text-center cursor-pointer",
+              i === arr.length - 1 && arr.length % 2 === 1 && "col-span-full",
+            )}
           >
             <div
-              style={{
-                fontSize: 28,
-                fontFamily: "var(--font-display)",
-                fontWeight: 800,
-                color,
-                marginBottom: 4,
-              }}
+              className="text-[28px] font-display font-extrabold mb-1"
+              style={{ color }}
             >
               {val}
             </div>
-            <div
-              style={{
-                fontSize: 12,
-                color: "var(--text2)",
-                fontFamily: "var(--font-body)",
-              }}
-            >
-              {label}
-            </div>
+            <div className="text-xs text-tx2 font-body">{label}</div>
           </Card>
         ))}
       </div>
-      <p style={{ margin: 0, fontSize: 12, color: "var(--text3)" }}>
+      <p className="text-xs text-tx3">
         All five counts are real - tap any card to jump to its detail.
       </p>
     </div>

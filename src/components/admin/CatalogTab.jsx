@@ -23,17 +23,14 @@ import {
 // NamedRowManager instance per table instead of five near-duplicate forms.
 export function CatalogTab({ catalog }) {
   return (
-    <div
-      className="fade-in"
-      style={{ display: "flex", flexDirection: "column", gap: 24 }}
-    >
-      <p style={{ margin: 0, fontSize: 13, color: "var(--text2)" }}>
+    <div className="fade-in flex flex-col gap-6">
+      <p className="text-[13px] text-tx2">
         Glasses, taste tags, cocktail families, and ingredient categories - the
         lookup lists recipes and ingredient types reference. A row in use by a
         recipe or ingredient type can't be deleted (the database rejects it);
         rename or add new ones instead.
       </p>
-      <p style={{ margin: 0, fontSize: 12, color: "var(--text3)" }}>
+      <p className="text-xs text-tx3">
         Glasses and cocktail families each pick one of a handful of built-in
         pictograms (whichever one looks closest) - a new glass or family name
         works immediately, no code change needed. A genuinely new silhouette

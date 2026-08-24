@@ -1,4 +1,5 @@
 import { useState } from "react"
+import clsx from "clsx"
 import { IconCheck, IconCopy, IconPlus, IconTrash } from "@/components/icons"
 import { Btn, Card } from "@/components/primitives"
 import {
@@ -7,11 +8,11 @@ import {
   revokeInvitation,
 } from "@/services/invitations"
 
-const STATUS_COLORS = {
-  active: "var(--green)",
-  redeemed: "var(--cyan)",
-  expired: "var(--unavail)",
-  revoked: "var(--coral)",
+const STATUS_TONE = {
+  active: "text-green",
+  redeemed: "text-cyan",
+  expired: "text-unavail",
+  revoked: "text-coral",
 }
 const STATUS_DOTS = {
   active: "●",
@@ -66,10 +67,7 @@ export function InvitesTab({ invites, setInvites, invitesLoading }) {
   }
 
   return (
-    <div
-      className="fade-in"
-      style={{ display: "flex", flexDirection: "column", gap: 14 }}
-    >
+    <div className="fade-in flex flex-col gap-3.5">
       <Btn
         variant="primary"
         disabled={generatingInvite}
@@ -78,98 +76,52 @@ export function InvitesTab({ invites, setInvites, invitesLoading }) {
         <IconPlus size={15} />{" "}
         {generatingInvite ? "Generating..." : "Generate Invitation"}
       </Btn>
-      {inviteError && (
-        <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
-          {inviteError}
-        </p>
-      )}
+      {inviteError && <p className="text-xs text-coral">{inviteError}</p>}
       {invitesLoading ? (
-        <p style={{ margin: 0, fontSize: 14, color: "var(--text3)" }}>
-          Loading...
-        </p>
+        <p className="text-sm text-tx3">Loading...</p>
       ) : invites.length === 0 ? (
-        <p style={{ margin: 0, fontSize: 14, color: "var(--text3)" }}>
-          No invitations yet.
-        </p>
+        <p className="text-sm text-tx3">No invitations yet.</p>
       ) : (
         invites.map((inv) => {
           const status = deriveInvitationStatus(inv)
           return (
-            <Card key={inv.id} style={{ padding: "14px 16px" }}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 10,
-                }}
-              >
-                <div style={{ flex: 1 }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      marginBottom: 4,
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        fontWeight: 600,
-                        fontSize: 14,
-                        color: "var(--text)",
-                        letterSpacing: "0.06em",
-                      }}
-                    >
+            <Card key={inv.id} className="py-3.5 px-4">
+              <div className="flex items-start gap-2.5">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-mono font-semibold text-sm text-tx tracking-[0.06em]">
                       {inv.code}
                     </span>
                     <span
-                      style={{
-                        fontSize: 11,
-                        color: STATUS_COLORS[status],
-                        fontFamily: "var(--font-mono)",
-                      }}
+                      className={clsx(
+                        "text-[11px] font-mono",
+                        STATUS_TONE[status],
+                      )}
                     >
                       {STATUS_DOTS[status]} {status}
                     </span>
                   </div>
-                  <div style={{ fontSize: 12, color: "var(--text3)" }}>
+                  <div className="text-xs text-tx3">
                     Created {formatDate(inv.created_at)} · Expires{" "}
                     {formatDate(inv.expires_at)}
                   </div>
                   {inv.redeemed_by_profile && (
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: "var(--cyan)",
-                        marginTop: 2,
-                      }}
-                    >
+                    <div className="text-xs text-cyan mt-0.5">
                       Redeemed by{" "}
                       {inv.redeemed_by_profile.display_name ?? "a member"}
                     </div>
                   )}
                 </div>
                 {status === "active" && (
-                  <div style={{ display: "flex", gap: 6 }}>
+                  <div className="flex gap-1.5">
                     <button
                       onClick={() => copyCode(inv.code)}
-                      style={{
-                        background:
-                          copied === inv.code
-                            ? "rgba(52,211,153,0.15)"
-                            : "var(--surface3)",
-                        border: "1px solid var(--border-s)",
-                        borderRadius: 6,
-                        padding: "5px 10px",
-                        cursor: "pointer",
-                        color:
-                          copied === inv.code ? "var(--green)" : "var(--text2)",
-                        fontSize: 12,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                      }}
+                      className={clsx(
+                        "border border-bdr rounded-[6px] py-[5px] px-2.5 cursor-pointer text-xs flex items-center gap-1",
+                        copied === inv.code
+                          ? "bg-green/15 text-green"
+                          : "bg-surface3 text-tx2",
+                      )}
                     >
                       {copied === inv.code ? (
                         <IconCheck size={12} />
@@ -180,15 +132,7 @@ export function InvitesTab({ invites, setInvites, invitesLoading }) {
                     <button
                       onClick={() => revokeInvite(inv.id)}
                       disabled={revokingInviteId === inv.id}
-                      style={{
-                        background: "rgba(251,113,133,0.1)",
-                        border: "1px solid rgba(251,113,133,0.25)",
-                        borderRadius: 6,
-                        padding: "5px 10px",
-                        cursor: "pointer",
-                        color: "var(--coral)",
-                        fontSize: 12,
-                      }}
+                      className="bg-coral/10 border border-coral/25 rounded-[6px] py-[5px] px-2.5 cursor-pointer text-coral text-xs"
                     >
                       <IconTrash size={12} />
                     </button>
