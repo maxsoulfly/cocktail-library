@@ -33,7 +33,7 @@ No TypeScript in application source (`src/**`). Use `.jsx` for components, `.js`
 - `supabase/migrations/` — versioned SQL migrations; schema source of truth, no undocumented dashboard-only changes.
 - `supabase/seed.sql` — minimal, clearly-labeled dev fixtures only. Never a fabricated large catalog — the real catalog enters through batch import. Hosted projects don't auto-apply this on `db push` — reseed with `supabase db query --linked --file supabase/seed.sql`.
 - `supabase/functions/` — Edge Functions for anything requiring elevated privilege (invitation generation/redemption, moderation actions).
-- `docs/` — product specs. Inputs, not something to edit as part of feature work.
+- `docs/` — product specs. Inputs, not something to edit as part of feature work. `docs/plans/` is the one exception - saved plan-mode documents for large refactors (durable record of what was planned/executed and why, since the live plan file outside the repo doesn't survive past a session), not specs.
 
 If a subdirectory later needs its own `AGENTS.md`, document its scope here and keep instructions consistent with this file.
 
