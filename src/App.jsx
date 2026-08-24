@@ -47,18 +47,7 @@ function RequireAdmin({ children }) {
 
 function LoadingScreen() {
   return (
-    <div
-      style={{
-        minHeight: "100dvh",
-        background: "var(--bg)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "var(--text2)",
-        fontFamily: "var(--font-display)",
-        fontSize: 14,
-      }}
-    >
+    <div className="min-h-dvh bg-bg flex items-center justify-center text-tx2 font-display text-sm">
       Loading...
     </div>
   )
@@ -71,46 +60,16 @@ function LoadingScreen() {
 // status. This is a distinct, deliberately blunt dead end instead.
 function RevokedScreen() {
   return (
-    <div
-      style={{
-        minHeight: "100dvh",
-        background: "var(--bg)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 12,
-        padding: 24,
-        textAlign: "center",
-      }}
-    >
-      <p
-        style={{
-          margin: 0,
-          fontFamily: "var(--font-display)",
-          fontWeight: 700,
-          fontSize: 18,
-          color: "var(--text)",
-        }}
-      >
+    <div className="min-h-dvh bg-bg flex flex-col items-center justify-center gap-3 p-6 text-center">
+      <p className="font-display font-bold text-lg text-tx">
         Your access has been revoked
       </p>
-      <p style={{ margin: 0, color: "var(--text2)", fontSize: 14 }}>
+      <p className="text-tx2 text-sm">
         Contact an administrator if you think this is a mistake.
       </p>
       <button
         onClick={() => signOut()}
-        style={{
-          marginTop: 8,
-          background: "none",
-          border: "1px solid var(--border-s)",
-          borderRadius: "var(--r-sm)",
-          padding: "8px 16px",
-          cursor: "pointer",
-          color: "var(--text2)",
-          fontSize: 13,
-          fontFamily: "var(--font-display)",
-        }}
+        className="mt-2 bg-transparent border border-bdr rounded-sm py-2 px-4 cursor-pointer text-tx2 text-[13px] font-display"
       >
         Sign Out
       </button>
@@ -243,15 +202,15 @@ function AppShell({ profile, session }) {
   }
 
   return (
-    <div style={{ display: "flex", height: "100dvh", background: "var(--bg)" }}>
+    <div className="flex h-dvh bg-bg">
       {/* height (not minHeight) is required here: a flex row with only
           minHeight has no definite height, so the overflowY:auto child below
           can never establish a bounded box to scroll within - it just grows
           to fit its content instead, and nothing ever scrolls. */}
-      <div style={{ display: "none" }} className="lg-sidebar">
+      <div className="lg-sidebar hidden">
         <SideNav isAdmin={isAdmin} />
       </div>
-      <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
         {isLoading ? <LoadingScreen /> : <Outlet context={outletContext} />}
       </div>
       <BottomNav />
