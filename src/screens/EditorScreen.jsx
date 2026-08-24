@@ -1,23 +1,22 @@
 import { useEffect, useRef, useState } from "react"
 import {
-  Link,
   useLocation,
   useNavigate,
   useOutletContext,
   useParams,
   useSearchParams,
 } from "react-router-dom"
-import { FamilyIcon } from "@/components/FamilyIcon"
-import { GlassSvg } from "@/components/GlassSvg"
-import { IconCheck, IconCopy, IconPlus, IconX } from "@/components/icons"
 import { TopBar } from "@/components/Nav"
-import {
-  Btn,
-  ColorSwatchPicker,
-  FilterChip,
-  Input,
-  Select,
-} from "@/components/primitives"
+import { DraftRestoreBanner } from "@/components/editor/DraftRestoreBanner"
+import { EntryModeSwitcher } from "@/components/editor/EntryModeSwitcher"
+import { FamilyPicker } from "@/components/editor/FamilyPicker"
+import { GlassPicker } from "@/components/editor/GlassPicker"
+import { IngredientRowsEditor } from "@/components/editor/IngredientRowsEditor"
+import { OtherDraftsPicker } from "@/components/editor/OtherDraftsPicker"
+import { PasteRecipeMode } from "@/components/editor/PasteRecipeMode"
+import { StepsEditor } from "@/components/editor/StepsEditor"
+import { TasteTagChips } from "@/components/editor/TasteTagChips"
+import { Btn, ColorSwatchPicker, Input } from "@/components/primitives"
 import { NON_VOLUME_UNITS } from "@/data/constants"
 import { ozToMl } from "@/domain/availability"
 import { resolveIngredientType } from "@/domain/ingredientResolution"
@@ -632,181 +631,34 @@ export default function EditorScreen() {
         }}
       >
         {draftBanner && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              background: "rgba(34,211,238,0.08)",
-              border: "1px solid rgba(34,211,238,0.25)",
-              borderRadius: "var(--r-sm)",
-              padding: "10px 14px",
-            }}
-          >
-            <span style={{ flex: 1, fontSize: 12, color: "var(--text2)" }}>
-              You have an unsaved draft, "
-              {draftBanner.name?.trim() || "Untitled draft"}" - saved on this
-              browser only.
-            </span>
-            <Btn variant="primary" small onClick={restoreDraft}>
-              Restore
-            </Btn>
-            <Btn variant="ghost" small onClick={discardDraft}>
-              Discard
-            </Btn>
-          </div>
+          <DraftRestoreBanner
+            draft={draftBanner}
+            onRestore={restoreDraft}
+            onDiscard={discardDraft}
+          />
         )}
         {!draftBanner && otherDrafts.length > 0 && (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,
-              background: "rgba(34,211,238,0.08)",
-              border: "1px solid rgba(34,211,238,0.25)",
-              borderRadius: "var(--r-sm)",
-              padding: "10px 14px",
-            }}
-          >
-            <span style={{ fontSize: 12, color: "var(--text2)" }}>
-              You have {otherDrafts.length} unsaved draft
-              {otherDrafts.length === 1 ? "" : "s"} on this browser (max{" "}
-              {MAX_DRAFTS}) - continue one, or just start typing below for a new
-              one.
-            </span>
-            {otherDrafts.map((d) => (
-              <div
-                key={d.id}
-                style={{ display: "flex", alignItems: "center", gap: 8 }}
-              >
-                <span
-                  style={{
-                    flex: 1,
-                    fontSize: 13,
-                    color: "var(--text)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {d.name}
-                </span>
-                <Btn
-                  variant="primary"
-                  small
-                  onClick={() => continueOtherDraft(d.id)}
-                >
-                  Continue
-                </Btn>
-                <Btn
-                  variant="ghost"
-                  small
-                  onClick={() => discardOtherDraft(d.id)}
-                >
-                  Discard
-                </Btn>
-              </div>
-            ))}
-          </div>
+          <OtherDraftsPicker
+            drafts={otherDrafts}
+            maxDrafts={MAX_DRAFTS}
+            onContinue={continueOtherDraft}
+            onDiscard={discardOtherDraft}
+          />
         )}
         {showPasteOption && (
-          <div
-            style={{
-              display: "flex",
-              background: "var(--surface)",
-              border: "1px solid var(--border-s)",
-              borderRadius: "var(--r-sm)",
-              overflow: "hidden",
-            }}
-          >
-            {[
-              { id: "scratch", label: "Start from Scratch" },
-              { id: "paste", label: "Paste a Recipe (AI)" },
-            ].map((m) => (
-              <button
-                key={m.id}
-                onClick={() => setEntryMode(m.id)}
-                style={{
-                  flex: 1,
-                  padding: "10px",
-                  background:
-                    entryMode === m.id ? "rgba(167,139,250,0.12)" : "none",
-                  border: "none",
-                  cursor: "pointer",
-                  color: entryMode === m.id ? "var(--violet)" : "var(--text2)",
-                  fontFamily: "var(--font-display)",
-                  fontWeight: entryMode === m.id ? 700 : 400,
-                  fontSize: 13,
-                  transition: "all 0.15s",
-                }}
-              >
-                {m.label}
-              </button>
-            ))}
-          </div>
+          <EntryModeSwitcher mode={entryMode} onModeChange={setEntryMode} />
         )}
 
         {entryMode === "paste" ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <p style={{ margin: 0, fontSize: 13, color: "var(--text2)" }}>
-              Copy this prompt into an AI chat along with the recipe you want to
-              add (a link, a screenshot description, whatever you have), then
-              paste its JSON output below to fill in the form. You'll still
-              review and save it yourself - nothing is added until you hit Save.
-            </p>
-            <textarea
-              readOnly
-              value={pastePrompt}
-              rows={12}
-              onFocus={(e) => e.target.select()}
-              style={{
-                background: "var(--surface2)",
-                border: "1px solid var(--border-s)",
-                borderRadius: "var(--r-sm)",
-                padding: "14px",
-                color: "var(--text2)",
-                fontSize: 12,
-                fontFamily: "var(--font-mono)",
-                lineHeight: 1.6,
-                resize: "vertical",
-                width: "100%",
-              }}
-            />
-            <Btn variant="ghost" small onClick={copyPastePrompt}>
-              {promptCopied ? <IconCheck size={14} /> : <IconCopy size={14} />}{" "}
-              {promptCopied ? "Copied" : "Copy Prompt"}
-            </Btn>
-            <textarea
-              value={pasteJson}
-              onChange={(e) => setPasteJson(e.target.value)}
-              placeholder="Paste the AI's JSON output here..."
-              rows={8}
-              style={{
-                background: "var(--surface)",
-                border: "1px solid var(--border-s)",
-                borderRadius: "var(--r-sm)",
-                padding: "12px 14px",
-                color: "var(--text)",
-                fontSize: 13,
-                fontFamily: "var(--font-mono)",
-                resize: "vertical",
-                width: "100%",
-              }}
-            />
-            {pasteError && (
-              <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
-                {pasteError}
-              </p>
-            )}
-            <Btn
-              variant="primary"
-              full
-              disabled={!pasteJson.trim()}
-              onClick={handleFillFromPaste}
-            >
-              Fill Form
-            </Btn>
-          </div>
+          <PasteRecipeMode
+            prompt={pastePrompt}
+            promptCopied={promptCopied}
+            onCopyPrompt={copyPastePrompt}
+            pasteJson={pasteJson}
+            onPasteJsonChange={setPasteJson}
+            pasteError={pasteError}
+            onFill={handleFillFromPaste}
+          />
         ) : (
           <>
             <Input
@@ -850,136 +702,17 @@ export default function EditorScreen() {
               />
             </div>
 
-            <div>
-              <label
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: "var(--text2)",
-                  fontFamily: "var(--font-display)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                  display: "block",
-                  marginBottom: 8,
-                }}
-              >
-                Glass
-              </label>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {glasses.map((g) => (
-                  <button
-                    key={g.id}
-                    onClick={() => setGlassName(g.name)}
-                    style={{
-                      padding: "8px 14px 6px",
-                      borderRadius: 8,
-                      border: `1px solid ${
-                        effectiveGlassName === g.name
-                          ? "var(--cyan)"
-                          : "var(--border-s)"
-                      }`,
-                      background:
-                        effectiveGlassName === g.name
-                          ? "rgba(34,211,238,0.1)"
-                          : "var(--surface)",
-                      color:
-                        effectiveGlassName === g.name
-                          ? "var(--cyan)"
-                          : "var(--text2)",
-                      cursor: "pointer",
-                      fontSize: 13,
-                      fontFamily: "var(--font-display)",
-                      fontWeight: 500,
-                      textTransform: "capitalize",
-                      transition: "all 0.15s",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: 2,
-                    }}
-                  >
-                    <GlassSvg
-                      type={g.shape ?? g.name.toLowerCase()}
-                      size={28}
-                      color={
-                        effectiveGlassName === g.name
-                          ? "var(--cyan)"
-                          : "var(--text2)"
-                      }
-                    />
-                    {g.name}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <GlassPicker
+              glasses={glasses}
+              value={effectiveGlassName}
+              onChange={setGlassName}
+            />
 
-            <div>
-              <label
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: "var(--text2)",
-                  fontFamily: "var(--font-display)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                  display: "block",
-                  marginBottom: 8,
-                }}
-              >
-                Family (optional)
-              </label>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button
-                  onClick={() => setFamilyId("")}
-                  style={{
-                    padding: "8px 14px 6px",
-                    borderRadius: 8,
-                    border: `1px solid ${
-                      !familyId ? "var(--cyan)" : "var(--border-s)"
-                    }`,
-                    background: !familyId
-                      ? "rgba(34,211,238,0.1)"
-                      : "var(--surface)",
-                    color: !familyId ? "var(--cyan)" : "var(--text2)",
-                    cursor: "pointer",
-                    fontSize: 13,
-                    fontFamily: "var(--font-display)",
-                    fontWeight: 500,
-                  }}
-                >
-                  None
-                </button>
-                {families.map((f) => (
-                  <button
-                    key={f.id}
-                    onClick={() => setFamilyId(f.id)}
-                    style={{
-                      padding: "8px 14px 6px",
-                      borderRadius: 8,
-                      border: `1px solid ${
-                        familyId === f.id ? "var(--cyan)" : "var(--border-s)"
-                      }`,
-                      background:
-                        familyId === f.id
-                          ? "rgba(34,211,238,0.1)"
-                          : "var(--surface)",
-                      color: familyId === f.id ? "var(--cyan)" : "var(--text2)",
-                      cursor: "pointer",
-                      fontSize: 13,
-                      fontFamily: "var(--font-display)",
-                      fontWeight: 500,
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: 2,
-                    }}
-                  >
-                    <FamilyIcon shape={f.shape} size={24} />
-                    {f.name}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <FamilyPicker
+              families={families}
+              value={familyId}
+              onChange={setFamilyId}
+            />
 
             <div>
               <label
@@ -1003,391 +736,32 @@ export default function EditorScreen() {
               />
             </div>
 
-            <div>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  marginBottom: 10,
-                }}
-              >
-                <label
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: "var(--text2)",
-                    fontFamily: "var(--font-display)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                  }}
-                >
-                  Ingredients
-                </label>
-                <button
-                  onClick={addIng}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    color: "var(--cyan)",
-                    fontSize: 13,
-                    fontFamily: "var(--font-display)",
-                    fontWeight: 600,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                  }}
-                >
-                  <IconPlus size={14} /> Add
-                </button>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {ings.map((ing, i) => {
-                  const trimmedName = ing.ingredientName.trim()
-                  const matchedType = trimmedName
-                    ? resolveIngredientType(trimmedName, {
-                        types,
-                        aliases: catalog.aliases,
-                      })
-                    : null
-                  const matched = Boolean(matchedType)
-                  return (
-                    <div
-                      key={i}
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 4,
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: 6,
-                          alignItems: "center",
-                        }}
-                      >
-                        <div style={{ flex: 2, position: "relative" }}>
-                          <input
-                            list="ing-types-editor"
-                            placeholder="Ingredient type"
-                            value={ing.ingredientName}
-                            onChange={(e) =>
-                              updateIng(i, "ingredientName", e.target.value)
-                            }
-                            style={{
-                              background: "var(--surface)",
-                              border: `1px solid ${
-                                trimmedName && !matched
-                                  ? "var(--coral)"
-                                  : "var(--border-s)"
-                              }`,
-                              borderRadius: "var(--r-sm)",
-                              padding: "8px 10px",
-                              color: "var(--text)",
-                              fontSize: 13,
-                              fontFamily: "var(--font-body)",
-                              width: "100%",
-                            }}
-                          />
-                          <datalist id="ing-types-editor">
-                            {types.map((t) => (
-                              <option key={t.id} value={t.name} />
-                            ))}
-                            {catalog.aliases.map((a) => (
-                              <option key={a.id} value={a.alias} />
-                            ))}
-                          </datalist>
-                        </div>
-                        <input
-                          name={`ingredient-amount-${i}`}
-                          placeholder="amt"
-                          value={ing.amount}
-                          onChange={(e) =>
-                            updateIng(i, "amount", e.target.value)
-                          }
-                          autoComplete="off"
-                          inputMode="decimal"
-                          style={{
-                            width: 50,
-                            background: "var(--surface)",
-                            border: "1px solid var(--border-s)",
-                            borderRadius: "var(--r-sm)",
-                            padding: "8px 8px",
-                            color: "var(--text)",
-                            fontSize: 13,
-                            textAlign: "center",
-                            fontFamily: "var(--font-mono)",
-                          }}
-                        />
-                        <div style={{ width: 68, flexShrink: 0 }}>
-                          <Select
-                            small
-                            value={ing.unit}
-                            onChange={(v) => updateIng(i, "unit", v)}
-                            options={["ml", "oz", ...NON_VOLUME_UNITS]}
-                          />
-                        </div>
-                        <div style={{ width: 92, flexShrink: 0 }}>
-                          <Select
-                            small
-                            value={ing.role}
-                            onChange={(v) => updateIng(i, "role", v)}
-                            options={[
-                              { value: "required", label: "Required" },
-                              { value: "optional", label: "Optional" },
-                              { value: "garnish", label: "Garnish" },
-                            ]}
-                          />
-                        </div>
-                        {ings.length > 1 && (
-                          <button
-                            onClick={() => removeIng(i)}
-                            style={{
-                              background: "none",
-                              border: "none",
-                              cursor: "pointer",
-                              color: "var(--text3)",
-                              padding: 4,
-                            }}
-                          >
-                            <IconX size={14} />
-                          </button>
-                        )}
-                      </div>
-                      {trimmedName && !matched && (
-                        <span style={{ fontSize: 11, color: "var(--coral)" }}>
-                          Doesn't match an existing ingredient type - new types
-                          require admin approval.{" "}
-                          <Link
-                            to={`/request-ingredient?name=${encodeURIComponent(trimmedName)}&returnTo=${encodeURIComponent(location.pathname + location.search)}`}
-                            style={{ color: "var(--cyan)" }}
-                          >
-                            Request it
-                          </Link>
-                        </span>
-                      )}
-                      {matched && (
-                        <div
-                          style={{
-                            display: "flex",
-                            flexWrap: "wrap",
-                            gap: 6,
-                            alignItems: "center",
-                            paddingLeft: 2,
-                          }}
-                        >
-                          <span style={{ fontSize: 11, color: "var(--text3)" }}>
-                            Substitutes:
-                          </span>
-                          {(ing.alternativeNames ?? []).map((altName, ai) => (
-                            <span
-                              key={altName}
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 4,
-                                background: "var(--surface2)",
-                                border: "1px solid var(--border-s)",
-                                borderRadius: 12,
-                                padding: "2px 6px 2px 10px",
-                                fontSize: 11,
-                                color: "var(--text2)",
-                              }}
-                            >
-                              {altName}
-                              <button
-                                onClick={() => removeAlternative(i, ai)}
-                                style={{
-                                  background: "none",
-                                  border: "none",
-                                  cursor: "pointer",
-                                  color: "var(--text3)",
-                                  padding: 2,
-                                  display: "flex",
-                                }}
-                              >
-                                <IconX size={9} />
-                              </button>
-                            </span>
-                          ))}
-                          <input
-                            list="ing-types-editor"
-                            placeholder="+ add substitute"
-                            value={ing.altDraft ?? ""}
-                            onChange={(e) =>
-                              updateIng(i, "altDraft", e.target.value)
-                            }
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault()
-                                commitAlternativeDraft(i)
-                              }
-                            }}
-                            onBlur={() => commitAlternativeDraft(i)}
-                            style={{
-                              width: 130,
-                              background: "var(--surface)",
-                              border: "1px solid var(--border-s)",
-                              borderRadius: 6,
-                              padding: "3px 8px",
-                              fontSize: 11,
-                              color: "var(--text)",
-                              fontFamily: "var(--font-body)",
-                            }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-              {hasUnmatchedIng && isDraftable && (
-                <p
-                  style={{
-                    margin: "8px 0 0",
-                    fontSize: 11,
-                    color: "var(--text3)",
-                  }}
-                >
-                  This recipe can't save yet until every ingredient matches, but
-                  nothing is lost - it's auto-saved to this browser as you go.
-                  Come back once the requested ingredient is approved to finish
-                  it.
-                </p>
-              )}
-            </div>
+            <IngredientRowsEditor
+              ings={ings}
+              types={types}
+              aliases={catalog.aliases}
+              onAdd={addIng}
+              onRemove={removeIng}
+              onUpdate={updateIng}
+              onCommitAlternative={commitAlternativeDraft}
+              onRemoveAlternative={removeAlternative}
+              hasUnmatchedIng={hasUnmatchedIng}
+              isDraftable={isDraftable}
+              returnTo={location.pathname + location.search}
+            />
 
-            <div>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  marginBottom: 10,
-                }}
-              >
-                <label
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: "var(--text2)",
-                    fontFamily: "var(--font-display)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                  }}
-                >
-                  Preparation Steps
-                </label>
-                <button
-                  onClick={addStep}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    color: "var(--cyan)",
-                    fontSize: 13,
-                    fontFamily: "var(--font-display)",
-                    fontWeight: 600,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                  }}
-                >
-                  <IconPlus size={14} /> Add
-                </button>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {steps.map((step, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      display: "flex",
-                      gap: 8,
-                      alignItems: "flex-start",
-                    }}
-                  >
-                    <span
-                      style={{
-                        width: 22,
-                        height: 22,
-                        borderRadius: "50%",
-                        background: "var(--surface3)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: 11,
-                        fontFamily: "var(--font-mono)",
-                        color: "var(--cyan)",
-                        flexShrink: 0,
-                        marginTop: 8,
-                      }}
-                    >
-                      {i + 1}
-                    </span>
-                    <textarea
-                      value={step}
-                      onChange={(e) => updateStep(i, e.target.value)}
-                      placeholder={`Step ${i + 1}`}
-                      rows={2}
-                      style={{
-                        flex: 1,
-                        background: "var(--surface)",
-                        border: "1px solid var(--border-s)",
-                        borderRadius: "var(--r-sm)",
-                        padding: "8px 12px",
-                        color: "var(--text)",
-                        fontSize: 13,
-                        fontFamily: "var(--font-body)",
-                        resize: "vertical",
-                      }}
-                    />
-                    {steps.length > 1 && (
-                      <button
-                        onClick={() => removeStep(i)}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: "pointer",
-                          color: "var(--text3)",
-                          padding: "8px 4px",
-                        }}
-                      >
-                        <IconX size={14} />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
+            <StepsEditor
+              steps={steps}
+              onAdd={addStep}
+              onRemove={removeStep}
+              onUpdate={updateStep}
+            />
 
-            <div>
-              <label
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: "var(--text2)",
-                  fontFamily: "var(--font-display)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                  display: "block",
-                  marginBottom: 8,
-                }}
-              >
-                Taste Tags
-              </label>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {tasteTags.map((t) => (
-                  <FilterChip
-                    key={t.id}
-                    label={t.name}
-                    active={tasteTagIds.includes(t.id)}
-                    onClick={() => toggleTaste(t.id)}
-                  />
-                ))}
-              </div>
-            </div>
+            <TasteTagChips
+              tasteTags={tasteTags}
+              selectedIds={tasteTagIds}
+              onToggle={toggleTaste}
+            />
 
             {!isEditing && (
               <p
