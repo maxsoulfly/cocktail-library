@@ -142,15 +142,7 @@ export function IngredientTypeEditor({
   }
 
   return (
-    <Card
-      style={{
-        ...style,
-        padding: 14,
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-      }}
-    >
+    <Card className="p-3.5 flex flex-col gap-2" style={style}>
       <Input label="Name" value={name} onChange={setName} />
       <CategoryPicker
         categories={categories}
@@ -183,50 +175,23 @@ export function IngredientTypeEditor({
         onChange={setColor}
         colors={liquidColors}
       />
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <label
-          style={{
-            fontSize: 12,
-            fontWeight: 700,
-            color: "var(--text2)",
-            fontFamily: "var(--font-display)",
-            textTransform: "uppercase",
-            letterSpacing: "0.06em",
-          }}
-        >
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-bold text-tx2 font-display uppercase tracking-[0.06em]">
           Aliases
         </label>
         {typeAliases.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <div className="flex flex-wrap gap-1.5">
             {typeAliases.map((a) => (
               <span
                 key={a.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "4px 8px",
-                  background: "var(--surface)",
-                  border: "1px solid var(--border-s)",
-                  borderRadius: "var(--r-sm)",
-                  fontSize: 13,
-                  color: "var(--text)",
-                }}
+                className="flex items-center gap-1.5 py-1 px-2 bg-surface border border-bdr rounded-sm text-[13px] text-tx"
               >
                 {a.alias}
                 <button
                   onClick={() => handleDeleteAlias(a.id)}
                   disabled={deletingAliasId === a.id}
                   title={`Remove alias "${a.alias}"`}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    padding: 0,
-                    color: "var(--text3)",
-                    fontSize: 14,
-                    lineHeight: 1,
-                  }}
+                  className="bg-transparent border-none cursor-pointer p-0 text-tx3 text-sm leading-none"
                 >
                   ×
                 </button>
@@ -234,8 +199,8 @@ export function IngredientTypeEditor({
             ))}
           </div>
         )}
-        <div style={{ display: "flex", gap: 8 }}>
-          <div style={{ flex: 1 }}>
+        <div className="flex gap-2">
+          <div className="flex-1">
             <Input
               placeholder="Add alias (e.g. Sec)"
               value={newAlias}
@@ -250,18 +215,10 @@ export function IngredientTypeEditor({
             {aliasSaving ? "Adding..." : "+ Add"}
           </Btn>
         </div>
-        {aliasError && (
-          <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
-            {aliasError}
-          </p>
-        )}
+        {aliasError && <p className="text-xs text-coral">{aliasError}</p>}
       </div>
-      {error && (
-        <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
-          {error}
-        </p>
-      )}
-      <div style={{ display: "flex", gap: 8 }}>
+      {error && <p className="text-xs text-coral">{error}</p>}
+      <div className="flex gap-2">
         <Btn
           variant="primary"
           small

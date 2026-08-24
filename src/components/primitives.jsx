@@ -29,7 +29,7 @@ export const AVAIL_CFG = {
   },
 }
 
-const AVAIL_TONE = {
+export const AVAIL_TONE = {
   perfect: "text-perfect border-perfect",
   good: "text-good border-good",
   almost: "text-almost border-almost",

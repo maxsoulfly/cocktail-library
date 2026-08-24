@@ -1,112 +1,53 @@
+import clsx from "clsx"
 import { GlassSvg } from "@/components/GlassSvg"
-import { AVAIL_CFG, Card, SourceBadge, TasteTag } from "@/components/primitives"
+import {
+  AVAIL_CFG,
+  AVAIL_TONE,
+  Card,
+  SourceBadge,
+  TasteTag,
+} from "@/components/primitives"
 
 export function CocktailCard({ c, onClick }) {
   const cfg = AVAIL_CFG[c.avail]
   return (
     <Card
-      style={{
-        cursor: "pointer",
-        overflow: "hidden",
-        transition: "transform 0.15s, box-shadow 0.15s",
-      }}
-      className="fade-in"
+      className="fade-in cursor-pointer overflow-hidden transition-[transform,box-shadow] duration-150"
       onClick={onClick}
     >
-      <div
-        style={{
-          padding: "16px 16px 12px",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 10,
-        }}
-      >
+      <div className="pt-4 px-4 pb-3 flex flex-col items-center gap-2.5">
         <GlassSvg
           type={c.glassShape}
           liquidColor={c.liquidColor}
           size={60}
           avail={c.avail}
         />
-        <div style={{ width: "100%" }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              justifyContent: "space-between",
-              gap: 4,
-              marginBottom: 4,
-            }}
-          >
-            <span
-              style={{
-                fontFamily: "var(--font-display)",
-                fontWeight: 700,
-                fontSize: 14,
-                color: "var(--text)",
-                lineHeight: 1.2,
-              }}
-            >
+        <div className="w-full">
+          <div className="flex items-start justify-between gap-1 mb-1">
+            <span className="font-display font-bold text-sm text-tx leading-[1.2]">
               {c.name}
             </span>
             <SourceBadge source={c.source} />
           </div>
           {c.author && (
-            <div
-              style={{
-                fontSize: 11,
-                color: "var(--text3)",
-                marginBottom: 6,
-              }}
-            >
-              by {c.author}
-            </div>
+            <div className="text-[11px] text-tx3 mb-1.5">by {c.author}</div>
           )}
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 4,
-              marginBottom: 8,
-            }}
-          >
+          <div className="flex flex-wrap gap-1 mb-2">
             {c.taste.slice(0, 2).map((t) => (
               <TasteTag key={t} label={t} />
             ))}
           </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
+          <div className="flex items-center justify-between">
             <span
-              style={{
-                fontSize: 12,
-                fontFamily: "var(--font-mono)",
-                color: cfg.color,
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-              }}
+              className={clsx(
+                "text-xs font-mono flex items-center gap-1",
+                AVAIL_TONE[c.avail],
+              )}
             >
               <span>{cfg.icon}</span> {cfg.label}
             </span>
             {c.avail === "almost" && c.missingRequired[0] && (
-              <span
-                style={{
-                  fontSize: 11,
-                  color: "var(--almost)",
-                  background: "rgba(251,191,36,0.1)",
-                  borderRadius: 4,
-                  padding: "2px 6px",
-                  maxWidth: 100,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
+              <span className="text-[11px] text-almost bg-almost/10 rounded-[4px] py-0.5 px-1.5 max-w-25 overflow-hidden text-ellipsis whitespace-nowrap">
                 −{c.missingRequired[0]}
               </span>
             )}
@@ -120,18 +61,7 @@ export function CocktailCard({ c, onClick }) {
 export function SmallCard({ c, onClick }) {
   return (
     <Card
-      style={{
-        cursor: "pointer",
-        minWidth: 150,
-        maxWidth: 160,
-        padding: "12px",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 8,
-        flexShrink: 0,
-        transition: "transform 0.15s",
-      }}
+      className="cursor-pointer min-w-[150px] max-w-[160px] p-3 flex flex-col items-center gap-2 shrink-0 transition-transform duration-150"
       onClick={onClick}
     >
       <GlassSvg
@@ -140,30 +70,11 @@ export function SmallCard({ c, onClick }) {
         size={48}
         avail={c.avail}
       />
-      <span
-        style={{
-          fontFamily: "var(--font-display)",
-          fontWeight: 600,
-          fontSize: 13,
-          textAlign: "center",
-          color: "var(--text)",
-          lineHeight: 1.2,
-        }}
-      >
+      <span className="font-display font-semibold text-[13px] text-center text-tx leading-[1.2]">
         {c.name}
       </span>
       {c.avail === "almost" && c.missingRequired[0] && (
-        <span
-          style={{
-            fontSize: 10,
-            color: "var(--almost)",
-            background: "rgba(251,191,36,0.1)",
-            borderRadius: 4,
-            padding: "2px 6px",
-            textAlign: "center",
-            lineHeight: 1.3,
-          }}
-        >
+        <span className="text-[10px] text-almost bg-almost/10 rounded-[4px] py-0.5 px-1.5 text-center leading-[1.3]">
           needs {c.missingRequired[0]}
         </span>
       )}
