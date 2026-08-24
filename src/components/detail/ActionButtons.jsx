@@ -48,25 +48,10 @@ export function ActionButtons({
       )}
 
       {c.source === "private" && isOwner && (
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-2">
           <button
             onClick={onTogglePublish}
-            style={{
-              flex: 1,
-              background: "rgba(34,211,238,0.1)",
-              border: "1px solid rgba(34,211,238,0.25)",
-              borderRadius: "var(--r)",
-              padding: "10px 16px",
-              cursor: "pointer",
-              color: "var(--cyan)",
-              fontSize: 14,
-              fontFamily: "var(--font-display)",
-              fontWeight: 600,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-            }}
+            className="flex-1 bg-cyan/10 border border-cyan/25 rounded py-2.5 px-4 cursor-pointer text-cyan text-sm font-display font-semibold flex items-center justify-center gap-1.5"
           >
             <IconGlobe size={15} /> Publish
           </button>
@@ -79,21 +64,7 @@ export function ActionButtons({
       {c.source === "community" && canManage && (
         <button
           onClick={onRequestUnpublish}
-          style={{
-            background: "var(--surface3)",
-            border: "1px solid var(--border-s)",
-            borderRadius: "var(--r)",
-            padding: "10px 16px",
-            cursor: "pointer",
-            color: "var(--text2)",
-            fontSize: 14,
-            fontFamily: "var(--font-display)",
-            fontWeight: 600,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
-          }}
+          className="bg-surface3 border border-bdr rounded py-2.5 px-4 cursor-pointer text-tx2 text-sm font-display font-semibold flex items-center justify-center gap-1.5"
         >
           <IconLock size={15} /> Unpublish
         </button>

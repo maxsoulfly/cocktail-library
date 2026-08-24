@@ -364,6 +364,7 @@ export function ConfirmPanel({
   layout = "card",
   borderTone = "neutral",
   style,
+  className,
 }) {
   const buttons = (
     <>
@@ -378,7 +379,10 @@ export function ConfirmPanel({
 
   if (layout === "row") {
     return (
-      <div className="flex items-center gap-2.5" style={style}>
+      <div
+        className={clsx("flex items-center gap-2.5", className)}
+        style={style}
+      >
         <span className="flex-1 text-xs text-coral">{message}</span>
         {buttons}
       </div>
@@ -387,7 +391,7 @@ export function ConfirmPanel({
 
   if (layout === "stack") {
     return (
-      <div className="flex flex-col gap-2" style={style}>
+      <div className={clsx("flex flex-col gap-2", className)} style={style}>
         <p className="m-0 text-[13px] text-coral">{message}</p>
         <div className="flex gap-2">{buttons}</div>
       </div>
@@ -396,7 +400,7 @@ export function ConfirmPanel({
 
   return (
     <Card
-      className="p-4"
+      className={clsx("p-4", className)}
       style={{ borderColor: CONFIRM_BORDER[borderTone], ...style }}
     >
       <p className="mb-3 text-sm text-tx2">{message}</p>

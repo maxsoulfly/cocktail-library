@@ -12,79 +12,34 @@ export function SearchFilterHeader({
   onCatChange,
 }) {
   return (
-    <div
-      style={{
-        padding: "16px 16px 0",
-        background: "var(--bg2)",
-        borderBottom: "1px solid var(--border-s)",
-        position: "sticky",
-        top: 0,
-        zIndex: 10,
-        backdropFilter: "blur(12px)",
-      }}
-    >
-      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-        <div style={{ flex: 1, position: "relative" }}>
+    <div className="pt-4 px-4 pb-0 bg-bg2 border-b border-bdr sticky top-0 z-10 backdrop-blur-md">
+      <div className="flex gap-2 mb-3">
+        <div className="flex-1 relative">
           <IconSearch
             size={16}
-            style={{
-              position: "absolute",
-              left: 12,
-              top: "50%",
-              transform: "translateY(-50%)",
-              color: "var(--text3)",
-            }}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-tx3"
           />
           <input
             placeholder="Search ingredients..."
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
-            style={{
-              background: "var(--surface)",
-              border: "1px solid var(--border-s)",
-              borderRadius: "var(--r-sm)",
-              padding: "9px 12px 9px 36px",
-              color: "var(--text)",
-              fontSize: 14,
-              fontFamily: "var(--font-body)",
-              width: "100%",
-            }}
+            className="bg-surface border border-bdr rounded-sm py-[9px] pl-9 pr-3 text-tx text-sm font-body w-full"
           />
         </div>
         <button
           onClick={onAddClick}
-          style={{
-            background: "var(--cyan)",
-            border: "none",
-            borderRadius: "var(--r-sm)",
-            width: 40,
-            height: 40,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#07091a",
-            flexShrink: 0,
-          }}
-          className="glow-cyan"
+          className="glow-cyan bg-cyan border-none rounded-sm w-10 h-10 cursor-pointer flex items-center justify-center text-[#07091a] shrink-0"
         >
           <IconPlus size={18} />
         </button>
       </div>
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          alignItems: "center",
-          marginBottom: 12,
-        }}
-      >
+      <div className="flex gap-2 items-center mb-3">
         <FilterChip
           label="Owned only"
           active={ownedOnly}
           onClick={onToggleOwnedOnly}
         />
-        <div style={{ flex: 1, display: "flex", gap: 6, overflowX: "auto" }}>
+        <div className="flex-1 flex gap-1.5 overflow-x-auto">
           {cats.map((c) => (
             <FilterChip
               key={c}

@@ -14,38 +14,18 @@ export function FamilyCluster({
   renderExpanded,
 }) {
   return (
-    <div
-      style={{
-        gridColumn: "1 / -1",
-        border: "1px solid var(--border-s)",
-        borderRadius: "var(--r-lg)",
-        background: "rgba(255,255,255,0.02)",
-        padding: "10px 10px 12px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-      }}
-    >
-      <div
-        style={{
-          fontSize: 10,
-          fontWeight: 700,
-          color: "var(--text3)",
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          fontFamily: "var(--font-display)",
-        }}
-      >
+    <div className="col-span-full border border-bdr rounded-lg bg-white/2 pt-2.5 px-2.5 pb-3 flex flex-col gap-2">
+      <div className="text-[10px] font-bold text-tx3 uppercase tracking-[0.06em] font-display">
         {parent.name} family
       </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+      <div className="flex flex-wrap gap-2">
         {editingTypeId !== parent.id && (
-          <div style={{ width: 104 }}>{renderCard(parent, false)}</div>
+          <div className="w-26">{renderCard(parent, false)}</div>
         )}
         {children.map(
           (child) =>
             editingTypeId !== child.id && (
-              <div key={child.id} style={{ width: 96 }}>
+              <div key={child.id} className="w-24">
                 {renderCard(child, true)}
               </div>
             ),

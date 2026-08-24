@@ -1,4 +1,5 @@
 import { useState } from "react"
+import clsx from "clsx"
 import { IconEdit, IconTrash } from "@/components/icons"
 import {
   Btn,
@@ -91,22 +92,17 @@ export function ExpandedProducts({
   }
 
   return (
-    <Card style={{ ...style, padding: 0, overflow: "hidden" }}>
+    <Card className="p-0 overflow-hidden" style={style}>
       {products.map((p, pIdx) => {
-        const rowBorder =
-          pIdx < products.length - 1 ? "1px solid var(--border-s)" : "none"
+        const isLastRow = pIdx === products.length - 1
         if (editingProduct?.id === p.id) {
           return (
             <div
               key={p.id}
-              style={{
-                padding: "10px 14px",
-                borderBottom: rowBorder,
-                background: "var(--bg2)",
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
-              }}
+              className={clsx(
+                "py-2.5 px-3.5 bg-bg2 flex flex-col gap-2",
+                !isLastRow && "border-b border-bdr",
+              )}
             >
               <Input
                 label="Name"
@@ -116,18 +112,7 @@ export function ExpandedProducts({
                 }
               />
               <div>
-                <label
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: "var(--text2)",
-                    fontFamily: "var(--font-display)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                    display: "block",
-                    marginBottom: 4,
-                  }}
-                >
+                <label className="text-[11px] font-bold text-tx2 font-display uppercase tracking-[0.06em] block mb-1">
                   Ingredient Type
                 </label>
                 <input
@@ -139,16 +124,7 @@ export function ExpandedProducts({
                       ingredientTypeName: e.target.value,
                     })
                   }
-                  style={{
-                    background: "var(--surface)",
-                    border: "1px solid var(--border-s)",
-                    borderRadius: "var(--r-sm)",
-                    padding: "8px 10px",
-                    color: "var(--text)",
-                    fontSize: 13,
-                    fontFamily: "var(--font-body)",
-                    width: "100%",
-                  }}
+                  className="bg-surface border border-bdr rounded-sm py-2 px-2.5 text-tx text-[13px] font-body w-full"
                 />
                 <datalist id={`edit-ing-types-${p.id}`}>
                   {types.map((t) => (
@@ -160,13 +136,7 @@ export function ExpandedProducts({
                 </datalist>
                 {editingProduct.ingredientTypeName.trim() &&
                   !editMatchedType && (
-                    <p
-                      style={{
-                        margin: "4px 0 0",
-                        fontSize: 11,
-                        color: "var(--amber)",
-                      }}
-                    >
+                    <p className="mt-1 text-[11px] text-amber">
                       Doesn't match an existing ingredient type.
                     </p>
                   )}
@@ -178,12 +148,8 @@ export function ExpandedProducts({
                   setEditingProduct({ ...editingProduct, brand: v })
                 }
               />
-              {editError && (
-                <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
-                  {editError}
-                </p>
-              )}
-              <div style={{ display: "flex", gap: 8 }}>
+              {editError && <p className="text-xs text-coral">{editError}</p>}
+              <div className="flex gap-2">
                 <Btn
                   variant="primary"
                   small
@@ -212,11 +178,10 @@ export function ExpandedProducts({
             <ConfirmPanel
               key={p.id}
               layout="row"
-              style={{
-                padding: "7px 14px",
-                borderBottom: rowBorder,
-                background: "var(--bg2)",
-              }}
+              className={clsx(
+                "py-[7px] px-3.5 bg-bg2",
+                !isLastRow && "border-b border-bdr",
+              )}
               message={`Delete "${p.name}"? This can't be undone.`}
               busy={deletingProduct}
               onConfirm={() => handleDeleteProduct(p.id)}
@@ -227,23 +192,17 @@ export function ExpandedProducts({
         return (
           <div
             key={p.id}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "7px 14px",
-              borderBottom: rowBorder,
-              background: "var(--bg2)",
-            }}
+            className={clsx(
+              "flex items-center gap-3 py-[7px] px-3.5 bg-bg2",
+              !isLastRow && "border-b border-bdr",
+            )}
           >
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex-1 min-w-0">
               <div
-                style={{
-                  fontSize: 12,
-                  color: ownedProductIds.has(p.id)
-                    ? "var(--text)"
-                    : "var(--text3)",
-                }}
+                className={clsx(
+                  "text-xs",
+                  ownedProductIds.has(p.id) ? "text-tx" : "text-tx3",
+                )}
               >
                 {p.name}
                 {p.brand && p.brand !== p.name ? ` · ${p.brand}` : ""}
@@ -254,15 +213,7 @@ export function ExpandedProducts({
               <button
                 onClick={() => startEditProduct(p)}
                 title="Edit product"
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: 4,
-                  color: "var(--text3)",
-                  display: "flex",
-                  alignItems: "center",
-                }}
+                className="bg-transparent border-none cursor-pointer p-1 text-tx3 flex items-center"
               >
                 <IconEdit size={14} />
               </button>
@@ -271,15 +222,7 @@ export function ExpandedProducts({
               <button
                 onClick={() => setConfirmDeleteProductId(p.id)}
                 title="Delete product"
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: 4,
-                  color: "var(--text3)",
-                  display: "flex",
-                  alignItems: "center",
-                }}
+                className="bg-transparent border-none cursor-pointer p-1 text-tx3 flex items-center"
               >
                 <IconTrash size={14} />
               </button>
