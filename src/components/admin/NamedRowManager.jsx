@@ -1,4 +1,5 @@
 import { useState } from "react"
+import clsx from "clsx"
 import { FamilyIcon } from "@/components/FamilyIcon"
 import { GlassSvg } from "@/components/GlassSvg"
 import { IconEdit, IconTrash } from "@/components/icons"
@@ -143,41 +144,27 @@ export function NamedRowManager({
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    <div className="flex flex-col gap-2.5">
       <SectionTitle>{title}</SectionTitle>
-      <Card style={{ padding: 0 }}>
+      <Card className="p-0">
         {items.length === 0 ? (
-          <p
-            style={{
-              margin: 0,
-              padding: "14px 16px",
-              fontSize: 13,
-              color: "var(--text3)",
-            }}
-          >
-            None yet.
-          </p>
+          <p className="py-3.5 px-4 text-[13px] text-tx3">None yet.</p>
         ) : (
           items.map((item, i) => (
             <div
               key={item.id}
-              style={{
-                padding: "10px 14px",
-                borderBottom:
-                  i < items.length - 1 ? "1px solid var(--border-s)" : "none",
-              }}
+              className={clsx(
+                "py-2.5 px-3.5",
+                i < items.length - 1 && "border-b border-bdr",
+              )}
             >
               {editingId === item.id ? (
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 8 }}
-                >
-                  <div
-                    style={{ display: "flex", gap: 8, alignItems: "center" }}
-                  >
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2 items-center">
                     {colorField && (
                       <HexColorField value={editHex} onChange={setEditHex} />
                     )}
-                    <div style={{ flex: 1 }}>
+                    <div className="flex-1">
                       <Input value={editName} onChange={setEditName} />
                     </div>
                     {showSortOrder && (
@@ -185,16 +172,7 @@ export function NamedRowManager({
                         type="number"
                         value={editSortOrder}
                         onChange={(e) => setEditSortOrder(e.target.value)}
-                        style={{
-                          width: 64,
-                          background: "var(--surface)",
-                          border: "1px solid var(--border-s)",
-                          borderRadius: "var(--r-sm)",
-                          padding: "10px 8px",
-                          color: "var(--text)",
-                          fontSize: 14,
-                          fontFamily: "var(--font-mono)",
-                        }}
+                        className="w-16 bg-surface border border-bdr rounded-sm py-2.5 px-2 text-tx text-sm font-mono"
                       />
                     )}
                   </div>
@@ -206,13 +184,9 @@ export function NamedRowManager({
                     />
                   )}
                   {editError && (
-                    <p
-                      style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}
-                    >
-                      {editError}
-                    </p>
+                    <p className="text-xs text-coral">{editError}</p>
                   )}
-                  <div style={{ display: "flex", gap: 8 }}>
+                  <div className="flex gap-2">
                     <Btn
                       variant="primary"
                       small
@@ -244,13 +218,7 @@ export function NamedRowManager({
                   }}
                 />
               ) : (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                  }}
-                >
+                <div className="flex items-center gap-2.5">
                   {shapeKind === "glass" && (
                     <GlassSvg
                       type={item.shape ?? "martini"}
@@ -268,34 +236,14 @@ export function NamedRowManager({
                   {colorField && (
                     <div
                       title={item.hex}
-                      style={{
-                        width: 18,
-                        height: 18,
-                        borderRadius: "50%",
-                        background: item.hex,
-                        border: "1px solid var(--border-s)",
-                        flexShrink: 0,
-                      }}
+                      className="w-4.5 h-4.5 rounded-full border border-bdr shrink-0"
+                      style={{ background: item.hex }}
                     />
                   )}
-                  <span
-                    style={{
-                      flex: 1,
-                      fontSize: 14,
-                      color: "var(--text)",
-                      fontFamily: "var(--font-body)",
-                    }}
-                  >
+                  <span className="flex-1 text-sm text-tx font-body">
                     {item.name}
                     {showSortOrder && (
-                      <span
-                        style={{
-                          fontSize: 11,
-                          color: "var(--text3)",
-                          fontFamily: "var(--font-mono)",
-                          marginLeft: 8,
-                        }}
-                      >
+                      <span className="text-[11px] text-tx3 font-mono ml-2">
                         order {item.sort_order}
                       </span>
                     )}
@@ -303,15 +251,7 @@ export function NamedRowManager({
                   <button
                     onClick={() => startEdit(item)}
                     title={`Edit ${singular}`}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      padding: 4,
-                      color: "var(--text3)",
-                      display: "flex",
-                      alignItems: "center",
-                    }}
+                    className="bg-transparent border-none cursor-pointer p-1 text-tx3 flex items-center"
                   >
                     <IconEdit size={14} />
                   </button>
@@ -321,15 +261,7 @@ export function NamedRowManager({
                       setConfirmDeleteId(item.id)
                     }}
                     title={`Delete ${singular}`}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      padding: 4,
-                      color: "var(--text3)",
-                      display: "flex",
-                      alignItems: "center",
-                    }}
+                    className="bg-transparent border-none cursor-pointer p-1 text-tx3 flex items-center"
                   >
                     <IconTrash size={14} />
                   </button>
@@ -342,9 +274,9 @@ export function NamedRowManager({
       {shapeKind && (
         <ShapePicker kind={shapeKind} value={newShape} onChange={setNewShape} />
       )}
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      <div className="flex gap-2 items-center">
         {colorField && <HexColorField value={newHex} onChange={setNewHex} />}
-        <div style={{ flex: 1 }}>
+        <div className="flex-1">
           <Input
             placeholder={`New ${singular} name`}
             value={newName}
@@ -357,16 +289,7 @@ export function NamedRowManager({
             value={newSortOrder}
             onChange={(e) => setNewSortOrder(e.target.value)}
             title="Sort order"
-            style={{
-              width: 64,
-              background: "var(--surface)",
-              border: "1px solid var(--border-s)",
-              borderRadius: "var(--r-sm)",
-              padding: "10px 8px",
-              color: "var(--text)",
-              fontSize: 14,
-              fontFamily: "var(--font-mono)",
-            }}
+            className="w-16 bg-surface border border-bdr rounded-sm py-2.5 px-2 text-tx text-sm font-mono"
           />
         )}
         <Btn
@@ -378,11 +301,7 @@ export function NamedRowManager({
           {creating ? "Adding..." : "Add"}
         </Btn>
       </div>
-      {createError && (
-        <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
-          {createError}
-        </p>
-      )}
+      {createError && <p className="text-xs text-coral">{createError}</p>}
     </div>
   )
 }

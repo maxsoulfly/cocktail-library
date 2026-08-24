@@ -1,4 +1,5 @@
 import { useState } from "react"
+import clsx from "clsx"
 import { Btn, Card, Input } from "@/components/primitives"
 import { setMembershipRevoked, setUserRole } from "@/services/membership"
 
@@ -55,11 +56,8 @@ export function UsersTab({
   }
 
   return (
-    <div
-      className="fade-in"
-      style={{ display: "flex", flexDirection: "column", gap: 12 }}
-    >
-      <p style={{ margin: 0, fontSize: 13, color: "var(--text2)" }}>
+    <div className="fade-in flex flex-col gap-3">
+      <p className="text-[13px] text-tx2">
         Every registered user. Blocking cuts off access immediately
         (RLS-enforced) without deleting their account or data; unblock reverses
         it. You can't change your own role or block yourself.
@@ -70,13 +68,9 @@ export function UsersTab({
         onChange={setUserQuery}
       />
       {usersLoading ? (
-        <p style={{ margin: 0, fontSize: 14, color: "var(--text3)" }}>
-          Loading...
-        </p>
+        <p className="text-sm text-tx3">Loading...</p>
       ) : filteredUsers.length === 0 ? (
-        <p style={{ margin: 0, fontSize: 14, color: "var(--text3)" }}>
-          No matching users.
-        </p>
+        <p className="text-sm text-tx3">No matching users.</p>
       ) : (
         filteredUsers.map((u) => {
           const isSelf = u.id === currentUserId
@@ -86,61 +80,29 @@ export function UsersTab({
             : isBlocked
               ? "Blocked"
               : "Active"
-          const statusColor = !u.membership
-            ? "var(--text3)"
+          const statusTone = !u.membership
+            ? "text-tx3"
             : isBlocked
-              ? "var(--coral)"
-              : "var(--green)"
+              ? "text-coral"
+              : "text-green"
           return (
-            <Card key={u.id} style={{ padding: "14px 16px" }}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 10,
-                }}
-              >
-                <div style={{ flex: 1 }}>
-                  <div
-                    style={{
-                      fontSize: 15,
-                      fontFamily: "var(--font-display)",
-                      fontWeight: 700,
-                      color: "var(--text)",
-                      marginBottom: 3,
-                    }}
-                  >
+            <Card key={u.id} className="py-3.5 px-4">
+              <div className="flex items-start gap-2.5">
+                <div className="flex-1">
+                  <div className="text-[15px] font-display font-bold text-tx mb-[3px]">
                     {u.display_name ?? "Unnamed"}
                     {isSelf && (
-                      <span
-                        style={{
-                          color: "var(--text3)",
-                          fontWeight: 400,
-                        }}
-                      >
-                        {" "}
-                        (you)
-                      </span>
+                      <span className="text-tx3 font-normal"> (you)</span>
                     )}
                   </div>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: "var(--text3)",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                    }}
-                  >
-                    <span style={{ textTransform: "capitalize" }}>
-                      {u.role}
-                    </span>
+                  <div className="text-xs text-tx3 flex items-center gap-1.5">
+                    <span className="capitalize">{u.role}</span>
                     <span>·</span>
-                    <span style={{ color: statusColor }}>{statusLabel}</span>
+                    <span className={statusTone}>{statusLabel}</span>
                   </div>
                 </div>
                 {!isSelf && (
-                  <div style={{ display: "flex", gap: 8 }}>
+                  <div className="flex gap-2">
                     <button
                       onClick={() =>
                         u.role === "admin"
@@ -151,17 +113,7 @@ export function UsersTab({
                             })
                       }
                       disabled={userActionId === u.id}
-                      style={{
-                        background: "rgba(167,139,250,0.1)",
-                        border: "1px solid rgba(167,139,250,0.25)",
-                        borderRadius: 8,
-                        padding: "6px 12px",
-                        cursor: "pointer",
-                        color: "var(--violet)",
-                        fontSize: 12,
-                        fontFamily: "var(--font-display)",
-                        fontWeight: 600,
-                      }}
+                      className="bg-violet/10 border border-violet/25 rounded-sm py-1.5 px-3 cursor-pointer text-violet text-xs font-display font-semibold"
                     >
                       {u.role === "admin" ? "Demote to Member" : "Make Admin"}
                     </button>
@@ -176,23 +128,12 @@ export function UsersTab({
                               })
                         }
                         disabled={userActionId === u.id}
-                        style={{
-                          background: isBlocked
-                            ? "rgba(52,211,153,0.1)"
-                            : "rgba(251,113,133,0.1)",
-                          border: `1px solid ${
-                            isBlocked
-                              ? "rgba(52,211,153,0.25)"
-                              : "rgba(251,113,133,0.25)"
-                          }`,
-                          borderRadius: 8,
-                          padding: "6px 12px",
-                          cursor: "pointer",
-                          color: isBlocked ? "var(--green)" : "var(--coral)",
-                          fontSize: 12,
-                          fontFamily: "var(--font-display)",
-                          fontWeight: 600,
-                        }}
+                        className={clsx(
+                          "border rounded-sm py-1.5 px-3 cursor-pointer text-xs font-display font-semibold",
+                          isBlocked
+                            ? "bg-green/10 border-green/25 text-green"
+                            : "bg-coral/10 border-coral/25 text-coral",
+                        )}
                       >
                         {isBlocked ? "Unblock" : "Block"}
                       </button>
@@ -202,35 +143,21 @@ export function UsersTab({
               </div>
               {confirmAction?.userId === u.id && (
                 <div
-                  style={{
-                    marginTop: 12,
-                    padding: "12px",
-                    background:
-                      confirmAction.type === "block"
-                        ? "rgba(251,113,133,0.08)"
-                        : "rgba(167,139,250,0.08)",
-                    borderRadius: 8,
-                    border: `1px solid ${
-                      confirmAction.type === "block"
-                        ? "rgba(251,113,133,0.25)"
-                        : "rgba(167,139,250,0.25)"
-                    }`,
-                  }}
+                  className={clsx(
+                    "mt-3 p-3 rounded-sm border",
+                    confirmAction.type === "block"
+                      ? "bg-coral/8 border-coral/25"
+                      : "bg-violet/8 border-violet/25",
+                  )}
                 >
-                  <p
-                    style={{
-                      margin: "0 0 10px",
-                      fontSize: 13,
-                      color: "var(--text2)",
-                    }}
-                  >
+                  <p className="mb-2.5 text-[13px] text-tx2">
                     {userActionError
                       ? userActionError
                       : confirmAction.type === "block"
                         ? `Block "${u.display_name ?? "this user"}"? They lose all access immediately until unblocked.`
                         : `Make "${u.display_name ?? "this user"}" an admin? They'll get full Admin dashboard access.`}
                   </p>
-                  <div style={{ display: "flex", gap: 8 }}>
+                  <div className="flex gap-2">
                     <Btn
                       variant={
                         confirmAction.type === "block" ? "danger" : "primary"
