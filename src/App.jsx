@@ -207,25 +207,13 @@ function AppShell({ profile, session }) {
           minHeight has no definite height, so the overflowY:auto child below
           can never establish a bounded box to scroll within - it just grows
           to fit its content instead, and nothing ever scrolls. */}
-      <div className="lg-sidebar hidden">
+      <div className="hidden xl:flex">
         <SideNav isAdmin={isAdmin} />
       </div>
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
         {isLoading ? <LoadingScreen /> : <Outlet context={outletContext} />}
       </div>
       <BottomNav />
-      <style>{`
-        @media (min-width: 1280px) {
-          .lg-sidebar { display: flex !important; }
-          body { overflow: hidden; }
-        }
-        @media (min-width: 768px) {
-          .cocktail-grid { grid-template-columns: repeat(3, 1fr) !important; }
-        }
-        @media (min-width: 1280px) {
-          .cocktail-grid { grid-template-columns: repeat(4, 1fr) !important; }
-        }
-      `}</style>
     </div>
   )
 }

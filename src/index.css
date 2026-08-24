@@ -108,6 +108,12 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Desktop layout shows the fixed SideNav instead of the mobile BottomNav -
+   the page itself shouldn't also scroll independently at that width. */
+@media (min-width: 1280px) {
+  body { overflow: hidden; }
+}
+
 ::-webkit-scrollbar { width: 3px; height: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-s); border-radius: 2px; }
