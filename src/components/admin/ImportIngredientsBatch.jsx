@@ -1,3 +1,4 @@
+import clsx from "clsx"
 import { IconCheck, IconCopy } from "@/components/icons"
 import { Btn, Card } from "@/components/primitives"
 
@@ -17,19 +18,11 @@ export function ImportIngredientsBatch({
 }) {
   if (batchPhase === "paste") {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <h3
-          style={{
-            margin: 0,
-            fontFamily: "var(--font-display)",
-            fontSize: 17,
-            fontWeight: 700,
-            color: "var(--text)",
-          }}
-        >
+      <div className="flex flex-col gap-3">
+        <h3 className="font-display text-[17px] font-bold text-tx">
           Format with AI, then Paste JSON
         </h3>
-        <p style={{ margin: 0, fontSize: 13, color: "var(--text2)" }}>
+        <p className="text-[13px] text-tx2">
           Copy this prompt into an AI chat along with what you want to add (e.g.
           "Passionfruit Juice, Yuzu, Grapefruit"), then paste its JSON output
           below. The prompt is generated from the live catalog, so it always
@@ -40,18 +33,7 @@ export function ImportIngredientsBatch({
           value={importPrompt}
           rows={14}
           onFocus={(e) => e.target.select()}
-          style={{
-            background: "var(--surface2)",
-            border: "1px solid var(--border-s)",
-            borderRadius: "var(--r-sm)",
-            padding: "14px",
-            color: "var(--text2)",
-            fontSize: 12,
-            fontFamily: "var(--font-mono)",
-            lineHeight: 1.6,
-            resize: "vertical",
-            width: "100%",
-          }}
+          className="bg-surface2 border border-bdr rounded-sm p-3.5 text-tx2 text-xs font-mono leading-[1.6] resize-y w-full"
         />
         <Btn variant="ghost" small onClick={onCopyPrompt}>
           {promptCopied ? <IconCheck size={14} /> : <IconCopy size={14} />}{" "}
@@ -62,17 +44,7 @@ export function ImportIngredientsBatch({
           onChange={(e) => setImportJson(e.target.value)}
           placeholder="Paste your JSON here..."
           rows={8}
-          style={{
-            background: "var(--surface)",
-            border: "1px solid var(--border-s)",
-            borderRadius: "var(--r-sm)",
-            padding: "12px 14px",
-            color: "var(--text)",
-            fontSize: 13,
-            fontFamily: "var(--font-mono)",
-            resize: "vertical",
-            width: "100%",
-          }}
+          className="bg-surface border border-bdr rounded-sm py-3 px-3.5 text-tx text-[13px] font-mono resize-y w-full"
         />
         <Btn variant="primary" full onClick={onValidate}>
           Validate
@@ -83,99 +55,63 @@ export function ImportIngredientsBatch({
 
   if (batchPhase === "results" && importResult) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <h3
-          style={{
-            margin: 0,
-            fontFamily: "var(--font-display)",
-            fontSize: 17,
-            fontWeight: 700,
-            color: "var(--text)",
-          }}
-        >
+      <div className="flex flex-col gap-3">
+        <h3 className="font-display text-[17px] font-bold text-tx">
           Validation Results
         </h3>
         {importResult.parseError ? (
-          <p style={{ margin: 0, fontSize: 13, color: "var(--coral)" }}>
+          <p className="text-[13px] text-coral">
             Couldn't parse that as a JSON array: {importResult.parseError}
           </p>
         ) : (
           <>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(2, 1fr)",
-                gap: 8,
-              }}
-            >
+            <div className="grid grid-cols-2 gap-2">
               {[
                 {
                   label: "Ready to import",
                   val: importResult.validCount,
-                  color: "var(--green)",
+                  tone: "text-green",
                 },
                 {
                   label: "Errors",
                   val: importResult.errorCount,
-                  color: "var(--coral)",
+                  tone: "text-coral",
                 },
-              ].map(({ label, val, color }) => (
-                <Card
-                  key={label}
-                  style={{ padding: "12px", textAlign: "center" }}
-                >
+              ].map(({ label, val, tone }) => (
+                <Card key={label} className="p-3 text-center">
                   <div
-                    style={{
-                      fontSize: 24,
-                      fontFamily: "var(--font-display)",
-                      fontWeight: 800,
-                      color,
-                      marginBottom: 2,
-                    }}
+                    className={clsx(
+                      "text-2xl font-display font-extrabold mb-0.5",
+                      tone,
+                    )}
                   >
                     {val}
                   </div>
-                  <div style={{ fontSize: 11, color: "var(--text2)" }}>
-                    {label}
-                  </div>
+                  <div className="text-[11px] text-tx2">{label}</div>
                 </Card>
               ))}
             </div>
-            <Card style={{ padding: "12px 14px" }}>
+            <Card className="py-3 px-3.5">
               {importResult.results.map((row, i, arr) => (
                 <div
                   key={row.index}
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 10,
-                    padding: "8px 0",
-                    borderBottom:
-                      i < arr.length - 1 ? "1px solid var(--border-s)" : "none",
-                  }}
+                  className={clsx(
+                    "flex items-start gap-2.5 py-2",
+                    i < arr.length - 1 && "border-b border-bdr",
+                  )}
                 >
                   <div
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: "50%",
-                      flexShrink: 0,
-                      marginTop: 6,
-                      background: row.valid ? "var(--green)" : "var(--coral)",
-                    }}
+                    className={clsx(
+                      "w-1.5 h-1.5 rounded-full shrink-0 mt-1.5",
+                      row.valid ? "bg-green" : "bg-coral",
+                    )}
                   />
-                  <div style={{ flex: 1 }}>
-                    <span style={{ fontSize: 13, color: "var(--text)" }}>
+                  <div className="flex-1">
+                    <span className="text-[13px] text-tx">
                       {row.name ?? `Row ${row.index + 1}`}
                     </span>
                     {!row.valid && (
-                      <div
-                        style={{
-                          fontSize: 11,
-                          color: "var(--coral)",
-                          marginTop: 2,
-                        }}
-                      >
+                      <div className="text-[11px] text-coral mt-0.5">
                         {row.errors.join("; ")}
                       </div>
                     )}
@@ -184,13 +120,11 @@ export function ImportIngredientsBatch({
               ))}
             </Card>
             {importResult.commitError && (
-              <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
-                {importResult.commitError}
-              </p>
+              <p className="text-xs text-coral">{importResult.commitError}</p>
             )}
           </>
         )}
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-2">
           <Btn
             variant="ghost"
             small

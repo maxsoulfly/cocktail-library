@@ -47,17 +47,14 @@ export function TypesTab({ catalog, onAddNew }) {
   }
 
   return (
-    <div
-      className="fade-in"
-      style={{ display: "flex", flexDirection: "column", gap: 12 }}
-    >
-      <p style={{ margin: 0, fontSize: 13, color: "var(--text2)" }}>
+    <div className="fade-in flex flex-col gap-3">
+      <p className="text-[13px] text-tx2">
         Every ingredient type in the catalog. Delete only succeeds if nothing -
         a child type, product, recipe, or substitution - still references it;
         the database's own rejection shows as-is.
       </p>
-      <div style={{ display: "flex", gap: 8 }}>
-        <div style={{ flex: 1 }}>
+      <div className="flex gap-2">
+        <div className="flex-1">
           <Input
             placeholder="Search types..."
             value={typeQuery}
@@ -69,9 +66,7 @@ export function TypesTab({ catalog, onAddNew }) {
         </Btn>
       </div>
       {filteredTypes.length === 0 ? (
-        <p style={{ margin: 0, fontSize: 14, color: "var(--text3)" }}>
-          No matching ingredient types.
-        </p>
+        <p className="text-sm text-tx3">No matching ingredient types.</p>
       ) : (
         filteredTypes.map((t) =>
           editingAdminTypeId === t.id ? (
@@ -90,37 +85,17 @@ export function TypesTab({ catalog, onAddNew }) {
               onCancel={() => setEditingAdminTypeId(null)}
             />
           ) : (
-            <Card key={t.id} style={{ padding: "14px 16px" }}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 10,
-                }}
-              >
+            <Card key={t.id} className="py-3.5 px-4">
+              <div className="flex items-start gap-2.5">
                 <div
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: "50%",
-                    background: t.color || "var(--surface3)",
-                    flexShrink: 0,
-                    marginTop: 4,
-                  }}
+                  className="w-2.5 h-2.5 rounded-full shrink-0 mt-1"
+                  style={{ background: t.color || "var(--surface3)" }}
                 />
-                <div style={{ flex: 1 }}>
-                  <div
-                    style={{
-                      fontSize: 15,
-                      fontFamily: "var(--font-display)",
-                      fontWeight: 700,
-                      color: "var(--text)",
-                      marginBottom: 3,
-                    }}
-                  >
+                <div className="flex-1">
+                  <div className="text-[15px] font-display font-bold text-tx mb-[3px]">
                     {t.name}
                   </div>
-                  <div style={{ fontSize: 12, color: "var(--text3)" }}>
+                  <div className="text-xs text-tx3">
                     {categoryNameById.get(t.category_id) ?? "Uncategorized"}
                     {t.parent_type_id &&
                       ` · under ${typeNameById.get(t.parent_type_id)}`}
@@ -128,20 +103,7 @@ export function TypesTab({ catalog, onAddNew }) {
                 </div>
                 <button
                   onClick={() => setEditingAdminTypeId(t.id)}
-                  style={{
-                    background: "rgba(34,211,238,0.1)",
-                    border: "1px solid rgba(34,211,238,0.25)",
-                    borderRadius: 8,
-                    padding: "6px 12px",
-                    cursor: "pointer",
-                    color: "var(--cyan)",
-                    fontSize: 12,
-                    fontFamily: "var(--font-display)",
-                    fontWeight: 600,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                  }}
+                  className="bg-cyan/10 border border-cyan/25 rounded-sm py-1.5 px-3 cursor-pointer text-cyan text-xs font-display font-semibold flex items-center gap-1"
                 >
                   <IconEdit size={12} /> Edit
                 </button>
@@ -150,46 +112,19 @@ export function TypesTab({ catalog, onAddNew }) {
                     setTypeDeleteError(null)
                     setConfirmDeleteTypeId(t.id)
                   }}
-                  style={{
-                    background: "rgba(251,113,133,0.1)",
-                    border: "1px solid rgba(251,113,133,0.25)",
-                    borderRadius: 8,
-                    padding: "6px 12px",
-                    cursor: "pointer",
-                    color: "var(--coral)",
-                    fontSize: 12,
-                    fontFamily: "var(--font-display)",
-                    fontWeight: 600,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                  }}
+                  className="bg-coral/10 border border-coral/25 rounded-sm py-1.5 px-3 cursor-pointer text-coral text-xs font-display font-semibold flex items-center gap-1"
                 >
                   <IconTrash size={12} /> Delete
                 </button>
               </div>
               {confirmDeleteTypeId === t.id && (
-                <div
-                  style={{
-                    marginTop: 12,
-                    padding: "12px",
-                    background: "rgba(251,113,133,0.08)",
-                    borderRadius: 8,
-                    border: "1px solid rgba(251,113,133,0.25)",
-                  }}
-                >
-                  <p
-                    style={{
-                      margin: "0 0 10px",
-                      fontSize: 13,
-                      color: "var(--text2)",
-                    }}
-                  >
+                <div className="mt-3 p-3 bg-coral/8 rounded-sm border border-coral/25">
+                  <p className="mb-2.5 text-[13px] text-tx2">
                     {typeDeleteError
                       ? typeDeleteError
                       : `Delete "${t.name}"? This can't be undone.`}
                   </p>
-                  <div style={{ display: "flex", gap: 8 }}>
+                  <div className="flex gap-2">
                     <Btn
                       variant="danger"
                       small

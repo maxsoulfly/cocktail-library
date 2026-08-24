@@ -46,11 +46,8 @@ export function ModerationTab({
   }
 
   return (
-    <div
-      className="fade-in"
-      style={{ display: "flex", flexDirection: "column", gap: 12 }}
-    >
-      <p style={{ margin: 0, fontSize: 13, color: "var(--text2)" }}>
+    <div className="fade-in flex flex-col gap-3">
+      <p className="text-[13px] text-tx2">
         Published community recipes. Unpublishing returns a recipe to its
         owner's private list without deleting it.
       </p>
@@ -60,104 +57,51 @@ export function ModerationTab({
         onChange={setCommunityQuery}
       />
       {communityLoading ? (
-        <p style={{ margin: 0, fontSize: 14, color: "var(--text3)" }}>
-          Loading...
-        </p>
+        <p className="text-sm text-tx3">Loading...</p>
       ) : filtered.length === 0 ? (
-        <p style={{ margin: 0, fontSize: 14, color: "var(--text3)" }}>
+        <p className="text-sm text-tx3">
           {communityQuery
             ? "No community recipes match."
             : "No published community recipes."}
         </p>
       ) : (
         filtered.map((c) => (
-          <Card key={c.id} style={{ padding: "14px 16px" }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "flex-start",
-                gap: 10,
-              }}
-            >
-              <div style={{ flex: 1 }}>
-                <div
-                  style={{
-                    fontSize: 15,
-                    fontFamily: "var(--font-display)",
-                    fontWeight: 700,
-                    color: "var(--text)",
-                    marginBottom: 3,
-                  }}
-                >
+          <Card key={c.id} className="py-3.5 px-4">
+            <div className="flex items-start gap-2.5">
+              <div className="flex-1">
+                <div className="text-[15px] font-display font-bold text-tx mb-[3px]">
                   {c.name}
                 </div>
-                <div style={{ fontSize: 12, color: "var(--text3)" }}>
+                <div className="text-xs text-tx3">
                   by {c.owner?.display_name ?? "unknown"}
                   {c.published_at &&
                     ` · published ${formatDate(c.published_at)}`}
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 6 }}>
+              <div className="flex gap-1.5">
                 <button
                   onClick={() => onSetConfirmPromote(c.id)}
-                  style={{
-                    background: "rgba(167,139,250,0.1)",
-                    border: "1px solid rgba(167,139,250,0.25)",
-                    borderRadius: 8,
-                    padding: "6px 12px",
-                    cursor: "pointer",
-                    color: "var(--violet)",
-                    fontSize: 12,
-                    fontFamily: "var(--font-display)",
-                    fontWeight: 600,
-                  }}
+                  className="bg-violet/10 border border-violet/25 rounded-sm py-1.5 px-3 cursor-pointer text-violet text-xs font-display font-semibold"
                 >
                   Promote to Classic
                 </button>
                 <button
                   onClick={() => setConfirmUnpublish(c.id)}
-                  style={{
-                    background: "rgba(251,113,133,0.1)",
-                    border: "1px solid rgba(251,113,133,0.25)",
-                    borderRadius: 8,
-                    padding: "6px 12px",
-                    cursor: "pointer",
-                    color: "var(--coral)",
-                    fontSize: 12,
-                    fontFamily: "var(--font-display)",
-                    fontWeight: 600,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                  }}
+                  className="bg-coral/10 border border-coral/25 rounded-sm py-1.5 px-3 cursor-pointer text-coral text-xs font-display font-semibold flex items-center gap-1"
                 >
                   <IconLock size={12} /> Unpublish
                 </button>
               </div>
             </div>
             {confirmPromote === c.id && (
-              <div
-                style={{
-                  marginTop: 12,
-                  padding: "12px",
-                  background: "rgba(167,139,250,0.08)",
-                  borderRadius: 8,
-                  border: "1px solid rgba(167,139,250,0.25)",
-                }}
-              >
-                <p
-                  style={{
-                    margin: "0 0 10px",
-                    fontSize: 13,
-                    color: "var(--text2)",
-                  }}
-                >
+              <div className="mt-3 p-3 bg-violet/8 rounded-sm border border-violet/25">
+                <p className="mb-2.5 text-[13px] text-tx2">
                   Promote "{c.name}" to the classic catalog? It becomes
                   ownerless/admin-managed, but stays credited to{" "}
                   {c.owner?.display_name ?? "its author"} - this can be reversed
                   from the Classic Recipes tab.
                 </p>
-                <div style={{ display: "flex", gap: 8 }}>
+                <div className="flex gap-2">
                   <Btn
                     variant="primary"
                     small
@@ -177,27 +121,13 @@ export function ModerationTab({
               </div>
             )}
             {confirmUnpublish === c.id && (
-              <div
-                style={{
-                  marginTop: 12,
-                  padding: "12px",
-                  background: "rgba(251,113,133,0.08)",
-                  borderRadius: 8,
-                  border: "1px solid rgba(251,113,133,0.25)",
-                }}
-              >
-                <p
-                  style={{
-                    margin: "0 0 10px",
-                    fontSize: 13,
-                    color: "var(--text2)",
-                  }}
-                >
+              <div className="mt-3 p-3 bg-coral/8 rounded-sm border border-coral/25">
+                <p className="mb-2.5 text-[13px] text-tx2">
                   Unpublish "{c.name}"? It returns to{" "}
                   {c.owner?.display_name ?? "the owner"}'s private list — their
                   copy won't be deleted.
                 </p>
-                <div style={{ display: "flex", gap: 8 }}>
+                <div className="flex gap-2">
                   <Btn
                     variant="danger"
                     small
