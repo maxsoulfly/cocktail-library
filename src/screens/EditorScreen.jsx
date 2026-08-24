@@ -539,36 +539,14 @@ export default function EditorScreen() {
 
   if (catalogLoading || (isEditing && !prefilled)) {
     return (
-      <div
-        style={{
-          padding: "60px 24px",
-          textAlign: "center",
-          color: "var(--text2)",
-          fontSize: 14,
-        }}
-      >
-        Loading...
-      </div>
+      <div className="py-15 px-6 text-center text-tx2 text-sm">Loading...</div>
     )
   }
 
   if (isEditing && !existing) {
     return (
-      <div
-        style={{
-          padding: "60px 24px",
-          textAlign: "center",
-          color: "var(--text3)",
-        }}
-      >
-        <p
-          style={{
-            margin: "0 0 12px",
-            fontSize: 16,
-            fontFamily: "var(--font-display)",
-            fontWeight: 600,
-          }}
-        >
+      <div className="py-15 px-6 text-center text-tx3">
+        <p className="mb-3 text-base font-display font-semibold">
           Cocktail not found
         </p>
         <Btn variant="ghost" small onClick={() => navigate("/library")}>
@@ -580,24 +558,11 @@ export default function EditorScreen() {
 
   if (isEditing && !canEditExisting) {
     return (
-      <div
-        style={{
-          padding: "60px 24px",
-          textAlign: "center",
-          color: "var(--text3)",
-        }}
-      >
-        <p
-          style={{
-            margin: "0 0 12px",
-            fontSize: 16,
-            fontFamily: "var(--font-display)",
-            fontWeight: 600,
-          }}
-        >
+      <div className="py-15 px-6 text-center text-tx3">
+        <p className="mb-3 text-base font-display font-semibold">
           You can't edit this recipe
         </p>
-        <p style={{ margin: "0 0 12px", fontSize: 13 }}>
+        <p className="mb-3 text-[13px]">
           Only the recipe's owner, or an admin for classic recipes, can make
           changes.
         </p>
@@ -609,9 +574,7 @@ export default function EditorScreen() {
   }
 
   return (
-    <div
-      style={{ paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))" }}
-    >
+    <div className="pb-[calc(96px_+_env(safe-area-inset-bottom,0px))]">
       <TopBar
         title={
           isEditing
@@ -622,14 +585,7 @@ export default function EditorScreen() {
         }
         onBack={() => navigate(-1)}
       />
-      <div
-        style={{
-          padding: "20px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 20,
-        }}
-      >
+      <div className="p-5 flex flex-col gap-5">
         {draftBanner && (
           <DraftRestoreBanner
             draft={draftBanner}
@@ -669,18 +625,7 @@ export default function EditorScreen() {
             />
 
             <div>
-              <label
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: "var(--text2)",
-                  fontFamily: "var(--font-display)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                  display: "block",
-                  marginBottom: 6,
-                }}
-              >
+              <label className="text-xs font-bold text-tx2 font-display uppercase tracking-[0.06em] block mb-1.5">
                 Description
               </label>
               <textarea
@@ -688,17 +633,7 @@ export default function EditorScreen() {
                 onChange={(e) => setDesc(e.target.value)}
                 placeholder="What makes this cocktail special?"
                 rows={3}
-                style={{
-                  background: "var(--surface)",
-                  border: "1px solid var(--border-s)",
-                  borderRadius: "var(--r-sm)",
-                  padding: "10px 14px",
-                  color: "var(--text)",
-                  fontSize: 14,
-                  fontFamily: "var(--font-body)",
-                  width: "100%",
-                  resize: "vertical",
-                }}
+                className="bg-surface border border-bdr rounded-sm py-2.5 px-3.5 text-tx text-sm font-body w-full resize-y"
               />
             </div>
 
@@ -715,18 +650,7 @@ export default function EditorScreen() {
             />
 
             <div>
-              <label
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: "var(--text2)",
-                  fontFamily: "var(--font-display)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                  display: "block",
-                  marginBottom: 8,
-                }}
-              >
+              <label className="text-xs font-bold text-tx2 font-display uppercase tracking-[0.06em] block mb-2">
                 Liquid Color
               </label>
               <ColorSwatchPicker
@@ -764,24 +688,13 @@ export default function EditorScreen() {
             />
 
             {!isEditing && (
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 12,
-                  color: "var(--text3)",
-                  lineHeight: 1.5,
-                }}
-              >
+              <p className="text-xs text-tx3 leading-normal">
                 New recipes start private to you. You can publish to the
                 community from the recipe page once it's saved.
               </p>
             )}
 
-            {error && (
-              <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
-                {error}
-              </p>
-            )}
+            {error && <p className="text-xs text-coral">{error}</p>}
 
             <Btn
               variant="primary"

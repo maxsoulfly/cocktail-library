@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import clsx from "clsx"
 import { useNavigate, useOutletContext } from "react-router-dom"
 import { TopBar } from "@/components/Nav"
 import {
@@ -593,39 +594,20 @@ export default function AdminScreen() {
   }
 
   return (
-    <div
-      style={{ paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))" }}
-    >
+    <div className="pb-[calc(96px_+_env(safe-area-inset-bottom,0px))]">
       <TopBar title="Admin Dashboard" onBack={() => navigate(-1)} />
 
-      <div
-        style={{
-          display: "flex",
-          gap: 0,
-          borderBottom: "1px solid var(--border-s)",
-          background: "var(--bg2)",
-          overflowX: "auto",
-        }}
-      >
+      <div className="flex border-b border-bdr bg-bg2 overflow-x-auto">
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            style={{
-              padding: "12px 16px",
-              background: "none",
-              border: "none",
-              borderBottom: `2px solid ${
-                tab === t.id ? "var(--violet)" : "transparent"
-              }`,
-              color: tab === t.id ? "var(--violet)" : "var(--text2)",
-              cursor: "pointer",
-              fontSize: 13,
-              fontFamily: "var(--font-display)",
-              fontWeight: tab === t.id ? 700 : 400,
-              whiteSpace: "nowrap",
-              transition: "all 0.15s",
-            }}
+            className={clsx(
+              "py-3 px-4 bg-transparent border-none border-b-2 cursor-pointer text-[13px] font-display whitespace-nowrap transition-all duration-150",
+              tab === t.id
+                ? "border-violet text-violet font-bold"
+                : "border-transparent text-tx2 font-normal",
+            )}
           >
             {t.label}
             {t.id === "requests" && pendingRequests.length > 0
@@ -635,7 +617,7 @@ export default function AdminScreen() {
         ))}
       </div>
 
-      <div style={{ padding: "20px" }}>
+      <div className="p-5">
         {tab === "overview" && (
           <OverviewTab
             classicCount={classicRecipes.length}
