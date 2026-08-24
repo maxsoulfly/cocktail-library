@@ -7,37 +7,15 @@ export function OtherDraftsPicker({
   onDiscard,
 }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-        background: "rgba(34,211,238,0.08)",
-        border: "1px solid rgba(34,211,238,0.25)",
-        borderRadius: "var(--r-sm)",
-        padding: "10px 14px",
-      }}
-    >
-      <span style={{ fontSize: 12, color: "var(--text2)" }}>
+    <div className="flex flex-col gap-2 bg-cyan/8 border border-cyan/25 rounded-sm py-2.5 px-3.5">
+      <span className="text-xs text-tx2">
         You have {drafts.length} unsaved draft{drafts.length === 1 ? "" : "s"}{" "}
         on this browser (max {maxDrafts}) - continue one, or just start typing
         below for a new one.
       </span>
       {drafts.map((d) => (
-        <div
-          key={d.id}
-          style={{ display: "flex", alignItems: "center", gap: 8 }}
-        >
-          <span
-            style={{
-              flex: 1,
-              fontSize: 13,
-              color: "var(--text)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
+        <div key={d.id} className="flex items-center gap-2">
+          <span className="flex-1 text-[13px] text-tx overflow-hidden text-ellipsis whitespace-nowrap">
             {d.name}
           </span>
           <Btn variant="primary" small onClick={() => onContinue(d.id)}>

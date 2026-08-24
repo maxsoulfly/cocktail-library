@@ -1,3 +1,4 @@
+import clsx from "clsx"
 import { Link } from "react-router-dom"
 import { IconPlus, IconX } from "@/components/icons"
 import { Select } from "@/components/primitives"
@@ -19,45 +20,18 @@ export function IngredientRowsEditor({
 }) {
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 10,
-        }}
-      >
-        <label
-          style={{
-            fontSize: 12,
-            fontWeight: 700,
-            color: "var(--text2)",
-            fontFamily: "var(--font-display)",
-            textTransform: "uppercase",
-            letterSpacing: "0.06em",
-          }}
-        >
+      <div className="flex items-center justify-between mb-2.5">
+        <label className="text-xs font-bold text-tx2 font-display uppercase tracking-[0.06em]">
           Ingredients
         </label>
         <button
           onClick={onAdd}
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "var(--cyan)",
-            fontSize: 13,
-            fontFamily: "var(--font-display)",
-            fontWeight: 600,
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-          }}
+          className="bg-transparent border-none cursor-pointer text-cyan text-[13px] font-display font-semibold flex items-center gap-1"
         >
           <IconPlus size={14} /> Add
         </button>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="flex flex-col gap-2">
         {ings.map((ing, i) => {
           const trimmedName = ing.ingredientName.trim()
           const matchedType = trimmedName
@@ -65,22 +39,9 @@ export function IngredientRowsEditor({
             : null
           const matched = Boolean(matchedType)
           return (
-            <div
-              key={i}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 4,
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  gap: 6,
-                  alignItems: "center",
-                }}
-              >
-                <div style={{ flex: 2, position: "relative" }}>
+            <div key={i} className="flex flex-col gap-1">
+              <div className="flex gap-1.5 items-center">
+                <div className="flex-[2] relative">
                   <input
                     list="ing-types-editor"
                     placeholder="Ingredient type"
@@ -88,20 +49,10 @@ export function IngredientRowsEditor({
                     onChange={(e) =>
                       onUpdate(i, "ingredientName", e.target.value)
                     }
-                    style={{
-                      background: "var(--surface)",
-                      border: `1px solid ${
-                        trimmedName && !matched
-                          ? "var(--coral)"
-                          : "var(--border-s)"
-                      }`,
-                      borderRadius: "var(--r-sm)",
-                      padding: "8px 10px",
-                      color: "var(--text)",
-                      fontSize: 13,
-                      fontFamily: "var(--font-body)",
-                      width: "100%",
-                    }}
+                    className={clsx(
+                      "bg-surface border rounded-sm py-2 px-2.5 text-tx text-[13px] font-body w-full",
+                      trimmedName && !matched ? "border-coral" : "border-bdr",
+                    )}
                   />
                   <datalist id="ing-types-editor">
                     {types.map((t) => (
@@ -119,19 +70,9 @@ export function IngredientRowsEditor({
                   onChange={(e) => onUpdate(i, "amount", e.target.value)}
                   autoComplete="off"
                   inputMode="decimal"
-                  style={{
-                    width: 50,
-                    background: "var(--surface)",
-                    border: "1px solid var(--border-s)",
-                    borderRadius: "var(--r-sm)",
-                    padding: "8px 8px",
-                    color: "var(--text)",
-                    fontSize: 13,
-                    textAlign: "center",
-                    fontFamily: "var(--font-mono)",
-                  }}
+                  className="w-12.5 bg-surface border border-bdr rounded-sm p-2 text-tx text-[13px] text-center font-mono"
                 />
-                <div style={{ width: 68, flexShrink: 0 }}>
+                <div className="w-17 shrink-0">
                   <Select
                     small
                     value={ing.unit}
@@ -139,7 +80,7 @@ export function IngredientRowsEditor({
                     options={["ml", "oz", ...NON_VOLUME_UNITS]}
                   />
                 </div>
-                <div style={{ width: 92, flexShrink: 0 }}>
+                <div className="w-23 shrink-0">
                   <Select
                     small
                     value={ing.role}
@@ -154,69 +95,36 @@ export function IngredientRowsEditor({
                 {ings.length > 1 && (
                   <button
                     onClick={() => onRemove(i)}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      color: "var(--text3)",
-                      padding: 4,
-                    }}
+                    className="bg-transparent border-none cursor-pointer text-tx3 p-1"
                   >
                     <IconX size={14} />
                   </button>
                 )}
               </div>
               {trimmedName && !matched && (
-                <span style={{ fontSize: 11, color: "var(--coral)" }}>
+                <span className="text-[11px] text-coral">
                   Doesn't match an existing ingredient type - new types require
                   admin approval.{" "}
                   <Link
                     to={`/request-ingredient?name=${encodeURIComponent(trimmedName)}&returnTo=${encodeURIComponent(returnTo)}`}
-                    style={{ color: "var(--cyan)" }}
+                    className="text-cyan"
                   >
                     Request it
                   </Link>
                 </span>
               )}
               {matched && (
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 6,
-                    alignItems: "center",
-                    paddingLeft: 2,
-                  }}
-                >
-                  <span style={{ fontSize: 11, color: "var(--text3)" }}>
-                    Substitutes:
-                  </span>
+                <div className="flex flex-wrap gap-1.5 items-center pl-0.5">
+                  <span className="text-[11px] text-tx3">Substitutes:</span>
                   {(ing.alternativeNames ?? []).map((altName, ai) => (
                     <span
                       key={altName}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                        background: "var(--surface2)",
-                        border: "1px solid var(--border-s)",
-                        borderRadius: 12,
-                        padding: "2px 6px 2px 10px",
-                        fontSize: 11,
-                        color: "var(--text2)",
-                      }}
+                      className="flex items-center gap-1 bg-surface2 border border-bdr rounded py-0.5 pr-1.5 pl-2.5 text-[11px] text-tx2"
                     >
                       {altName}
                       <button
                         onClick={() => onRemoveAlternative(i, ai)}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: "pointer",
-                          color: "var(--text3)",
-                          padding: 2,
-                          display: "flex",
-                        }}
+                        className="bg-transparent border-none cursor-pointer text-tx3 p-0.5 flex"
                       >
                         <IconX size={9} />
                       </button>
@@ -234,16 +142,7 @@ export function IngredientRowsEditor({
                       }
                     }}
                     onBlur={() => onCommitAlternative(i)}
-                    style={{
-                      width: 130,
-                      background: "var(--surface)",
-                      border: "1px solid var(--border-s)",
-                      borderRadius: 6,
-                      padding: "3px 8px",
-                      fontSize: 11,
-                      color: "var(--text)",
-                      fontFamily: "var(--font-body)",
-                    }}
+                    className="w-32.5 bg-surface border border-bdr rounded-[6px] py-[3px] px-2 text-[11px] text-tx font-body"
                   />
                 </div>
               )}
@@ -252,13 +151,7 @@ export function IngredientRowsEditor({
         })}
       </div>
       {hasUnmatchedIng && isDraftable && (
-        <p
-          style={{
-            margin: "8px 0 0",
-            fontSize: 11,
-            color: "var(--text3)",
-          }}
-        >
+        <p className="mt-2 text-[11px] text-tx3">
           This recipe can't save yet until every ingredient matches, but nothing
           is lost - it's auto-saved to this browser as you go. Come back once
           the requested ingredient is approved to finish it.

@@ -2,18 +2,8 @@ import { Btn } from "@/components/primitives"
 
 export function DraftRestoreBanner({ draft, onRestore, onDiscard }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        background: "rgba(34,211,238,0.08)",
-        border: "1px solid rgba(34,211,238,0.25)",
-        borderRadius: "var(--r-sm)",
-        padding: "10px 14px",
-      }}
-    >
-      <span style={{ flex: 1, fontSize: 12, color: "var(--text2)" }}>
+    <div className="flex items-center gap-2.5 bg-cyan/8 border border-cyan/25 rounded-sm py-2.5 px-3.5">
+      <span className="flex-1 text-xs text-tx2">
         You have an unsaved draft, "{draft.name?.trim() || "Untitled draft"}" -
         saved on this browser only.
       </span>

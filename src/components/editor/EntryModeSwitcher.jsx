@@ -1,3 +1,5 @@
+import clsx from "clsx"
+
 const MODES = [
   { id: "scratch", label: "Start from Scratch" },
   { id: "paste", label: "Paste a Recipe (AI)" },
@@ -5,31 +7,17 @@ const MODES = [
 
 export function EntryModeSwitcher({ mode, onModeChange }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        background: "var(--surface)",
-        border: "1px solid var(--border-s)",
-        borderRadius: "var(--r-sm)",
-        overflow: "hidden",
-      }}
-    >
+    <div className="flex bg-surface border border-bdr rounded-sm overflow-hidden">
       {MODES.map((m) => (
         <button
           key={m.id}
           onClick={() => onModeChange(m.id)}
-          style={{
-            flex: 1,
-            padding: "10px",
-            background: mode === m.id ? "rgba(167,139,250,0.12)" : "none",
-            border: "none",
-            cursor: "pointer",
-            color: mode === m.id ? "var(--violet)" : "var(--text2)",
-            fontFamily: "var(--font-display)",
-            fontWeight: mode === m.id ? 700 : 400,
-            fontSize: 13,
-            transition: "all 0.15s",
-          }}
+          className={clsx(
+            "flex-1 p-2.5 border-none cursor-pointer font-display text-[13px] transition-all duration-150",
+            mode === m.id
+              ? "bg-violet/12 text-violet font-bold"
+              : "text-tx2 font-normal",
+          )}
         >
           {m.label}
         </button>

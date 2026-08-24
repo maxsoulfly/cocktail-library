@@ -3,21 +3,10 @@ import { FilterChip } from "@/components/primitives"
 export function TasteTagChips({ tasteTags, selectedIds, onToggle }) {
   return (
     <div>
-      <label
-        style={{
-          fontSize: 12,
-          fontWeight: 700,
-          color: "var(--text2)",
-          fontFamily: "var(--font-display)",
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          display: "block",
-          marginBottom: 8,
-        }}
-      >
+      <label className="text-xs font-bold text-tx2 font-display uppercase tracking-[0.06em] block mb-2">
         Taste Tags
       </label>
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+      <div className="flex gap-1.5 flex-wrap">
         {tasteTags.map((t) => (
           <FilterChip
             key={t.id}

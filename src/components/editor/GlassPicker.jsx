@@ -1,47 +1,23 @@
+import clsx from "clsx"
 import { GlassSvg } from "@/components/GlassSvg"
 
 export function GlassPicker({ glasses, value, onChange }) {
   return (
     <div>
-      <label
-        style={{
-          fontSize: 12,
-          fontWeight: 700,
-          color: "var(--text2)",
-          fontFamily: "var(--font-display)",
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          display: "block",
-          marginBottom: 8,
-        }}
-      >
+      <label className="text-xs font-bold text-tx2 font-display uppercase tracking-[0.06em] block mb-2">
         Glass
       </label>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div className="flex gap-2 flex-wrap">
         {glasses.map((g) => (
           <button
             key={g.id}
             onClick={() => onChange(g.name)}
-            style={{
-              padding: "8px 14px 6px",
-              borderRadius: 8,
-              border: `1px solid ${
-                value === g.name ? "var(--cyan)" : "var(--border-s)"
-              }`,
-              background:
-                value === g.name ? "rgba(34,211,238,0.1)" : "var(--surface)",
-              color: value === g.name ? "var(--cyan)" : "var(--text2)",
-              cursor: "pointer",
-              fontSize: 13,
-              fontFamily: "var(--font-display)",
-              fontWeight: 500,
-              textTransform: "capitalize",
-              transition: "all 0.15s",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 2,
-            }}
+            className={clsx(
+              "pt-2 px-3.5 pb-1.5 rounded-sm border cursor-pointer text-[13px] font-display font-medium capitalize transition-all duration-150 flex flex-col items-center gap-0.5",
+              value === g.name
+                ? "border-cyan bg-cyan/10 text-cyan"
+                : "border-bdr bg-surface text-tx2",
+            )}
           >
             <GlassSvg
               type={g.shape ?? g.name.toLowerCase()}
