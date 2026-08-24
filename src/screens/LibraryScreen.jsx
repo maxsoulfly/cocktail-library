@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import clsx from "clsx"
 import {
   useNavigate,
   useOutletContext,
@@ -55,105 +56,43 @@ export default function LibraryScreen() {
   )
 
   return (
-    <div
-      style={{ paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))" }}
-    >
-      <div
-        style={{
-          padding: "16px 16px 0",
-          background: "var(--bg2)",
-          borderBottom: "1px solid var(--border-s)",
-          position: "sticky",
-          top: 0,
-          zIndex: 10,
-          backdropFilter: "blur(12px)",
-        }}
-      >
-        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-          <div style={{ flex: 1, position: "relative" }}>
+    <div className="pb-[calc(96px_+_env(safe-area-inset-bottom,0px))]">
+      <div className="pt-4 px-4 pb-0 bg-bg2 border-b border-bdr sticky top-0 z-10 backdrop-blur-md">
+        <div className="flex gap-2 mb-3">
+          <div className="flex-1 relative">
             <IconSearch
               size={16}
-              style={{
-                position: "absolute",
-                left: 12,
-                top: "50%",
-                transform: "translateY(-50%)",
-                color: "var(--text3)",
-              }}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-tx3"
             />
             <input
               placeholder="Search cocktails, tastes..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              style={{
-                background: "var(--surface)",
-                border: "1px solid var(--border-s)",
-                borderRadius: "var(--r-sm)",
-                padding: "9px 12px 9px 36px",
-                color: "var(--text)",
-                fontSize: 14,
-                fontFamily: "var(--font-body)",
-                width: "100%",
-              }}
+              className="bg-surface border border-bdr rounded-sm py-[9px] pl-9 pr-3 text-tx text-sm font-body w-full"
             />
           </div>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            style={{
-              background: showFilters
-                ? "rgba(34,211,238,0.12)"
-                : "var(--surface)",
-              border: `1px solid ${
-                showFilters ? "var(--cyan)" : "var(--border-s)"
-              }`,
-              borderRadius: "var(--r-sm)",
-              padding: "0 12px",
-              cursor: "pointer",
-              color: showFilters ? "var(--cyan)" : "var(--text2)",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
+            className={clsx(
+              "rounded-sm px-3 cursor-pointer flex items-center gap-1.5 border",
+              showFilters
+                ? "bg-cyan/12 border-cyan text-cyan"
+                : "bg-surface border-bdr text-tx2",
+            )}
           >
             <IconFilter size={16} />{" "}
-            <span
-              style={{
-                fontSize: 13,
-                fontFamily: "var(--font-display)",
-                fontWeight: 600,
-              }}
-            >
+            <span className="text-[13px] font-display font-semibold">
               Filter
             </span>
           </button>
           <button
             onClick={() => navigate("/library/new")}
-            style={{
-              background: "var(--cyan)",
-              border: "none",
-              borderRadius: "var(--r-sm)",
-              width: 40,
-              height: 40,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#07091a",
-              flexShrink: 0,
-            }}
-            className="glow-cyan"
+            className="glow-cyan bg-cyan border-none rounded-sm w-10 h-10 cursor-pointer flex items-center justify-center text-[#07091a] shrink-0"
           >
             <IconPlus size={18} />
           </button>
         </div>
-        <div
-          style={{
-            display: "flex",
-            gap: 6,
-            overflowX: "auto",
-            paddingBottom: 12,
-          }}
-        >
+        <div className="flex gap-1.5 overflow-x-auto pb-3">
           {AVAIL_FILTERS.map((f) => (
             <FilterChip
               key={f.key}
@@ -163,7 +102,7 @@ export default function LibraryScreen() {
             />
           ))}
         </div>
-        <div style={{ display: "flex", gap: 6, paddingBottom: 12 }}>
+        <div className="flex gap-1.5 pb-3">
           {SOURCE_FILTERS.map((f) => (
             <FilterChip
               key={f.key}
@@ -174,21 +113,11 @@ export default function LibraryScreen() {
           ))}
         </div>
         {showFilters && (
-          <div style={{ paddingBottom: 12 }}>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: "var(--text3)",
-                fontFamily: "var(--font-display)",
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-                marginBottom: 6,
-              }}
-            >
+          <div className="pb-3">
+            <div className="text-[11px] font-bold text-tx3 font-display uppercase tracking-[0.06em] mb-1.5">
               Taste
             </div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <div className="flex gap-1.5 flex-wrap">
               {tasteTags.map((t) => (
                 <FilterChip
                   key={t.id}
@@ -205,29 +134,12 @@ export default function LibraryScreen() {
       </div>
 
       {filtered.length === 0 ? (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "60px 24px",
-            gap: 12,
-            color: "var(--text3)",
-          }}
-        >
-          <IconGlass size={40} style={{ opacity: 0.3 }} />
-          <p
-            style={{
-              margin: 0,
-              fontSize: 16,
-              fontFamily: "var(--font-display)",
-              fontWeight: 600,
-            }}
-          >
+        <div className="flex flex-col items-center justify-center py-15 px-6 gap-3 text-tx3">
+          <IconGlass size={40} className="opacity-30" />
+          <p className="text-base font-display font-semibold">
             No cocktails found
           </p>
-          <p style={{ margin: 0, fontSize: 13, textAlign: "center" }}>
+          <p className="text-[13px] text-center">
             Try adjusting your filters or search term.
           </p>
           <Btn
@@ -244,14 +156,7 @@ export default function LibraryScreen() {
           </Btn>
         </div>
       ) : (
-        <div
-          style={{
-            padding: "16px",
-            display: "grid",
-            gridTemplateColumns: "repeat(2, 1fr)",
-            gap: 10,
-          }}
-        >
+        <div className="p-4 grid grid-cols-2 gap-2.5">
           {filtered.map((c) => (
             <CocktailCard
               key={c.id}

@@ -1,4 +1,5 @@
 import { useState } from "react"
+import clsx from "clsx"
 import { useNavigate, useOutletContext, useParams } from "react-router-dom"
 import { IconBookmark, IconHeart } from "@/components/icons"
 import { TopBar } from "@/components/Nav"
@@ -41,21 +42,8 @@ export default function DetailScreen() {
 
   if (!c) {
     return (
-      <div
-        style={{
-          padding: "60px 24px",
-          textAlign: "center",
-          color: "var(--text3)",
-        }}
-      >
-        <p
-          style={{
-            margin: "0 0 12px",
-            fontSize: 16,
-            fontFamily: "var(--font-display)",
-            fontWeight: 600,
-          }}
-        >
+      <div className="py-15 px-6 text-center text-tx3">
+        <p className="mb-3 text-base font-display font-semibold">
           Cocktail not found
         </p>
         <Btn variant="ghost" small onClick={() => navigate("/library")}>
@@ -103,49 +91,31 @@ export default function DetailScreen() {
   }
 
   return (
-    <div
-      style={{ paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))" }}
-    >
+    <div className="pb-[calc(96px_+_env(safe-area-inset-bottom,0px))]">
       <TopBar
         title={c.name}
         onBack={() => navigate(-1)}
         right={
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="flex gap-2">
             <button
               onClick={() => toggleFav(c.id)}
-              style={{
-                background: isFav ? "rgba(251,113,133,0.15)" : "var(--surface)",
-                border: `1px solid ${
-                  isFav ? "var(--coral)" : "var(--border-s)"
-                }`,
-                borderRadius: "var(--r-sm)",
-                width: 36,
-                height: 36,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: isFav ? "var(--coral)" : "var(--text2)",
-              }}
+              className={clsx(
+                "rounded-sm w-9 h-9 cursor-pointer flex items-center justify-center border",
+                isFav
+                  ? "bg-coral/15 border-coral text-coral"
+                  : "bg-surface border-bdr text-tx2",
+              )}
             >
               <IconHeart size={16} />
             </button>
             <button
               onClick={() => toggleWtm(c.id)}
-              style={{
-                background: isWtm ? "rgba(167,139,250,0.15)" : "var(--surface)",
-                border: `1px solid ${
-                  isWtm ? "var(--violet)" : "var(--border-s)"
-                }`,
-                borderRadius: "var(--r-sm)",
-                width: 36,
-                height: 36,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: isWtm ? "var(--violet)" : "var(--text2)",
-              }}
+              className={clsx(
+                "rounded-sm w-9 h-9 cursor-pointer flex items-center justify-center border",
+                isWtm
+                  ? "bg-violet/15 border-violet text-violet"
+                  : "bg-surface border-bdr text-tx2",
+              )}
             >
               <IconBookmark size={16} />
             </button>
@@ -153,27 +123,11 @@ export default function DetailScreen() {
         }
       />
 
-      <div
-        style={{
-          padding: "24px 20px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 24,
-        }}
-      >
+      <div className="py-6 px-5 flex flex-col gap-6">
         <HeroCard c={c} />
 
         <div>
-          <p
-            style={{
-              margin: 0,
-              fontSize: 14,
-              color: "var(--text2)",
-              lineHeight: 1.6,
-            }}
-          >
-            {c.description}
-          </p>
+          <p className="text-sm text-tx2 leading-[1.6]">{c.description}</p>
         </div>
 
         <IngredientsSection
