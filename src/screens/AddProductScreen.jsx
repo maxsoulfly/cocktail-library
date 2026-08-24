@@ -46,42 +46,21 @@ export default function AddProductScreen() {
   }
 
   return (
-    <div
-      style={{ paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))" }}
-    >
+    <div className="pb-[calc(96px_+_env(safe-area-inset-bottom,0px))]">
       <TopBar title="Add Product" onBack={() => navigate(-1)} />
-      <div
-        style={{
-          padding: "20px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 20,
-        }}
-      >
+      <div className="p-5 flex flex-col gap-5">
         <Card
+          className="py-3 px-4 flex gap-2.5"
           style={{
-            padding: "12px 16px",
             border: "1px solid rgba(34,211,238,0.2)",
             background: "rgba(34,211,238,0.04)",
-            display: "flex",
-            gap: 10,
           }}
         >
-          <IconInfo
-            size={16}
-            style={{ color: "var(--cyan)", flexShrink: 0, marginTop: 1 }}
-          />
-          <p
-            style={{
-              margin: 0,
-              fontSize: 13,
-              color: "var(--text2)",
-              lineHeight: 1.5,
-            }}
-          >
+          <IconInfo size={16} className="text-cyan shrink-0 mt-px" />
+          <p className="text-[13px] text-tx2 leading-normal">
             You don't need this for most ingredients - just toggle the
             ingredient type itself as owned in{" "}
-            <Link to="/bar" style={{ color: "var(--cyan)" }}>
+            <Link to="/bar" className="text-cyan">
               My Bar
             </Link>
             . Use this screen only if you want to track a specific brand (e.g.
@@ -90,7 +69,7 @@ export default function AddProductScreen() {
           </p>
         </Card>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div className="flex flex-col gap-3.5">
           <Input
             label="Product Name"
             placeholder="e.g. Hendrick's Gin"
@@ -98,35 +77,17 @@ export default function AddProductScreen() {
             onChange={setName}
           />
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: "var(--text2)",
-                fontFamily: "var(--font-display)",
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-              }}
-            >
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-tx2 font-display uppercase tracking-[0.06em]">
               Ingredient Type
             </label>
-            <div style={{ position: "relative" }}>
+            <div className="relative">
               <input
                 list="ing-types"
                 placeholder="Select ingredient type..."
                 value={ingType}
                 onChange={(e) => setIngType(e.target.value)}
-                style={{
-                  background: "var(--surface)",
-                  border: "1px solid var(--border-s)",
-                  borderRadius: "var(--r-sm)",
-                  padding: "10px 14px",
-                  color: "var(--text)",
-                  fontSize: 14,
-                  fontFamily: "var(--font-body)",
-                  width: "100%",
-                }}
+                className="bg-surface border border-bdr rounded-sm py-2.5 px-3.5 text-tx text-sm font-body w-full"
               />
               <datalist id="ing-types">
                 {types.map((t) => (
@@ -138,20 +99,10 @@ export default function AddProductScreen() {
               </datalist>
             </div>
             {matchedType && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "6px 10px",
-                    background: "rgba(52,211,153,0.08)",
-                    borderRadius: 6,
-                    border: "1px solid rgba(52,211,153,0.2)",
-                  }}
-                >
-                  <IconCheck size={14} style={{ color: "var(--green)" }} />
-                  <span style={{ fontSize: 13, color: "var(--green)" }}>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-2 py-1.5 px-2.5 bg-green/8 rounded-[6px] border border-green/20">
+                  <IconCheck size={14} className="text-green" />
+                  <span className="text-[13px] text-green">
                     Matches catalog ingredient:{" "}
                     <strong>{matchedType.name}</strong>
                   </span>
@@ -162,21 +113,14 @@ export default function AddProductScreen() {
                     Whiskey" reads as a specific-enough item to feel done
                     here, when what's actually wanted is a sibling type
                     next to Bourbon/Scotch. */}
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: 12,
-                    color: "var(--text3)",
-                    lineHeight: 1.5,
-                  }}
-                >
+                <p className="text-xs text-tx3 leading-normal">
                   This adds a specific product under{" "}
                   <strong>{matchedType.name}</strong>. If "{name || ingType}" is
                   really its own style (like Bourbon or Rye), not a specific
                   bottle,{" "}
                   <Link
                     to={`/request-ingredient?name=${encodeURIComponent(name || ingType)}&returnTo=${encodeURIComponent(location.pathname + location.search)}`}
-                    style={{ color: "var(--cyan)" }}
+                    className="text-cyan"
                   >
                     request it as a new ingredient type
                   </Link>{" "}
@@ -185,24 +129,14 @@ export default function AddProductScreen() {
               </div>
             )}
             {ingType && !matchedType && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "6px 10px",
-                  background: "rgba(251,191,36,0.08)",
-                  borderRadius: 6,
-                  border: "1px solid rgba(251,191,36,0.2)",
-                }}
-              >
-                <IconAlert size={14} style={{ color: "var(--amber)" }} />
-                <span style={{ fontSize: 13, color: "var(--amber)" }}>
+              <div className="flex items-center gap-2 py-1.5 px-2.5 bg-amber/8 rounded-[6px] border border-amber/20">
+                <IconAlert size={14} className="text-amber" />
+                <span className="text-[13px] text-amber">
                   Doesn't match an existing ingredient type - new types require
                   admin approval, so this can't be added yet.{" "}
                   <Link
                     to={`/request-ingredient?name=${encodeURIComponent(ingType)}&returnTo=${encodeURIComponent(location.pathname + location.search)}`}
-                    style={{ color: "var(--cyan)" }}
+                    className="text-cyan"
                   >
                     Request it
                   </Link>
@@ -218,75 +152,31 @@ export default function AddProductScreen() {
             onChange={setBrand}
           />
 
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "12px 0",
-              borderTop: "1px solid var(--border-s)",
-              borderBottom: "1px solid var(--border-s)",
-            }}
-          >
+          <div className="flex items-center justify-between py-3 border-t border-b border-bdr">
             <div>
-              <div
-                style={{
-                  fontSize: 14,
-                  fontFamily: "var(--font-body)",
-                  fontWeight: 500,
-                  color: "var(--text)",
-                }}
-              >
+              <div className="text-sm font-body font-medium text-tx">
                 Homemade
               </div>
-              <div style={{ fontSize: 12, color: "var(--text3)" }}>
-                Mark as a homemade product
-              </div>
+              <div className="text-xs text-tx3">Mark as a homemade product</div>
             </div>
             <OwnedToggle owned={homemade} onChange={setHomemade} />
           </div>
 
           {matchedType && (
-            <Card
-              style={{
-                padding: "14px",
-                border: "1px solid var(--border-s)",
-                background: "var(--surface2)",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: "var(--text3)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                  marginBottom: 10,
-                  fontFamily: "var(--font-display)",
-                }}
-              >
+            <Card className="p-3.5" style={{ background: "var(--surface2)" }}>
+              <div className="text-xs font-bold text-tx3 uppercase tracking-[0.06em] mb-2.5 font-display">
                 Preview
               </div>
-              <div
-                style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.5 }}
-              >
-                <strong style={{ color: "var(--text)" }}>
-                  {name || "Your Product"}
-                </strong>{" "}
+              <div className="text-[13px] text-tx2 leading-normal">
+                <strong className="text-tx">{name || "Your Product"}</strong>{" "}
                 will satisfy the{" "}
-                <strong style={{ color: "var(--cyan)" }}>
-                  {matchedType.name}
-                </strong>{" "}
+                <strong className="text-cyan">{matchedType.name}</strong>{" "}
                 requirement in recipes.
               </div>
             </Card>
           )}
 
-          {error && (
-            <p style={{ margin: 0, fontSize: 12, color: "var(--coral)" }}>
-              {error}
-            </p>
-          )}
+          {error && <p className="text-xs text-coral">{error}</p>}
         </div>
 
         <Btn

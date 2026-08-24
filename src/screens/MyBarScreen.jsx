@@ -214,23 +214,14 @@ export default function MyBarScreen() {
 
   if (catalogLoading || inventoryLoading) {
     return (
-      <div
-        style={{
-          padding: "60px 24px",
-          textAlign: "center",
-          color: "var(--text2)",
-          fontSize: 14,
-        }}
-      >
+      <div className="py-15 px-6 text-center text-tx2 text-sm">
         Loading your bar...
       </div>
     )
   }
 
   return (
-    <div
-      style={{ paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))" }}
-    >
+    <div className="pb-[calc(96px_+_env(safe-area-inset-bottom,0px))]">
       <SearchFilterHeader
         query={query}
         onQueryChange={setQuery}
@@ -242,29 +233,13 @@ export default function MyBarScreen() {
         onCatChange={setCat}
       />
 
-      <div style={{ padding: "16px" }}>
+      <div className="p-4">
         {Object.entries(grouped).map(([categoryName, clusters]) => (
-          <div key={categoryName} style={{ marginBottom: 20 }}>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: "var(--text3)",
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
-                fontFamily: "var(--font-display)",
-                marginBottom: 8,
-              }}
-            >
+          <div key={categoryName} className="mb-5">
+            <div className="text-[11px] font-bold text-tx3 uppercase tracking-[0.08em] font-display mb-2">
               {categoryName}
             </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(104px, 1fr))",
-                gap: 8,
-              }}
-            >
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-2">
               {clusters.map(({ parent, children }) => {
                 if (children.length === 0)
                   return (
@@ -272,7 +247,7 @@ export default function MyBarScreen() {
                     // grid, so the card and (if expanded) its full-width
                     // product panel both participate as direct grid items
                     // instead of being nested inside one grid cell.
-                    <div key={parent.id} style={{ display: "contents" }}>
+                    <div key={parent.id} className="contents">
                       {editingTypeId === parent.id
                         ? renderEditForm(parent, { gridColumn: "1 / -1" })
                         : renderCard(parent, false)}
