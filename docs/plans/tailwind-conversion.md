@@ -1,6 +1,6 @@
 # Convert inline styling to Tailwind utility classes
 
-> Status: **planned, not started.** Saved here so it survives past this session (computer shutting down). Gated on: user confirming the component-size refactor (see `component-size-refactor.md`) has been browser-verified first, so a bug found later is attributable to one change, not two stacked unverified rewrites.
+> Status: **done, 2026-08-25.** User chose to skip the component-size-refactor browser-verification gate and start immediately (inline CSS was itself making the post-refactor files hard to read). All files in scope converted across 17 commits, plus `App.jsx` as a user-approved bonus beyond the original file list. See `current-context.md` for the verified result.
 
 ## Context
 
