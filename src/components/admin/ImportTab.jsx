@@ -1,3 +1,4 @@
+import clsx from "clsx"
 import { ImportIngredientsBatch } from "@/components/admin/ImportIngredientsBatch"
 import { ImportIngredientsSingle } from "@/components/admin/ImportIngredientsSingle"
 import { ImportProducts } from "@/components/admin/ImportProducts"
@@ -35,19 +36,8 @@ export function ImportTab(props) {
   } = props
 
   return (
-    <div
-      className="fade-in"
-      style={{ display: "flex", flexDirection: "column", gap: 16 }}
-    >
-      <div
-        style={{
-          display: "flex",
-          background: "var(--surface)",
-          border: "1px solid var(--border-s)",
-          borderRadius: "var(--r-sm)",
-          overflow: "hidden",
-        }}
-      >
+    <div className="fade-in flex flex-col gap-4">
+      <div className="flex bg-surface border border-bdr rounded-sm overflow-hidden">
         {ENTITIES.map((e) => (
           <button
             key={e.id}
@@ -55,19 +45,12 @@ export function ImportTab(props) {
               setSingleFromRequestId(null)
               setImportEntity(e.id)
             }}
-            style={{
-              flex: 1,
-              padding: "10px",
-              background:
-                importEntity === e.id ? "rgba(34,211,238,0.12)" : "none",
-              border: "none",
-              cursor: "pointer",
-              color: importEntity === e.id ? "var(--cyan)" : "var(--text2)",
-              fontFamily: "var(--font-display)",
-              fontWeight: importEntity === e.id ? 700 : 400,
-              fontSize: 13,
-              transition: "all 0.15s",
-            }}
+            className={clsx(
+              "flex-1 p-2.5 border-none cursor-pointer font-display text-[13px] transition-all duration-150",
+              importEntity === e.id
+                ? "bg-cyan/12 text-cyan font-bold"
+                : "text-tx2 font-normal",
+            )}
           >
             {e.label}
           </button>
@@ -75,22 +58,12 @@ export function ImportTab(props) {
       </div>
 
       {importEntity === "ingredients" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="flex flex-col gap-4">
           {importSuccessMessage && (
-            <p style={{ margin: 0, fontSize: 13, color: "var(--green)" }}>
-              {importSuccessMessage}
-            </p>
+            <p className="text-[13px] text-green">{importSuccessMessage}</p>
           )}
 
-          <div
-            style={{
-              display: "flex",
-              background: "var(--surface)",
-              border: "1px solid var(--border-s)",
-              borderRadius: "var(--r-sm)",
-              overflow: "hidden",
-            }}
-          >
+          <div className="flex bg-surface border border-bdr rounded-sm overflow-hidden">
             {INGREDIENT_MODES.map((m) => (
               <button
                 key={m.id}
@@ -99,19 +72,12 @@ export function ImportTab(props) {
                   setSingleFromRequestId(null)
                   setImportMode(m.id)
                 }}
-                style={{
-                  flex: 1,
-                  padding: "10px",
-                  background:
-                    importMode === m.id ? "rgba(167,139,250,0.12)" : "none",
-                  border: "none",
-                  cursor: "pointer",
-                  color: importMode === m.id ? "var(--violet)" : "var(--text2)",
-                  fontFamily: "var(--font-display)",
-                  fontWeight: importMode === m.id ? 700 : 400,
-                  fontSize: 13,
-                  transition: "all 0.15s",
-                }}
+                className={clsx(
+                  "flex-1 p-2.5 border-none cursor-pointer font-display text-[13px] transition-all duration-150",
+                  importMode === m.id
+                    ? "bg-violet/12 text-violet font-bold"
+                    : "text-tx2 font-normal",
+                )}
               >
                 {m.label}
               </button>
