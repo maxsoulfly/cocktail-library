@@ -21,50 +21,17 @@ export default function WelcomeScreen() {
   }
 
   return (
-    <div
-      style={{
-        minHeight: "100dvh",
-        background: "var(--bg)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "32px 24px",
-      }}
-    >
+    <div className="min-h-dvh bg-bg flex flex-col items-center justify-center py-8 px-6">
       <div
+        className="absolute inset-0"
         style={{
-          position: "absolute",
-          inset: 0,
           backgroundImage:
             "radial-gradient(circle at 30% 20%, rgba(34,211,238,0.06) 0%, transparent 50%), radial-gradient(circle at 70% 80%, rgba(167,139,250,0.06) 0%, transparent 50%)",
         }}
       />
-      <div
-        style={{
-          position: "relative",
-          width: "100%",
-          maxWidth: 400,
-          display: "flex",
-          flexDirection: "column",
-          gap: 32,
-        }}
-      >
-        <div style={{ textAlign: "center" }}>
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 72,
-              height: 72,
-              borderRadius: 20,
-              background: "rgba(34,211,238,0.1)",
-              border: "1px solid rgba(34,211,238,0.25)",
-              marginBottom: 20,
-            }}
-            className="glow-cyan"
-          >
+      <div className="relative w-full max-w-100 flex flex-col gap-8">
+        <div className="text-center">
+          <div className="glow-cyan inline-flex items-center justify-center w-18 h-18 rounded-[20px] bg-cyan/10 border border-cyan/25 mb-5">
             <GlassSvg
               type="martini"
               liquidColor="#22d3ee"
@@ -72,51 +39,18 @@ export default function WelcomeScreen() {
               avail="perfect"
             />
           </div>
-          <h1
-            style={{
-              margin: "0 0 8px",
-              fontFamily: "var(--font-display)",
-              fontWeight: 800,
-              fontSize: 32,
-              color: "var(--text)",
-              letterSpacing: "-0.03em",
-            }}
-          >
+          <h1 className="mb-2 font-display font-extrabold text-[32px] text-tx tracking-[-0.03em]">
             Cocktail Library
           </h1>
-          <p
-            style={{
-              margin: 0,
-              color: "var(--text2)",
-              fontSize: 15,
-              lineHeight: 1.5,
-            }}
-          >
+          <p className="text-tx2 text-[15px] leading-normal">
             An invite-only collection of classic recipes and your personal bar —
             in one place.
           </p>
         </div>
 
-        <Card
-          style={{
-            padding: 24,
-            display: "flex",
-            flexDirection: "column",
-            gap: 16,
-          }}
-        >
+        <Card className="p-6 flex flex-col gap-4">
           <div>
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: "var(--text2)",
-                marginBottom: 8,
-                fontFamily: "var(--font-display)",
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-              }}
-            >
+            <div className="text-[13px] font-semibold text-tx2 mb-2 font-display uppercase tracking-[0.06em]">
               Invitation Code
             </div>
             <input
@@ -124,18 +58,7 @@ export default function WelcomeScreen() {
               value={code}
               onChange={(e) => setCode(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-              style={{
-                background: "var(--surface2)",
-                border: "1px solid var(--border-s)",
-                borderRadius: "var(--r-sm)",
-                padding: "12px 14px",
-                color: "var(--text)",
-                fontSize: 15,
-                fontFamily: "var(--font-mono)",
-                width: "100%",
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-              }}
+              className="bg-surface2 border border-bdr rounded-sm py-3 px-3.5 text-tx text-[15px] font-mono w-full tracking-[0.08em] uppercase"
             />
           </div>
           <Btn
@@ -146,14 +69,10 @@ export default function WelcomeScreen() {
           >
             Continue with invitation
           </Btn>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div
-              style={{ flex: 1, height: 1, background: "var(--border-s)" }}
-            />
-            <span style={{ fontSize: 12, color: "var(--text3)" }}>or</span>
-            <div
-              style={{ flex: 1, height: 1, background: "var(--border-s)" }}
-            />
+          <div className="flex items-center gap-2.5">
+            <div className="flex-1 h-px bg-bdr" />
+            <span className="text-xs text-tx3">or</span>
+            <div className="flex-1 h-px bg-bdr" />
           </div>
           <Btn
             variant="ghost"
@@ -167,14 +86,7 @@ export default function WelcomeScreen() {
           </Btn>
         </Card>
 
-        <p
-          style={{
-            textAlign: "center",
-            fontSize: 12,
-            color: "var(--text3)",
-            margin: 0,
-          }}
-        >
+        <p className="text-center text-xs text-tx3">
           Cocktail Library is currently invite-only. <br />
           Each invitation is single-use.
         </p>

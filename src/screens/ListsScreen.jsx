@@ -1,4 +1,5 @@
 import { useState } from "react"
+import clsx from "clsx"
 import { useNavigate, useOutletContext } from "react-router-dom"
 import { CocktailCard } from "@/components/CocktailCard"
 import { IconBookmark, IconHeart } from "@/components/icons"
@@ -18,74 +19,35 @@ export default function ListsScreen() {
   )
 
   return (
-    <div
-      style={{ paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))" }}
-    >
-      <div
-        style={{
-          background: "var(--bg2)",
-          borderBottom: "1px solid var(--border-s)",
-          position: "sticky",
-          top: 0,
-          zIndex: 10,
-          backdropFilter: "blur(12px)",
-        }}
-      >
-        <div style={{ display: "flex", padding: "16px 16px 0" }}>
+    <div className="pb-[calc(96px_+_env(safe-area-inset-bottom,0px))]">
+      <div className="bg-bg2 border-b border-bdr sticky top-0 z-10 backdrop-blur-md">
+        <div className="flex pt-4 px-4 pb-0">
           {["favorites", "wantToMake"].map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              style={{
-                flex: 1,
-                padding: "10px",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                borderBottom: `2px solid ${
-                  tab === t ? "var(--cyan)" : "transparent"
-                }`,
-                color: tab === t ? "var(--cyan)" : "var(--text2)",
-                fontFamily: "var(--font-display)",
-                fontWeight: tab === t ? 700 : 400,
-                fontSize: 14,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-                transition: "all 0.15s",
-              }}
+              className={clsx(
+                "flex-1 p-2.5 bg-transparent border-none cursor-pointer border-b-2 font-display text-sm flex items-center justify-center gap-1.5 transition-all duration-150",
+                tab === t
+                  ? "border-cyan text-cyan font-bold"
+                  : "border-transparent text-tx2 font-normal",
+              )}
             >
               {t === "favorites" ? (
                 <>
                   <IconHeart size={16} /> Favorites{" "}
-                  <span
-                    style={{ fontSize: 12, fontFamily: "var(--font-mono)" }}
-                  >
-                    ({favorites.size})
-                  </span>
+                  <span className="text-xs font-mono">({favorites.size})</span>
                 </>
               ) : (
                 <>
                   <IconBookmark size={16} /> Want to Make{" "}
-                  <span
-                    style={{ fontSize: 12, fontFamily: "var(--font-mono)" }}
-                  >
-                    ({wantToMake.size})
-                  </span>
+                  <span className="text-xs font-mono">({wantToMake.size})</span>
                 </>
               )}
             </button>
           ))}
         </div>
-        <div
-          style={{
-            display: "flex",
-            gap: 6,
-            padding: "10px 16px",
-            overflowX: "auto",
-          }}
-        >
+        <div className="flex gap-1.5 py-2.5 px-4 overflow-x-auto">
           {AVAIL_FILTERS.map((f) => (
             <FilterChip
               key={f.key}
@@ -98,52 +60,27 @@ export default function ListsScreen() {
       </div>
 
       {filtered.length === 0 ? (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "60px 24px",
-            gap: 12,
-            color: "var(--text3)",
-          }}
-        >
+        <div className="flex flex-col items-center justify-center py-15 px-6 gap-3 text-tx3">
           {tab === "favorites" ? (
-            <IconHeart size={40} style={{ opacity: 0.3 }} />
+            <IconHeart size={40} className="opacity-30" />
           ) : (
-            <IconBookmark size={40} style={{ opacity: 0.3 }} />
+            <IconBookmark size={40} className="opacity-30" />
           )}
-          <p
-            style={{
-              margin: 0,
-              fontSize: 16,
-              fontFamily: "var(--font-display)",
-              fontWeight: 600,
-              color: "var(--text2)",
-            }}
-          >
+          <p className="text-base font-display font-semibold text-tx2">
             {listIds.size === 0
               ? tab === "favorites"
                 ? "No favorites yet"
                 : "Nothing saved yet"
               : "No results for this filter"}
           </p>
-          <p style={{ margin: 0, fontSize: 13, textAlign: "center" }}>
+          <p className="text-[13px] text-center">
             {listIds.size === 0
               ? "Tap the heart or bookmark icon on any cocktail to add it here."
               : "Try a different availability filter."}
           </p>
         </div>
       ) : (
-        <div
-          style={{
-            padding: "16px",
-            display: "grid",
-            gridTemplateColumns: "repeat(2, 1fr)",
-            gap: 10,
-          }}
-        >
+        <div className="p-4 grid grid-cols-2 gap-2.5">
           {filtered.map((c) => (
             <CocktailCard
               key={c.id}
