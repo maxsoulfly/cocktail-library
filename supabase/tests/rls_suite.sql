@@ -58,13 +58,20 @@
 -- invalid role, real promote/demote/block/unblock), not just confirming
 -- direct table writes are denied.
 --
--- A final "moderator role" section (deliberately last - see its own header
--- comment) covers the newer moderator tier: full write power on all 7
--- "member read, admin write" lookup tables plus ingredient_requests
--- resolution, the promote/demote/unpublish trio on recipes, and negative
--- assertions proving the scope fence holds (no admin_set_user_role()/
--- admin_set_membership_revoked() access, no direct classic-recipe
--- authoring, no products or invitations access).
+-- A "moderator role" section covers the newer moderator tier: full write
+-- power on all 7 "member read, admin write" lookup tables plus
+-- ingredient_requests resolution, the promote/demote/unpublish trio on
+-- recipes, and negative assertions proving the scope fence holds (no
+-- admin_set_user_role()/admin_set_membership_revoked() access, no direct
+-- classic-recipe authoring, no products or invitations access).
+--
+-- A final "admin_merge_ingredient_type()" section (deliberately last,
+-- reuses member_other_id while it's still sitting at role = 'moderator'
+-- from the section above) covers the newest admin tool: real reassignment
+-- across all 6 tables that reference ingredient_types.id, the
+-- collision-drop cases (recipe_component_alternatives, user_inventory), the
+-- p_add_alias option, and negative assertions (non-admin caller including a
+-- moderator, self-merge, merge-into-own-descendant).
 
 begin;
 
@@ -120,22 +127,38 @@ create temporary table rls_fixture_ids (
   type_b_id uuid
 ) on commit drop;
 
+-- role in ('member', 'moderator'), not just 'member': a real account can
+-- have been left sitting at moderator from earlier live browser QA (found
+-- 2026-08-25 - this exact query used to require role = 'member' and came up
+-- one short with only 1 matching account, since the other had been promoted
+-- during testing). The normalizing update right below forces both fixture
+-- accounts back to plain 'member' for the rest of this transaction (rolled
+-- back at the end, so it never touches the real live row) - every earlier
+-- "ordinary member" assertion in this file needs a genuine non-staff
+-- account, and the moderator role section further down re-promotes
+-- member_other_id on purpose at the point it actually needs one.
 insert into rls_fixture_ids
 select
   (select id from public.profiles where role = 'admin' limit 1),
   (select p.id from public.profiles p
      join public.memberships m on m.user_id = p.id
-     where p.role = 'member' and m.revoked_at is null
+     where p.role in ('member', 'moderator') and m.revoked_at is null
      order by m.granted_at asc limit 1),
   (select p.id from public.profiles p
      join public.memberships m on m.user_id = p.id
-     where p.role = 'member' and m.revoked_at is null
+     where p.role in ('member', 'moderator') and m.revoked_at is null
      order by m.granted_at asc offset 1 limit 1),
   (select id from public.glasses limit 1),
   (select id from public.ingredient_categories limit 1),
   (select id from public.ingredient_types order by id limit 1),
   (select id from public.ingredient_types order by id offset 1 limit 1);
 grant all on rls_fixture_ids to authenticated, anon;
+
+update public.profiles set role = 'member'
+where id in (
+  select member_owner_id from rls_fixture_ids
+  union select member_other_id from rls_fixture_ids
+) and role <> 'member';
 
 do $$
 declare f record;
@@ -1241,6 +1264,225 @@ begin
 
   perform pg_temp.set_identity('authenticated', f.admin_id);
   delete from public.products where id = v_id;
+end;
+$$;
+
+-- ── admin_merge_ingredient_type() ────────────────────────────────────────
+-- Deliberately admin-only, not is_admin_or_moderator() - a merge silently
+-- rewrites/deletes rows across 6 tables (bulk, effectively irreversible),
+-- unlike moderator's existing ordinary catalog-authoring scope. Placed
+-- last, reusing member_other_id while it's still sitting at role =
+-- 'moderator' from the section above (never demoted back in-transaction) to
+-- get the negative moderator-rejection assertion for free, no extra
+-- promotion needed.
+--
+-- Fixture types created fresh (not type_a_id/type_b_id - those are reused
+-- throughout the rest of the file and merging away one of them here would
+-- break every later block that still expects it to exist). Exercises real
+-- reassignment across all 6 referencing tables, not just "the function ran
+-- without error": a child type's parent_type_id, a direct
+-- recipe_components reference, a recipe_component_alternatives collision
+-- (redundant loser row dropped instead of reassigned), a product, and an
+-- alias, plus p_add_alias preserving the loser's own name as a new alias of
+-- the survivor. user_inventory gets both of its own two shapes:
+-- member_owner_id owns only the loser (plain reassignment), member_other_id
+-- owns both loser and survivor already (the redundant loser row is dropped,
+-- not reassigned - would collide with unique(user_id, ingredient_type_id)).
+
+create temporary table rls_merge_ids (loser_id uuid, survivor_id uuid, child_id uuid, anchor_comp_id uuid) on commit drop;
+insert into rls_merge_ids (loser_id, survivor_id, child_id, anchor_comp_id) values (null, null, null, null);
+grant all on rls_merge_ids to authenticated, anon;
+
+do $$
+declare f record; v_loser uuid; v_survivor uuid; v_child uuid;
+begin
+  select * into f from rls_fixture_ids;
+  perform pg_temp.set_identity('authenticated', f.admin_id);
+
+  insert into public.ingredient_types (category_id, name, bar_priority, recommend_by_default)
+  values (f.category_id, 'RLS_TEST merge loser', 'essential', false) returning id into v_loser;
+  insert into public.ingredient_types (category_id, name, bar_priority, recommend_by_default)
+  values (f.category_id, 'RLS_TEST merge survivor', 'essential', false) returning id into v_survivor;
+  insert into public.ingredient_types (category_id, parent_type_id, name, bar_priority, recommend_by_default)
+  values (f.category_id, v_loser, 'RLS_TEST merge child', 'essential', false) returning id into v_child;
+  update rls_merge_ids set loser_id = v_loser, survivor_id = v_survivor, child_id = v_child;
+end;
+$$;
+
+do $$
+declare f record; m record; v_id uuid;
+begin
+  select * into f from rls_fixture_ids;
+  select * into m from rls_merge_ids;
+
+  -- member_owner_id is a genuine ordinary member throughout this file -
+  -- reused here for the negative non-staff case.
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+  begin
+    perform public.admin_merge_ingredient_type(m.loser_id, m.survivor_id, true);
+    perform pg_temp.assert(false, 'admin_merge_ingredient_type: an ordinary member calling it should be denied');
+  exception when raise_exception then
+    perform pg_temp.assert(true, 'admin_merge_ingredient_type: an ordinary member cannot merge ingredient types');
+  end;
+
+  -- member_other_id is still sitting at role = 'moderator' from the section
+  -- above - the exact boundary this function is deliberately scoped
+  -- against (a moderator gets full ordinary catalog-authoring power, but
+  -- not this bulk/irreversible one).
+  perform pg_temp.set_identity('authenticated', f.member_other_id);
+  begin
+    perform public.admin_merge_ingredient_type(m.loser_id, m.survivor_id, true);
+    perform pg_temp.assert(false, 'admin_merge_ingredient_type: a moderator calling it should be denied');
+  exception when raise_exception then
+    perform pg_temp.assert(true, 'admin_merge_ingredient_type: a moderator cannot merge ingredient types - stays admin-only');
+  end;
+
+  -- Set up one row per referencing table before the real merge below.
+  -- recipe_components/recipe_component_alternatives gate through
+  -- recipe_is_editable(), which for a private recipe only admits its real
+  -- owner - not admin (20260815231800 scoped admin edit rights to the
+  -- ownerless classic catalog only) - so these two need member_owner_id's
+  -- identity, not admin's, even though the merge call itself will be admin.
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+
+  -- Direct reference case: a component whose own ingredient IS the loser.
+  insert into public.recipe_components (recipe_id, ingredient_type_id, amount, unit_label, role)
+  values ((select private_id from rls_recipe_ids), m.loser_id, 30, 'ml', 'required');
+
+  -- Collision case: a second, unrelated component (type_a_id, the recipe's
+  -- own "main" ingredient) that already lists both the loser and the
+  -- survivor as substitution alternatives - exactly the scenario the
+  -- migration's own header comment describes, where reassigning the
+  -- loser's alternative row would collide with the survivor's and the
+  -- redundant loser row must be dropped instead.
+  insert into public.recipe_components (recipe_id, ingredient_type_id, amount, unit_label, role)
+  values ((select private_id from rls_recipe_ids), f.type_a_id, 30, 'ml', 'required')
+  returning id into v_id;
+  update rls_merge_ids set anchor_comp_id = v_id;
+
+  insert into public.recipe_component_alternatives (recipe_id, recipe_component_id, ingredient_type_id)
+  values ((select private_id from rls_recipe_ids), v_id, m.loser_id);
+  insert into public.recipe_component_alternatives (recipe_id, recipe_component_id, ingredient_type_id)
+  values ((select private_id from rls_recipe_ids), v_id, m.survivor_id);
+
+  perform pg_temp.set_identity('authenticated', f.admin_id);
+  insert into public.products (ingredient_type_id, name)
+  values (m.loser_id, 'RLS_TEST merge product');
+
+  insert into public.ingredient_aliases (ingredient_type_id, alias)
+  values (m.loser_id, 'RLS_TEST merge alias');
+
+  -- user_inventory has no admin-insert override ("insert own" only, same as
+  -- its "strictly private, no admin-read override" shape tested earlier in
+  -- this file) - each row has to be inserted as its own owner.
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+  -- member_owner_id owns only the loser - plain reassignment.
+  insert into public.user_inventory (user_id, ingredient_type_id)
+  values (f.member_owner_id, m.loser_id);
+
+  perform pg_temp.set_identity('authenticated', f.member_other_id);
+  -- member_other_id owns both - the redundant loser row must be dropped,
+  -- not reassigned (unique(user_id, ingredient_type_id) would collide).
+  insert into public.user_inventory (user_id, ingredient_type_id)
+  values (f.member_other_id, m.loser_id);
+  insert into public.user_inventory (user_id, ingredient_type_id)
+  values (f.member_other_id, m.survivor_id);
+end;
+$$;
+
+do $$
+declare f record; m record; n int;
+begin
+  select * into f from rls_fixture_ids;
+  select * into m from rls_merge_ids;
+  perform pg_temp.set_identity('authenticated', f.admin_id);
+
+  perform public.admin_merge_ingredient_type(m.loser_id, m.survivor_id, true);
+  perform pg_temp.assert(true, 'admin_merge_ingredient_type: an admin can merge two ingredient types');
+
+  -- ingredient_types/products/ingredient_aliases are all "member read"
+  -- (is_member() or is_admin()) - safe to check under the admin identity
+  -- still active from the call above.
+  select count(*) into n from public.ingredient_types where id = m.loser_id;
+  perform pg_temp.assert(n = 0, 'admin_merge_ingredient_type: the loser type is deleted');
+
+  select count(*) into n from public.ingredient_types where id = m.child_id and parent_type_id = m.survivor_id;
+  perform pg_temp.assert(n = 1, 'admin_merge_ingredient_type: a child type is re-pointed at the survivor');
+
+  select count(*) into n from public.products where ingredient_type_id = m.loser_id;
+  perform pg_temp.assert(n = 0, 'admin_merge_ingredient_type: no product still references the loser');
+  select count(*) into n from public.products where ingredient_type_id = m.survivor_id and name = 'RLS_TEST merge product';
+  perform pg_temp.assert(n = 1, 'admin_merge_ingredient_type: the product was reassigned to the survivor');
+
+  select count(*) into n from public.ingredient_aliases where ingredient_type_id = m.loser_id;
+  perform pg_temp.assert(n = 0, 'admin_merge_ingredient_type: no alias still references the loser');
+  select count(*) into n from public.ingredient_aliases where ingredient_type_id = m.survivor_id and alias = 'RLS_TEST merge alias';
+  perform pg_temp.assert(n = 1, 'admin_merge_ingredient_type: the pre-existing alias was reassigned to the survivor');
+  select count(*) into n from public.ingredient_aliases where ingredient_type_id = m.survivor_id and alias = 'RLS_TEST merge loser';
+  perform pg_temp.assert(n = 1, 'admin_merge_ingredient_type: p_add_alias preserved the loser''s own name as a new alias of the survivor');
+
+  -- recipe_components/recipe_component_alternatives gate through
+  -- recipe_is_visible()/recipe_is_editable(), which for a private recipe
+  -- only admit its real owner - no admin-read override (confirmed by
+  -- 20260823110000_tighten_recipe_read_scope.sql), same reason the setup
+  -- block above had to insert these as member_owner_id in the first place.
+  -- Reading them as admin here would silently return 0 rows regardless of
+  -- what actually happened - not a real pass.
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+
+  select count(*) into n from public.recipe_components
+  where recipe_id = (select private_id from rls_recipe_ids) and ingredient_type_id = m.loser_id;
+  perform pg_temp.assert(n = 0, 'admin_merge_ingredient_type: no recipe_components row still references the loser');
+  select count(*) into n from public.recipe_components
+  where recipe_id = (select private_id from rls_recipe_ids) and ingredient_type_id = m.survivor_id;
+  perform pg_temp.assert(n >= 1, 'admin_merge_ingredient_type: the recipe_components row was reassigned to the survivor');
+
+  select count(*) into n from public.recipe_component_alternatives where ingredient_type_id = m.loser_id;
+  perform pg_temp.assert(n = 0, 'admin_merge_ingredient_type: no recipe_component_alternatives row still references the loser');
+  select count(*) into n from public.recipe_component_alternatives
+  where recipe_component_id = m.anchor_comp_id and ingredient_type_id = m.survivor_id;
+  perform pg_temp.assert(n = 1, 'admin_merge_ingredient_type: the colliding alternative was dropped, not duplicated - exactly one survivor row remains on the anchor component');
+
+  -- user_inventory is strictly private, no admin-read override either -
+  -- each member can only verify their own rows.
+  select count(*) into n from public.user_inventory where user_id = f.member_owner_id and ingredient_type_id = m.loser_id;
+  perform pg_temp.assert(n = 0, 'admin_merge_ingredient_type: member_owner''s inventory row no longer references the loser');
+  select count(*) into n from public.user_inventory where user_id = f.member_owner_id and ingredient_type_id = m.survivor_id;
+  perform pg_temp.assert(n = 1, 'admin_merge_ingredient_type: member_owner''s inventory row was reassigned to the survivor (plain reassignment case)');
+
+  perform pg_temp.set_identity('authenticated', f.member_other_id);
+  select count(*) into n from public.user_inventory where user_id = f.member_other_id and ingredient_type_id = m.survivor_id;
+  perform pg_temp.assert(n = 1, 'admin_merge_ingredient_type: member_other''s pre-existing survivor row still exists exactly once - the redundant loser row was dropped, not duplicated (collision case)');
+end;
+$$;
+
+do $$
+declare f record; m record;
+begin
+  select * into f from rls_fixture_ids;
+  select * into m from rls_merge_ids;
+  perform pg_temp.set_identity('authenticated', f.admin_id);
+
+  begin
+    perform public.admin_merge_ingredient_type(m.survivor_id, m.survivor_id, true);
+    perform pg_temp.assert(false, 'admin_merge_ingredient_type: merging a type into itself should be denied');
+  exception when raise_exception then
+    perform pg_temp.assert(true, 'admin_merge_ingredient_type: cannot merge a type into itself');
+  end;
+
+  begin
+    perform public.admin_merge_ingredient_type(m.survivor_id, m.child_id, true);
+    perform pg_temp.assert(false, 'admin_merge_ingredient_type: merging a type into its own child should be denied');
+  exception when raise_exception then
+    perform pg_temp.assert(true, 'admin_merge_ingredient_type: cannot merge a type into one of its own descendants');
+  end;
+
+  -- No manual cleanup here, deliberately: by this point recipe_components/
+  -- products rows reference the survivor (RESTRICT FKs), so deleting it
+  -- directly would fail with a real foreign_key_violation instead of the
+  -- controlled FAIL/PASS this suite is built around. The enclosing
+  -- transaction's rollback at the very end is the actual cleanup mechanism
+  -- for this whole file (see header comment) - nothing here needs its own.
 end;
 $$;
 

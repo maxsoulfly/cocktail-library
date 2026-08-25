@@ -116,6 +116,20 @@ export async function deleteIngredientType(id) {
   if (error) throw error
 }
 
+// Admin-only via admin_merge_ingredient_type()'s own is_admin() check (not
+// an RLS policy - this is a SECURITY DEFINER function call). Reassigns every
+// recipe/product/inventory/alias row referencing loserId onto survivorId,
+// then deletes the loser type outright - see the migration's own header
+// comment for why each of the 6 referencing tables needs its own handling.
+export async function mergeIngredientType({ loserId, survivorId, addAlias }) {
+  const { error } = await supabase.rpc("admin_merge_ingredient_type", {
+    p_loser_id: loserId,
+    p_survivor_id: survivorId,
+    p_add_alias: addAlias,
+  })
+  if (error) throw error
+}
+
 export async function fetchProducts() {
   const { data, error } = await supabase
     .from("products")

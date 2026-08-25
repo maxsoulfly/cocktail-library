@@ -1,8 +1,8 @@
 import { useState } from "react"
 import { IconEdit, IconTrash } from "@/components/icons"
 import { IngredientTypeEditor } from "@/components/IngredientTypeEditor"
-import { Btn, Card, Input } from "@/components/primitives"
-import { deleteIngredientType } from "@/services/catalog"
+import { Btn, Card, ConfirmPanel, Input } from "@/components/primitives"
+import { deleteIngredientType, mergeIngredientType } from "@/services/catalog"
 
 // Every ingredient type in the catalog. Same split-out reasoning as Classic
 // Recipes - editing already existed (My Bar's admin pencil, now
@@ -18,6 +18,12 @@ export function TypesTab({ catalog, onAddNew }) {
   const [confirmDeleteTypeId, setConfirmDeleteTypeId] = useState(null)
   const [deletingType, setDeletingType] = useState(false)
   const [typeDeleteError, setTypeDeleteError] = useState(null)
+
+  const [mergingLoserId, setMergingLoserId] = useState(null)
+  const [mergeSurvivorId, setMergeSurvivorId] = useState(null)
+  const [mergeAddAlias, setMergeAddAlias] = useState(true)
+  const [merging, setMerging] = useState(false)
+  const [mergeError, setMergeError] = useState(null)
 
   const categoryNameById = new Map(
     catalog.categories.map((c) => [c.id, c.name]),
@@ -46,6 +52,41 @@ export function TypesTab({ catalog, onAddNew }) {
     }
   }
 
+  const startMerge = (id) => {
+    setMergingLoserId(id)
+    setMergeSurvivorId(null)
+    setMergeError(null)
+  }
+  const cancelMerge = () => {
+    setMergingLoserId(null)
+    setMergeSurvivorId(null)
+    setMergeError(null)
+  }
+  const handleConfirmMerge = async () => {
+    setMerging(true)
+    setMergeError(null)
+    try {
+      await mergeIngredientType({
+        loserId: mergingLoserId,
+        survivorId: mergeSurvivorId,
+        addAlias: mergeAddAlias,
+      })
+      await catalog.refetch()
+      cancelMerge()
+    } catch (err) {
+      setMergeError(err.message)
+    } finally {
+      setMerging(false)
+    }
+  }
+
+  const mergingLoserName = mergingLoserId
+    ? typeNameById.get(mergingLoserId)
+    : null
+  const mergeSurvivorName = mergeSurvivorId
+    ? typeNameById.get(mergeSurvivorId)
+    : null
+
   return (
     <div className="fade-in flex flex-col gap-3">
       <p className="text-[13px] text-tx2">
@@ -65,6 +106,38 @@ export function TypesTab({ catalog, onAddNew }) {
           + Add
         </Btn>
       </div>
+      {mergingLoserId && !mergeSurvivorId && (
+        <Card className="p-3.5 flex items-center justify-between gap-2.5">
+          <p className="text-[13px] text-tx2">
+            Merging <b>{mergingLoserName}</b> - pick the survivor below by
+            clicking "Merge into this" on the type it should be folded into.
+          </p>
+          <Btn variant="ghost" small onClick={cancelMerge}>
+            Cancel
+          </Btn>
+        </Card>
+      )}
+      {mergingLoserId && mergeSurvivorId && (
+        <Card className="p-3.5 flex flex-col gap-2.5">
+          <label className="flex items-center gap-2 text-[13px] text-tx2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={mergeAddAlias}
+              onChange={(e) => setMergeAddAlias(e.target.checked)}
+            />
+            Keep "{mergingLoserName}" as an alias of "{mergeSurvivorName}"
+          </label>
+          <ConfirmPanel
+            layout="stack"
+            message={`Merge "${mergingLoserName}" into "${mergeSurvivorName}"? Every recipe, product, My Bar entry, and alias referencing "${mergingLoserName}" will be reassigned to "${mergeSurvivorName}", and "${mergingLoserName}" will be deleted. This can't be undone.`}
+            confirmLabel="Merge"
+            busy={merging}
+            onConfirm={handleConfirmMerge}
+            onCancel={cancelMerge}
+          />
+          {mergeError && <p className="text-xs text-coral">{mergeError}</p>}
+        </Card>
+      )}
       {filteredTypes.length === 0 ? (
         <p className="text-sm text-tx3">No matching ingredient types.</p>
       ) : (
@@ -101,21 +174,49 @@ export function TypesTab({ catalog, onAddNew }) {
                       ` · under ${typeNameById.get(t.parent_type_id)}`}
                   </div>
                 </div>
-                <button
-                  onClick={() => setEditingAdminTypeId(t.id)}
-                  className="bg-cyan/10 border border-cyan/25 rounded-sm py-1.5 px-3 cursor-pointer text-cyan text-xs font-display font-semibold flex items-center gap-1"
-                >
-                  <IconEdit size={12} /> Edit
-                </button>
-                <button
-                  onClick={() => {
-                    setTypeDeleteError(null)
-                    setConfirmDeleteTypeId(t.id)
-                  }}
-                  className="bg-coral/10 border border-coral/25 rounded-sm py-1.5 px-3 cursor-pointer text-coral text-xs font-display font-semibold flex items-center gap-1"
-                >
-                  <IconTrash size={12} /> Delete
-                </button>
+                {mergingLoserId === t.id ? (
+                  <button
+                    onClick={cancelMerge}
+                    className="bg-surface3 border border-bdr rounded-sm py-1.5 px-3 cursor-pointer text-tx2 text-xs font-display font-semibold"
+                  >
+                    Cancel merge
+                  </button>
+                ) : mergingLoserId ? (
+                  <button
+                    onClick={() => setMergeSurvivorId(t.id)}
+                    className={
+                      mergeSurvivorId === t.id
+                        ? "bg-cyan/20 border border-cyan/50 rounded-sm py-1.5 px-3 cursor-pointer text-cyan text-xs font-display font-semibold"
+                        : "bg-cyan/10 border border-cyan/25 rounded-sm py-1.5 px-3 cursor-pointer text-cyan text-xs font-display font-semibold"
+                    }
+                  >
+                    {mergeSurvivorId === t.id ? "Survivor" : "Merge into this"}
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => setEditingAdminTypeId(t.id)}
+                      className="bg-cyan/10 border border-cyan/25 rounded-sm py-1.5 px-3 cursor-pointer text-cyan text-xs font-display font-semibold flex items-center gap-1"
+                    >
+                      <IconEdit size={12} /> Edit
+                    </button>
+                    <button
+                      onClick={() => startMerge(t.id)}
+                      className="bg-surface3 border border-bdr rounded-sm py-1.5 px-3 cursor-pointer text-tx2 text-xs font-display font-semibold"
+                    >
+                      Merge
+                    </button>
+                    <button
+                      onClick={() => {
+                        setTypeDeleteError(null)
+                        setConfirmDeleteTypeId(t.id)
+                      }}
+                      className="bg-coral/10 border border-coral/25 rounded-sm py-1.5 px-3 cursor-pointer text-coral text-xs font-display font-semibold flex items-center gap-1"
+                    >
+                      <IconTrash size={12} /> Delete
+                    </button>
+                  </>
+                )}
               </div>
               {confirmDeleteTypeId === t.id && (
                 <div className="mt-3 p-3 bg-coral/8 rounded-sm border border-coral/25">
