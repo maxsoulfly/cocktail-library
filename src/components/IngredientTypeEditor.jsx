@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { ShapePicker } from "@/components/admin/ShapePicker"
 import {
   Btn,
   Card,
@@ -44,6 +45,7 @@ export function IngredientTypeEditor({
   const [parentTypeId, setParentTypeId] = useState(type.parent_type_id ?? "")
   const [barPriority, setBarPriority] = useState(type.bar_priority)
   const [color, setColor] = useState(type.color ?? "")
+  const [shape, setShape] = useState(type.shape ?? "spirit_bottle")
   const [description] = useState(type.description ?? "")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -132,6 +134,7 @@ export function IngredientTypeEditor({
         barPriority: result.resolved.bar_priority,
         color: result.resolved.color,
         description: result.resolved.description,
+        shape,
       })
       onSaved(updated)
     } catch (err) {
@@ -175,6 +178,12 @@ export function IngredientTypeEditor({
         onChange={setColor}
         colors={liquidColors}
       />
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-bold text-tx2 font-display uppercase tracking-[0.06em]">
+          Pictogram
+        </label>
+        <ShapePicker kind="ingredient" value={shape} onChange={setShape} />
+      </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs font-bold text-tx2 font-display uppercase tracking-[0.06em]">
           Aliases

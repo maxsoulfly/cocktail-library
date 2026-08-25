@@ -7,6 +7,17 @@ import { FamilyCluster } from "@/components/myBar/FamilyCluster"
 import { SearchFilterHeader } from "@/components/myBar/SearchFilterHeader"
 import { TypeCard } from "@/components/myBar/TypeCard"
 
+// Within a category, order by real-world "how likely is this on a bar" -
+// bar_priority already exists on every type (currently only consumed by
+// src/domain/recommendations.js for purchase suggestions), name as
+// tiebreaker. Previously pure alphabetical, which put e.g. Absinthe ahead
+// of Gin purely on spelling - no relationship to which one an actual bar
+// would stock.
+const PRIORITY_RANK = { essential: 0, common: 1, specialized: 2, niche: 3 }
+const byPriorityThenName = (a, b) =>
+  (PRIORITY_RANK[a.bar_priority] ?? 99) -
+    (PRIORITY_RANK[b.bar_priority] ?? 99) || a.name.localeCompare(b.name)
+
 export default function MyBarScreen() {
   const navigate = useNavigate()
   const { catalog, inventory, isAdmin, isStaff } = useOutletContext()
@@ -94,6 +105,7 @@ export default function MyBarScreen() {
       if (!map.has(t.parent_type_id)) map.set(t.parent_type_id, [])
       map.get(t.parent_type_id).push(t)
     })
+    map.forEach((children) => children.sort(byPriorityThenName))
     return map
   }, [types])
 
@@ -142,7 +154,9 @@ export default function MyBarScreen() {
   }
 
   const grouped = categories.reduce((acc, c) => {
-    const items = filtered.filter((t) => t.category_id === c.id)
+    const items = filtered
+      .filter((t) => t.category_id === c.id)
+      .sort(byPriorityThenName)
     if (items.length) acc[c.name] = buildClusters(items)
     return acc
   }, {})
@@ -246,7 +260,13 @@ export default function MyBarScreen() {
                     // display:"contents" makes this wrapper invisible to the
                     // grid, so the card and (if expanded) its full-width
                     // product panel both participate as direct grid items
-                    // instead of being nested inside one grid cell.
+                    // instead of being nested inside one grid cell. A
+                    // standalone card already has its own border via Card's
+                    // own base style - a childless single doesn't need
+                    // FamilyCluster's extra grouping wrapper+label, since
+                    // there's no group to indicate (and giving it one would
+                    // force it to the full row width instead of flowing
+                    // alongside other cards).
                     <div key={parent.id} className="contents">
                       {editingTypeId === parent.id
                         ? renderEditForm(parent, { gridColumn: "1 / -1" })

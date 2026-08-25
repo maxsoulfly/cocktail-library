@@ -83,3 +83,23 @@ export const FAMILY_SHAPES = [
   "toddy",
   "frozen",
 ]
+
+// See IngredientIcon.jsx - same decoupled-icon pattern as GLASS_SHAPES/
+// FAMILY_SHAPES above, but keyed per ingredient_type row rather than per
+// category: a handful of items (Salt, sugars, seasonings) don't share their
+// category's obvious pictogram, so the shape lives on the type itself and
+// gets a sensible default per category at creation time, overridable per
+// row exactly like a glass or family already is.
+export const INGREDIENT_SHAPES = [
+  "spirit_bottle",
+  "wine_bottle",
+  "beer",
+  "soda_can",
+  "fruit",
+  "herb",
+  "dropper",
+  "jar",
+  "sauce_bottle",
+  "dairy",
+  "ice",
+]

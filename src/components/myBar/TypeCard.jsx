@@ -1,5 +1,6 @@
 import clsx from "clsx"
 import { IconChevD, IconChevR, IconEdit } from "@/components/icons"
+import { IngredientIcon } from "@/components/IngredientIcon"
 import { Card } from "@/components/primitives"
 
 // The per-ingredient-type card: color swatch, name, owned-products
@@ -67,14 +68,21 @@ export function TypeCard({
       </div>
       <div
         className={clsx(
-          "rounded-[10px] shrink-0",
+          "rounded-[10px] shrink-0 flex items-center justify-center",
           isChild ? "w-7.5 h-7.5" : "w-9.5 h-9.5",
         )}
         style={{
           background: `${type.color ?? "#4e6680"}25`,
           border: `1px solid ${type.color ?? "#4e6680"}40`,
         }}
-      />
+      >
+        <IngredientIcon
+          shape={type.shape}
+          size={isChild ? 20 : 24}
+          color={owned ? "var(--text2)" : "var(--text3)"}
+          fillColor={type.color ?? "#4e6680"}
+        />
+      </div>
       <div
         className={clsx(
           "font-body w-full overflow-hidden text-ellipsis whitespace-nowrap transition-colors duration-150",

@@ -1,14 +1,24 @@
 import clsx from "clsx"
 import { FamilyIcon } from "@/components/FamilyIcon"
 import { GlassSvg } from "@/components/GlassSvg"
-import { FAMILY_SHAPES, GLASS_SHAPES } from "@/data/constants"
+import { IngredientIcon } from "@/components/IngredientIcon"
+import {
+  FAMILY_SHAPES,
+  GLASS_SHAPES,
+  INGREDIENT_SHAPES,
+} from "@/data/constants"
 
-// Which built-in pictogram a row uses - see GLASS_SHAPES/FAMILY_SHAPES'
-// comments for why this exists instead of the icon being tied to the name.
-// `kind` picks the shape list and icon component; "glass" -> GlassSvg,
-// "family" -> FamilyIcon.
+// Which built-in pictogram a row uses - see GLASS_SHAPES/FAMILY_SHAPES/
+// INGREDIENT_SHAPES' comments for why this exists instead of the icon being
+// tied to the name. `kind` picks the shape list and icon component;
+// "glass" -> GlassSvg, "family" -> FamilyIcon, "ingredient" -> IngredientIcon.
 export function ShapePicker({ kind, value, onChange }) {
-  const shapes = kind === "family" ? FAMILY_SHAPES : GLASS_SHAPES
+  const shapes =
+    kind === "family"
+      ? FAMILY_SHAPES
+      : kind === "ingredient"
+        ? INGREDIENT_SHAPES
+        : GLASS_SHAPES
   return (
     <div className="flex gap-2 flex-wrap">
       {shapes.map((shape) => {
@@ -27,6 +37,8 @@ export function ShapePicker({ kind, value, onChange }) {
           >
             {kind === "family" ? (
               <FamilyIcon shape={shape} size={24} color={iconColor} />
+            ) : kind === "ingredient" ? (
+              <IngredientIcon shape={shape} size={24} color={iconColor} />
             ) : (
               <GlassSvg type={shape} size={24} color={iconColor} />
             )}
