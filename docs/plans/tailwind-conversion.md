@@ -1,6 +1,6 @@
 # Convert inline styling to Tailwind utility classes
 
-> Status: **done, 2026-08-25.** User chose to skip the component-size-refactor browser-verification gate and start immediately (inline CSS was itself making the post-refactor files hard to read). All files in scope converted across 17 commits, plus `App.jsx` as a user-approved bonus beyond the original file list. See `current-context.md` for the verified result.
+> Status: **done and browser-verified, 2026-08-25.** User chose to skip the component-size-refactor browser-verification gate and start immediately (inline CSS was itself making the post-refactor files hard to read). All files in scope converted across 17 commits, plus `App.jsx` as a user-approved bonus beyond the original file list. A full manual click-through covering both this conversion and the component-size refactor together found one pre-existing bug (`BottomNav` never hiding at desktop width, unrelated to either refactor) - fixed. See `current-context.md` for the verified result.
 
 ## Context
 
