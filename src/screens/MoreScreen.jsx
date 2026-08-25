@@ -41,7 +41,7 @@ export default function MoreScreen() {
     setUnit,
     theme,
     setTheme,
-    isAdmin,
+    isStaff,
     profile,
     email,
     userId,
@@ -209,7 +209,7 @@ export default function MoreScreen() {
           </div>
         </Card>
 
-        {isAdmin && (
+        {isStaff && (
           <>
             <SectionTitle>Admin</SectionTitle>
             <Card className="mb-5 overflow-hidden">

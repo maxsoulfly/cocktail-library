@@ -46,6 +46,9 @@ import { UsersTab } from "@/components/admin/UsersTab"
 // catalog/taxonomy tools (Catalog, Ingredient Types, Batch Import,
 // Requests - Requests feeds directly into Ingredient Types/Batch Import),
 // then membership admin (Users, Invitations) last.
+// adminOnly tabs are invisible to a moderator - full ingredient-catalog
+// authoring + the promote/demote/unpublish trio is moderator's scope, but
+// Users/Invitations management stays admin-only.
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "recipes", label: "Classic Recipes" },
@@ -54,13 +57,15 @@ const TABS = [
   { id: "types", label: "Ingredient Types" },
   { id: "import", label: "Batch Import" },
   { id: "requests", label: "Requests" },
-  { id: "users", label: "Users" },
-  { id: "invites", label: "Invitations" },
+  { id: "users", label: "Users", adminOnly: true },
+  { id: "invites", label: "Invitations", adminOnly: true },
 ]
 
 export default function AdminScreen() {
   const navigate = useNavigate()
-  const { catalog, computed, refetchRecipes, userId } = useOutletContext()
+  const { catalog, computed, refetchRecipes, userId, isAdmin } =
+    useOutletContext()
+  const visibleTabs = TABS.filter((t) => !t.adminOnly || isAdmin)
   const [tab, setTab] = useState("overview")
   const [invites, setInvites] = useState([])
   const [invitesLoading, setInvitesLoading] = useState(true)
@@ -598,7 +603,7 @@ export default function AdminScreen() {
       <TopBar title="Admin Dashboard" onBack={() => navigate(-1)} />
 
       <div className="flex border-b border-bdr bg-bg2 overflow-x-auto">
-        {TABS.map((t) => (
+        {visibleTabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
@@ -625,8 +630,10 @@ export default function AdminScreen() {
             pendingRequestsCount={pendingRequests.length}
             ingredientTypesCount={catalog.types.length}
             activeInvitesCount={
-              invites.filter((i) => deriveInvitationStatus(i) === "active")
-                .length
+              isAdmin
+                ? invites.filter((i) => deriveInvitationStatus(i) === "active")
+                    .length
+                : null
             }
             onGoToTab={setTab}
           />
@@ -636,6 +643,7 @@ export default function AdminScreen() {
           <ClassicRecipesTab
             classicRecipes={classicRecipes}
             refetchRecipes={refetchRecipes}
+            isAdmin={isAdmin}
             confirmDemoteId={confirmDemoteId}
             demoting={demoting}
             demoteError={demoteError}
@@ -644,7 +652,7 @@ export default function AdminScreen() {
           />
         )}
 
-        {tab === "users" && (
+        {tab === "users" && isAdmin && (
           <UsersTab
             users={users}
             usersLoading={usersLoading}
@@ -653,7 +661,7 @@ export default function AdminScreen() {
           />
         )}
 
-        {tab === "invites" && (
+        {tab === "invites" && isAdmin && (
           <InvitesTab
             invites={invites}
             setInvites={setInvites}
@@ -685,6 +693,7 @@ export default function AdminScreen() {
         {tab === "import" && (
           <ImportTab
             catalog={catalog}
+            isAdmin={isAdmin}
             importEntity={importEntity}
             setImportEntity={setImportEntity}
             importMode={importMode}

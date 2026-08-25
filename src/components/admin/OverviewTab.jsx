@@ -34,13 +34,16 @@ export function OverviewTab({
       color: "var(--green)",
       onClick: () => onGoToTab("types"),
     },
-    {
+    // null (not just falsy 0) means "not admin, no access to this count at
+    // all" - moderator's scoped-down dashboard has no Invitations tab to
+    // jump to, so the card is hidden entirely rather than shown dead-ended.
+    activeInvitesCount !== null && {
       label: "Active Invitations",
       val: activeInvitesCount,
       color: "var(--amber)",
       onClick: () => onGoToTab("invites"),
     },
-  ]
+  ].filter(Boolean)
 
   return (
     <div className="fade-in flex flex-col gap-4">
@@ -65,7 +68,7 @@ export function OverviewTab({
         ))}
       </div>
       <p className="text-xs text-tx3">
-        All five counts are real - tap any card to jump to its detail.
+        All counts are real - tap any card to jump to its detail.
       </p>
     </div>
   )

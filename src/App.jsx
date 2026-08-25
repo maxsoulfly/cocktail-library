@@ -40,9 +40,14 @@ import { updateProfile } from "@/services/membership"
 // rather than a check inside AdminScreen itself, since AdminScreen calls
 // dozens of hooks unconditionally and an early return before them would
 // violate the rules of hooks.
-function RequireAdmin({ children }) {
-  const { isAdmin } = useOutletContext()
-  return isAdmin ? children : <Navigate to="/home" replace />
+//
+// Renamed from RequireAdmin: a moderator can also reach /admin now (a
+// scoped-down view of it - see AdminScreen.jsx's tab filtering), so this
+// gate checks isStaff (admin OR moderator). Finer-grained admin-only
+// actions inside stay gated by isAdmin specifically.
+function RequireStaff({ children }) {
+  const { isStaff } = useOutletContext()
+  return isStaff ? children : <Navigate to="/home" replace />
 }
 
 function LoadingScreen() {
@@ -176,6 +181,8 @@ function AppShell({ profile, session }) {
   )
 
   const isAdmin = profile?.role === "admin"
+  const isModerator = profile?.role === "moderator"
+  const isStaff = isAdmin || isModerator
   const isLoading =
     catalog.loading || inventory.loading || recipesLoading || lists.loading
 
@@ -195,6 +202,8 @@ function AppShell({ profile, session }) {
     theme,
     setTheme,
     isAdmin,
+    isModerator,
+    isStaff,
     profile,
     userId,
     email: session?.user?.email,
@@ -208,7 +217,7 @@ function AppShell({ profile, session }) {
           can never establish a bounded box to scroll within - it just grows
           to fit its content instead, and nothing ever scrolls. */}
       <div className="hidden xl:flex">
-        <SideNav isAdmin={isAdmin} />
+        <SideNav isStaff={isStaff} />
       </div>
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
         {isLoading ? <LoadingScreen /> : <Outlet context={outletContext} />}
@@ -269,9 +278,9 @@ export default function App() {
         <Route
           path="/admin"
           element={
-            <RequireAdmin>
+            <RequireStaff>
               <AdminScreen />
-            </RequireAdmin>
+            </RequireStaff>
           }
         />
       </Route>

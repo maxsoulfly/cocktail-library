@@ -57,6 +57,14 @@
 -- exercising the actual function calls (non-admin caller, self-targeting,
 -- invalid role, real promote/demote/block/unblock), not just confirming
 -- direct table writes are denied.
+--
+-- A final "moderator role" section (deliberately last - see its own header
+-- comment) covers the newer moderator tier: full write power on all 7
+-- "member read, admin write" lookup tables plus ingredient_requests
+-- resolution, the promote/demote/unpublish trio on recipes, and negative
+-- assertions proving the scope fence holds (no admin_set_user_role()/
+-- admin_set_membership_revoked() access, no direct classic-recipe
+-- authoring, no products or invitations access).
 
 begin;
 
@@ -1035,5 +1043,205 @@ begin
   select * into r from rls_recipe_ids;
   perform pg_temp.test_private_user_recipe_table('user_want_to_make', r.shared_id);
 end $$;
+
+-- ── moderator role ───────────────────────────────────────────────────────
+-- Exercises the confirmed scope: full catalog-authoring power (the 7
+-- "member read, admin write" lookup tables + ingredient_requests) and
+-- exactly promote/demote/unpublish on recipes - nothing more. Deliberately
+-- placed last and reuses member_other_id rather than a fresh third
+-- identity: every earlier block that needed member_other_id as an
+-- "ordinary member" fixture has already run by this point, so temporarily
+-- promoting its role here is exactly as safe as any other RLS_TEST-prefixed
+-- mutation in this file - the whole script rolls back at the end
+-- regardless. (Only 2 real non-revoked member accounts exist in this
+-- project as of writing - reusing one avoids needing a 3rd just for this.)
+
+do $$
+declare f record;
+begin
+  -- The previous block (user_want_to_make) left the role GUC switched to
+  -- `authenticated` impersonating member_owner_id - set_identity()'s
+  -- LOCAL scope holds for the rest of the transaction, not just one
+  -- statement, so this needs the same explicit reset back to the real
+  -- connecting superuser role that set_identity() itself does internally.
+  perform set_config('role', (select name from rls_original_role), true);
+  select * into f from rls_fixture_ids;
+  update public.profiles set role = 'moderator' where id = f.member_other_id;
+end;
+$$;
+
+do $$
+declare f record; n int; affected int; v_id uuid;
+begin
+  select * into f from rls_fixture_ids;
+  perform pg_temp.set_identity('authenticated', f.member_other_id);
+
+  -- Moderator is layered on top of an ordinary membership, not a
+  -- replacement for one - still passes the plain "member can read" check.
+  select count(*) into n from public.glasses;
+  perform pg_temp.assert(n > 0, 'moderator: still an ordinary member for read access - can read a lookup table');
+
+  -- Full write power on all 7 lookup tables - same shape/literals the
+  -- admin-write assertions above already use.
+  insert into public.glasses (name, shape) values ('RLS_TEST mod glass', 'martini') returning id into v_id;
+  update public.glasses set name = 'RLS_TEST mod glass renamed' where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 1, 'moderator: can update a glass');
+  delete from public.glasses where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 1, 'moderator: can delete a glass');
+
+  insert into public.taste_tags (name) values ('RLS_TEST mod tag') returning id into v_id;
+  update public.taste_tags set name = 'RLS_TEST mod tag renamed' where id = v_id;
+  delete from public.taste_tags where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 1, 'moderator: can insert/update/delete a taste tag');
+
+  insert into public.cocktail_families (name, shape) values ('RLS_TEST mod family', 'highball') returning id into v_id;
+  update public.cocktail_families set name = 'RLS_TEST mod family renamed' where id = v_id;
+  delete from public.cocktail_families where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 1, 'moderator: can insert/update/delete a cocktail family');
+
+  insert into public.liquid_colors (name, hex) values ('RLS_TEST mod color', '#123456') returning id into v_id;
+  update public.liquid_colors set name = 'RLS_TEST mod color renamed' where id = v_id;
+  delete from public.liquid_colors where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 1, 'moderator: can insert/update/delete a liquid color');
+
+  insert into public.ingredient_categories (name, sort_order) values ('RLS_TEST mod category', 999) returning id into v_id;
+  update public.ingredient_categories set name = 'RLS_TEST mod category renamed' where id = v_id;
+  delete from public.ingredient_categories where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 1, 'moderator: can insert/update/delete an ingredient category');
+
+  insert into public.ingredient_aliases (ingredient_type_id, alias) values (f.type_a_id, 'RLS_TEST mod alias') returning id into v_id;
+  update public.ingredient_aliases set alias = 'RLS_TEST mod alias renamed' where id = v_id;
+  delete from public.ingredient_aliases where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 1, 'moderator: can insert/update/delete an ingredient alias');
+
+  insert into public.ingredient_types (category_id, name, bar_priority, recommend_by_default)
+  values (f.category_id, 'RLS_TEST mod type', 'essential', false)
+  returning id into v_id;
+  update public.ingredient_types set name = 'RLS_TEST mod type renamed' where id = v_id;
+  delete from public.ingredient_types where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 1, 'moderator: can insert/update/delete an ingredient type');
+end;
+$$;
+
+-- ingredient_requests: moderator can read every pending request (not just
+-- their own) and resolve one, same as admin.
+do $$
+declare f record; v_id uuid; n int; affected int;
+begin
+  select * into f from rls_fixture_ids;
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+
+  insert into public.ingredient_requests (requested_by, name)
+  values (f.member_owner_id, 'RLS_TEST mod-resolved request')
+  returning id into v_id;
+
+  perform pg_temp.set_identity('authenticated', f.member_other_id);
+  select count(*) into n from public.ingredient_requests where id = v_id;
+  perform pg_temp.assert(n = 1, 'moderator: can read another member''s pending request');
+
+  update public.ingredient_requests set status = 'fulfilled' where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 1, 'moderator: can resolve a request');
+end;
+$$;
+
+-- Recipe moderation trio, as one continuous story reusing the still-live
+-- shared_id fixture (source_type='user', visibility='shared',
+-- moderation_status='active' - exactly the precondition
+-- admin_promote_recipe_to_classic() requires, unmodified by anything since
+-- the recipes section set it up).
+do $$
+declare f record; r record; v_recipe public.recipes;
+begin
+  select * into f from rls_fixture_ids;
+  select * into r from rls_recipe_ids;
+  perform pg_temp.set_identity('authenticated', f.member_other_id);
+
+  select * into v_recipe from public.admin_promote_recipe_to_classic(r.shared_id);
+  perform pg_temp.assert(v_recipe.source_type = 'classic' and v_recipe.owner_id is null, 'moderator: can promote a community recipe to classic');
+
+  select * into v_recipe from public.admin_demote_recipe_to_community(r.shared_id);
+  perform pg_temp.assert(v_recipe.source_type = 'user' and v_recipe.owner_id = f.member_owner_id, 'moderator: can demote a classic back to community');
+
+  perform public.unpublish_recipe(r.shared_id);
+  select * into v_recipe from public.recipes where id = r.shared_id;
+  perform pg_temp.assert(v_recipe.visibility = 'private' and v_recipe.moderation_status = 'unpublished_by_admin', 'moderator: can unpublish a community recipe');
+end;
+$$;
+
+-- Negative/boundary assertions - prove the scope fence, not just that the
+-- granted actions work.
+do $$
+declare f record; n int; affected int;
+begin
+  select * into f from rls_fixture_ids;
+  perform pg_temp.set_identity('authenticated', f.member_other_id);
+
+  begin
+    perform public.admin_set_user_role(f.member_owner_id, 'admin');
+    perform pg_temp.assert(false, 'moderator: calling admin_set_user_role() should be denied');
+  exception when raise_exception then
+    perform pg_temp.assert(true, 'moderator: cannot call admin_set_user_role() - staff creation stays admin-only');
+  end;
+
+  begin
+    perform public.admin_set_membership_revoked(f.member_owner_id, true);
+    perform pg_temp.assert(false, 'moderator: calling admin_set_membership_revoked() should be denied');
+  exception when raise_exception then
+    perform pg_temp.assert(true, 'moderator: cannot call admin_set_membership_revoked() - block/unblock stays admin-only');
+  end;
+
+  begin
+    insert into public.recipes (name, source_type, owner_id, visibility, moderation_status, glass_id)
+    values ('RLS_TEST mod-authored classic', 'classic', null, 'shared', 'active', f.glass_id);
+    perform pg_temp.assert(false, 'moderator: authoring a new classic recipe directly should be denied');
+  exception when insufficient_privilege then
+    perform pg_temp.assert(true, 'moderator: cannot author a new classic recipe directly - no batch-import-recipes power');
+  end;
+
+  select count(*) into n from public.invitations;
+  perform pg_temp.assert(n = 0, 'moderator: cannot read any invitation');
+
+  begin
+    insert into public.invitations (code, created_by, expires_at)
+    values ('RLS_TEST_MOD_INVITE', f.member_other_id, now() + interval '1 day');
+    perform pg_temp.assert(false, 'moderator: inserting an invitation should be denied');
+  exception when insufficient_privilege then
+    perform pg_temp.assert(true, 'moderator: cannot insert an invitation');
+  end;
+end;
+$$;
+
+do $$
+declare f record; v_id uuid; affected int;
+begin
+  select * into f from rls_fixture_ids;
+  perform pg_temp.set_identity('authenticated', f.admin_id);
+
+  insert into public.products (ingredient_type_id, name)
+  values (f.type_a_id, 'RLS_TEST mod-target product')
+  returning id into v_id;
+
+  perform pg_temp.set_identity('authenticated', f.member_other_id);
+  update public.products set name = 'RLS_TEST mod-hijacked product' where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 0, 'moderator: cannot update a product - products stay admin-only, not "ingredients"');
+
+  delete from public.products where id = v_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 0, 'moderator: cannot delete a product');
+
+  perform pg_temp.set_identity('authenticated', f.admin_id);
+  delete from public.products where id = v_id;
+end;
+$$;
 
 rollback;

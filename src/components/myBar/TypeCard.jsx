@@ -15,7 +15,7 @@ export function TypeCard({
   expanded,
   onToggleExpand,
   coveringChildren,
-  isAdmin,
+  isStaff,
   onEditType,
   onToggleOwned,
 }) {
@@ -52,7 +52,7 @@ export function TypeCard({
             {expanded ? <IconChevD size={12} /> : <IconChevR size={12} />}
           </button>
         )}
-        {isAdmin && (
+        {isStaff && (
           <button
             onClick={(e) => {
               e.stopPropagation()

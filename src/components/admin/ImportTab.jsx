@@ -4,9 +4,13 @@ import { ImportIngredientsSingle } from "@/components/admin/ImportIngredientsSin
 import { ImportProducts } from "@/components/admin/ImportProducts"
 import { ImportRecipes } from "@/components/admin/ImportRecipes"
 
+// recipes is adminOnly - it creates ownerless, immediately-published
+// classics directly (createClassicRecipes(), riding the "recipes: insert"
+// policy's admin branch), which is real classic-recipe-authoring power
+// outside moderator's agreed scope (promote/demote/unpublish only).
 const ENTITIES = [
   { id: "ingredients", label: "Ingredients" },
-  { id: "recipes", label: "Recipes" },
+  { id: "recipes", label: "Recipes", adminOnly: true },
   { id: "products", label: "Products" },
 ]
 
@@ -33,12 +37,14 @@ export function ImportTab(props) {
     importSuccessMessage,
     setImportSuccessMessage,
     setSingleFromRequestId,
+    isAdmin,
   } = props
+  const visibleEntities = ENTITIES.filter((e) => !e.adminOnly || isAdmin)
 
   return (
     <div className="fade-in flex flex-col gap-4">
       <div className="flex bg-surface border border-bdr rounded-sm overflow-hidden">
-        {ENTITIES.map((e) => (
+        {visibleEntities.map((e) => (
           <button
             key={e.id}
             onClick={() => {
@@ -124,7 +130,7 @@ export function ImportTab(props) {
         </div>
       )}
 
-      {importEntity === "recipes" && (
+      {importEntity === "recipes" && isAdmin && (
         <ImportRecipes
           catalog={catalog}
           recipeImportSuccessMessage={props.recipeImportSuccessMessage}

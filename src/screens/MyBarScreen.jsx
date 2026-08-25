@@ -9,7 +9,7 @@ import { TypeCard } from "@/components/myBar/TypeCard"
 
 export default function MyBarScreen() {
   const navigate = useNavigate()
-  const { catalog, inventory, isAdmin } = useOutletContext()
+  const { catalog, inventory, isAdmin, isStaff } = useOutletContext()
   const {
     loading: catalogLoading,
     categories,
@@ -171,7 +171,7 @@ export default function MyBarScreen() {
         expanded={expanded}
         onToggleExpand={() => toggleExpanded(type.id)}
         coveringChildren={coveringChildren}
-        isAdmin={isAdmin}
+        isStaff={isStaff}
         onEditType={() => setEditingTypeId(type.id)}
         onToggleOwned={() => toggleType(type.id)}
       />

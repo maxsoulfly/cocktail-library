@@ -59,7 +59,7 @@ export function BottomNav() {
   )
 }
 
-export function SideNav({ isAdmin }) {
+export function SideNav({ isStaff }) {
   const location = useLocation()
   const isAdminActive = location.pathname.startsWith("/admin")
   return (
@@ -86,7 +86,7 @@ export function SideNav({ isAdmin }) {
           </Link>
         )
       })}
-      {isAdmin && (
+      {isStaff && (
         <Link
           to="/admin"
           className={clsx(

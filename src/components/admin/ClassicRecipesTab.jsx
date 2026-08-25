@@ -16,9 +16,15 @@ import { deleteRecipe } from "@/services/recipes"
 // data - onDemote/confirmDemoteId/demoting/demoteError all come from the
 // AdminScreen shell rather than being local to this tab, since a successful
 // demote needs to refresh the shell-owned communityRecipes list too.
+//
+// Edit/Delete are admin-only (classic-recipe editing is out of moderator's
+// agreed scope); Demote needs no extra check here - reaching this tab at
+// all already requires isStaff, and Demote is fully in scope for any
+// staff member who gets there.
 export function ClassicRecipesTab({
   classicRecipes,
   refetchRecipes,
+  isAdmin,
   confirmDemoteId,
   demoting,
   demoteError,
@@ -78,18 +84,22 @@ export function ClassicRecipesTab({
                     ` · originally by ${r.author ?? "a member"}`}
                 </div>
               </div>
-              <button
-                onClick={() => navigate(`/library/${r.id}/edit`)}
-                className="bg-cyan/10 border border-cyan/25 rounded-sm py-1.5 px-3 cursor-pointer text-cyan text-xs font-display font-semibold flex items-center gap-1"
-              >
-                <IconEdit size={12} /> Edit
-              </button>
-              <button
-                onClick={() => setConfirmDeleteClassicId(r.id)}
-                className="bg-coral/10 border border-coral/25 rounded-sm py-1.5 px-3 cursor-pointer text-coral text-xs font-display font-semibold flex items-center gap-1"
-              >
-                <IconTrash size={12} /> Delete
-              </button>
+              {isAdmin && (
+                <button
+                  onClick={() => navigate(`/library/${r.id}/edit`)}
+                  className="bg-cyan/10 border border-cyan/25 rounded-sm py-1.5 px-3 cursor-pointer text-cyan text-xs font-display font-semibold flex items-center gap-1"
+                >
+                  <IconEdit size={12} /> Edit
+                </button>
+              )}
+              {isAdmin && (
+                <button
+                  onClick={() => setConfirmDeleteClassicId(r.id)}
+                  className="bg-coral/10 border border-coral/25 rounded-sm py-1.5 px-3 cursor-pointer text-coral text-xs font-display font-semibold flex items-center gap-1"
+                >
+                  <IconTrash size={12} /> Delete
+                </button>
+              )}
               {r.originalOwnerId && (
                 <button
                   onClick={() => onSetConfirmDemote(r.id)}
@@ -125,7 +135,7 @@ export function ClassicRecipesTab({
                 </div>
               </div>
             )}
-            {confirmDeleteClassicId === r.id && (
+            {isAdmin && confirmDeleteClassicId === r.id && (
               <div className="mt-3 p-3 bg-coral/8 rounded-sm border border-coral/25">
                 <p className="mb-2.5 text-[13px] text-tx2">
                   Delete "{r.name}"? This removes it from the catalog for every

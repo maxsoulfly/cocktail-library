@@ -28,6 +28,7 @@ export default function DetailScreen() {
     owned,
     userId,
     isAdmin,
+    isStaff,
     refetchRecipes,
   } = useOutletContext()
   const [showConfirmShare, setShowConfirmShare] = useState(false)
@@ -56,10 +57,15 @@ export default function DetailScreen() {
   const isFav = favorites.has(c.id)
   const isWtm = wantToMake.has(c.id)
   const isOwner = c.ownerId === userId
-  const canManage = isOwner || isAdmin
+  // canManage gates Unpublish on a community recipe - the same action
+  // ModerationTab.jsx grants moderator, so it needs to behave consistently
+  // wherever it appears, not just from the Moderation tab list.
+  const canManage = isOwner || isStaff
   // Spec §4: owners can edit their own recipe; admins are limited to the
   // classic catalog (owner_id null) - matches the DB-enforced rule in
   // supabase/migrations/20260815231800_tighten_recipe_edit_scope.sql.
+  // Deliberately isAdmin, not isStaff/isModerator - classic-recipe editing
+  // is out of moderator's scope.
   const canEdit = isOwner || (isAdmin && c.source === "classic")
 
   const handlePublish = async () => {
