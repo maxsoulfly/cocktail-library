@@ -58,6 +58,29 @@ function LoadingScreen() {
   )
 }
 
+// Shown only when an initial fetch has never succeeded - there's nothing
+// usable to fall back to. A failed *refetch* after data already loaded
+// once does NOT reach this screen (see each hook's `loaded` flag) - the
+// app keeps showing stale-but-valid content instead, since nuking the
+// whole screen over e.g. a failed background catalog refresh would be
+// worse than doing nothing.
+function ErrorScreen({ message, onRetry }) {
+  return (
+    <div className="min-h-dvh bg-bg flex flex-col items-center justify-center gap-3 p-6 text-center">
+      <p className="font-display font-bold text-lg text-tx">
+        Something went wrong
+      </p>
+      <p className="text-tx2 text-sm max-w-xs">{message}</p>
+      <button
+        onClick={onRetry}
+        className="mt-2 bg-transparent border border-bdr rounded-sm py-2 px-4 cursor-pointer text-tx2 text-[13px] font-display"
+      >
+        Try Again
+      </button>
+    </div>
+  )
+}
+
 // A blocked member has a real memberships row (revoked_at set), unlike
 // someone who's never joined at all - showing JoinScreen's "enter an invite
 // code" form here would be actively misleading, since redeem_invitation()
@@ -185,6 +208,22 @@ function AppShell({ profile, session }) {
   const isStaff = isAdmin || isModerator
   const isLoading =
     catalog.loading || inventory.loading || recipesLoading || lists.loading
+  // Only blocks the whole app when the failing hook has NEVER loaded real
+  // data - a failed refetch (e.g. AddProductScreen's catalog.refetch()
+  // after a successful add) leaves `loaded` true and keeps showing
+  // whatever's already on screen instead.
+  const loadError =
+    (!catalog.loaded && catalog.error) ||
+    (!inventory.loaded && inventory.error) ||
+    (!recipesQuery.loaded && recipesQuery.error) ||
+    (!lists.loaded && lists.error) ||
+    null
+  const retryFailedLoads = () => {
+    catalog.refetch()
+    inventory.refetch()
+    refetchRecipes()
+    lists.refetch()
+  }
 
   const outletContext = {
     computed,
@@ -220,7 +259,13 @@ function AppShell({ profile, session }) {
         <SideNav isStaff={isStaff} />
       </div>
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
-        {isLoading ? <LoadingScreen /> : <Outlet context={outletContext} />}
+        {isLoading ? (
+          <LoadingScreen />
+        ) : loadError ? (
+          <ErrorScreen message={loadError} onRetry={retryFailedLoads} />
+        ) : (
+          <Outlet context={outletContext} />
+        )}
       </div>
       <BottomNav />
     </div>
@@ -228,10 +273,15 @@ function AppShell({ profile, session }) {
 }
 
 export default function App() {
-  const { loading: authLoading, session } = useSupabaseSession()
+  const {
+    loading: authLoading,
+    error: authError,
+    session,
+  } = useSupabaseSession()
   const userId = session?.user?.id
   const {
     loading: memberLoading,
+    error: memberError,
     isMember,
     isRevoked,
     profile,
@@ -239,6 +289,17 @@ export default function App() {
   } = useMembership(userId)
 
   if (authLoading) return <LoadingScreen />
+
+  // A failed getSession() call - reloading re-runs it from scratch, which
+  // is the only real recovery path here (there's no partial state to
+  // retry in place, unlike the AppShell-level hooks below).
+  if (authError)
+    return (
+      <ErrorScreen
+        message={authError}
+        onRetry={() => window.location.reload()}
+      />
+    )
 
   if (!session) {
     return (
@@ -250,6 +311,13 @@ export default function App() {
   }
 
   if (memberLoading) return <LoadingScreen />
+
+  // Previously, a failed profile/membership fetch fell all the way through
+  // to `!isMember` and showed JoinScreen - misleading for a transient
+  // error, since a real member hitting a network blip would be told to
+  // redeem an invitation they already used.
+  if (memberError)
+    return <ErrorScreen message={memberError} onRetry={refetch} />
 
   if (isRevoked) {
     return <RevokedScreen />

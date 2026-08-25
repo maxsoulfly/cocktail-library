@@ -13,6 +13,14 @@ import {
 export function useCatalog() {
   const [state, setState] = useState({
     loading: true,
+    error: null,
+    // True once the first successful fetch has landed, never reset by a
+    // later failed refetch - lets App.jsx tell "we've never had real data,
+    // show a blocking error screen" apart from "a refetch failed, but keep
+    // showing what's already on screen" (e.g. AddProductScreen's
+    // catalog.refetch() failing shouldn't nuke the whole app back to an
+    // error screen and hide the product the user just successfully added).
+    loaded: false,
     categories: [],
     types: [],
     aliases: [],
@@ -27,6 +35,14 @@ export function useCatalog() {
   // useRecipes.js: AppShell unmounts the whole Outlet while catalog.loading
   // is true, so every refetch (already triggered today by AddProductScreen
   // after adding a product) would flash the entire app blank and back.
+  //
+  // Never rejects - a failed fetch resolves into `error` state instead of
+  // an unhandled promise rejection. Before this, a failed *initial* load
+  // left `loading: true` forever (nothing ever set it false), which meant
+  // AppShell's `isLoading` gate (App.jsx) got stuck on a bare "Loading..."
+  // screen indefinitely with no way for the user to know anything had gone
+  // wrong. On a refetch failure, the functional setState spread preserves
+  // whatever data was already loaded rather than wiping it to empty.
   const load = useCallback(() => {
     return Promise.all([
       fetchIngredientCategories(),
@@ -37,19 +53,9 @@ export function useCatalog() {
       fetchTasteTags(),
       fetchCocktailFamilies(),
       fetchLiquidColors(),
-    ]).then(
-      ([
-        categories,
-        types,
-        aliases,
-        products,
-        glasses,
-        tasteTags,
-        families,
-        liquidColors,
-      ]) => {
-        const next = {
-          loading: false,
+    ])
+      .then(
+        ([
           categories,
           types,
           aliases,
@@ -58,11 +64,28 @@ export function useCatalog() {
           tasteTags,
           families,
           liquidColors,
-        }
-        setState(next)
-        return next
-      },
-    )
+        ]) => {
+          const next = {
+            loading: false,
+            error: null,
+            loaded: true,
+            categories,
+            types,
+            aliases,
+            products,
+            glasses,
+            tasteTags,
+            families,
+            liquidColors,
+          }
+          setState(next)
+          return next
+        },
+      )
+      .catch((err) => {
+        setState((s) => ({ ...s, loading: false, error: err.message }))
+        return undefined
+      })
   }, [])
 
   useEffect(() => {

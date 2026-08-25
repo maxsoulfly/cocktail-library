@@ -4,6 +4,10 @@ import { fetchRecipes } from "@/services/recipes"
 export function useRecipes() {
   const [recipes, setRecipes] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  // See useCatalog.js's `loaded` comment - true once the first successful
+  // fetch lands, never reset by a later failed refetch.
+  const [loaded, setLoaded] = useState(false)
 
   // Deliberately doesn't re-set loading:true on refetch - AppShell unmounts
   // the whole Outlet (and shows a bare loading screen) while `recipesLoading`
@@ -13,17 +17,29 @@ export function useRecipes() {
   // optimistic updates); here the simpler fix is just never re-entering the
   // blocking state after the first load, since stale-then-fresh data is a
   // much better experience than an unmount/remount flash.
+  //
+  // Never rejects - see useCatalog.js's load() comment for why (a failed
+  // initial fetch used to leave `loading: true` forever, since nothing
+  // ever set it false).
   const load = useCallback(() => {
-    return fetchRecipes().then((data) => {
-      setRecipes(data)
-      setLoading(false)
-      return data
-    })
+    return fetchRecipes()
+      .then((data) => {
+        setRecipes(data)
+        setLoading(false)
+        setError(null)
+        setLoaded(true)
+        return data
+      })
+      .catch((err) => {
+        setLoading(false)
+        setError(err.message)
+        return undefined
+      })
   }, [])
 
   useEffect(() => {
     load()
   }, [load])
 
-  return { recipes, loading, refetch: load }
+  return { recipes, loading, error, loaded, refetch: load }
 }

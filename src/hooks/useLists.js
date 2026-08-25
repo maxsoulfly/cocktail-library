@@ -15,22 +15,38 @@ export function useLists(userId) {
   const [favoriteIds, setFavoriteIds] = useState(new Set())
   const [wantToMakeIds, setWantToMakeIds] = useState(new Set())
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  // See useCatalog.js's `loaded` comment - true once resolved with real
+  // data (or a definitive "no user" state), never reset by a later failed
+  // refetch.
+  const [loaded, setLoaded] = useState(false)
 
+  // Never rejects - see useCatalog.js's load() comment for why (a failed
+  // initial fetch used to leave `loading: true` forever). Same
+  // fire-and-forget rollback-on-failure concern as useInventory.js applies
+  // here too (toggleFavorite/toggleWantToMake below).
   const load = useCallback(() => {
     if (!userId) {
       setFavoriteIds(new Set())
       setWantToMakeIds(new Set())
       setLoading(false)
+      setError(null)
+      setLoaded(true)
       return Promise.resolve()
     }
     setLoading(true)
-    return Promise.all([fetchFavorites(userId), fetchWantToMake(userId)]).then(
-      ([favs, wtm]) => {
+    return Promise.all([fetchFavorites(userId), fetchWantToMake(userId)])
+      .then(([favs, wtm]) => {
         setFavoriteIds(new Set(favs.map((r) => r.recipe_id)))
         setWantToMakeIds(new Set(wtm.map((r) => r.recipe_id)))
         setLoading(false)
-      },
-    )
+        setError(null)
+        setLoaded(true)
+      })
+      .catch((err) => {
+        setLoading(false)
+        setError(err.message)
+      })
   }, [userId])
 
   useEffect(() => {
@@ -73,6 +89,8 @@ export function useLists(userId) {
 
   return {
     loading,
+    error,
+    loaded,
     favoriteIds,
     wantToMakeIds,
     toggleFavorite,

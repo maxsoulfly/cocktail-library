@@ -10,19 +10,40 @@ import {
 export function useInventory(userId) {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  // See useCatalog.js's `loaded` comment - true once resolved with real
+  // data (or a definitive "no user" state), never reset by a later failed
+  // refetch.
+  const [loaded, setLoaded] = useState(false)
 
+  // Never rejects - see useCatalog.js's load() comment for why (a failed
+  // initial fetch used to leave `loading: true` forever). This also fixes a
+  // second-order issue: toggleType/ownProduct/toggleProduct below call
+  // load() fire-and-forget to roll back optimistic state after a failed
+  // write, never awaiting or catching it - if that rollback fetch itself
+  // failed, it used to be an unhandled rejection too.
   const load = useCallback(() => {
     if (!userId) {
       setRows([])
       setLoading(false)
+      setError(null)
+      setLoaded(true)
       return Promise.resolve([])
     }
     setLoading(true)
-    return fetchInventory(userId).then((data) => {
-      setRows(data)
-      setLoading(false)
-      return data
-    })
+    return fetchInventory(userId)
+      .then((data) => {
+        setRows(data)
+        setLoading(false)
+        setError(null)
+        setLoaded(true)
+        return data
+      })
+      .catch((err) => {
+        setLoading(false)
+        setError(err.message)
+        return undefined
+      })
   }, [userId])
 
   useEffect(() => {
@@ -118,6 +139,8 @@ export function useInventory(userId) {
 
   return {
     loading,
+    error,
+    loaded,
     ownedTypeIds,
     ownedProductIds,
     toggleType,

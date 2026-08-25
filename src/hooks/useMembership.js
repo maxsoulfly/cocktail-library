@@ -4,6 +4,7 @@ import { fetchMembership, fetchProfile } from "@/services/membership"
 export function useMembership(userId) {
   const [state, setState] = useState({
     loading: true,
+    error: null,
     profile: null,
     isMember: false,
     isRevoked: false,
@@ -14,6 +15,7 @@ export function useMembership(userId) {
     if (!userId) {
       setState({
         loading: false,
+        error: null,
         profile: null,
         isMember: false,
         isRevoked: false,
@@ -27,19 +29,26 @@ export function useMembership(userId) {
         if (active)
           setState({
             loading: false,
+            error: null,
             profile,
             isMember: Boolean(membership) && !membership.revoked_at,
             isRevoked: Boolean(membership?.revoked_at),
           })
       })
-      .catch(() => {
+      // Previously collapsed any failure (network error, RLS hiccup) into
+      // the same defaults as "never joined" - isMember: false routes
+      // straight to JoinScreen's "enter an invite code" form (App.jsx),
+      // which is actively misleading for a transient error: a real member
+      // hitting a network blip would see a screen telling them to redeem
+      // an invitation they already used. Recording the error instead lets
+      // App.jsx show a real error screen and distinguish the two cases.
+      .catch((err) => {
         if (active)
-          setState({
+          setState((prev) => ({
+            ...prev,
             loading: false,
-            profile: null,
-            isMember: false,
-            isRevoked: false,
-          })
+            error: err.message,
+          }))
       })
     return () => {
       active = false
