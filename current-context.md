@@ -17,7 +17,7 @@ Agreed phase plan (revised by user on 2026-08-15 — private recipe CRUD moved i
 11. ~~Recipe publishing + admin unpublishing (Phase 5)~~ — **done, 2026-08-16 — browser-verified**
 12. ~~Admin catalog tools + JSON import preview/validation (Phase 5)~~ — **done, 2026-08-22**: ingredient-type/recipe/product batch import (AI-prompt-assisted), a member ingredient-request queue, real invitation generation/revocation, and glass/taste-tag/family/category management UI are all done.
 12b. ~~Component-size refactor (AdminScreen/EditorScreen/MyBarScreen/DetailScreen) + Tailwind utility-class conversion, both browser-verified~~ — **done, 2026-08-25**
-13. Responsive/accessibility/security/deployment QA (Phase 6) — in progress: security regression testing (RLS suite) done 2026-08-25; empty/loading/error-state fix and keyboard-access/accessible-labels fix both done 2026-08-25 (neither yet browser-verified); all 5 layout/responsive/touch-target findings (tablet breakpoints, max-width, grids, touch targets, color-only indicator) fixed and browser-confirmed 2026-08-25; theme QA and deployment/backup notes not started
+13. Responsive/accessibility/security/deployment QA (Phase 6) — in progress: security regression testing (RLS suite) done 2026-08-25; keyboard-access fix browser-confirmed (re-confirmed on the current build); accessible-labels fix done but still not screen-reader-verified (no screen reader available this session); empty/loading/error-state fix browser-confirmed 2026-08-25 (real Supabase-outage simulation, see below); all 5 layout/responsive/touch-target findings (tablet breakpoints, max-width, grids, touch targets, color-only indicator) fixed and browser-confirmed 2026-08-25; theme QA and deployment/backup notes not started
 
 Each numbered step is a development chunk boundary for this file.
 
@@ -37,7 +37,17 @@ Each numbered step is a development chunk boundary for this file.
 
 Verified: `pnpm build`, `pnpm test` (106/106), `pnpm format` all clean; `npx --yes oxlint -D no-undef` on both changed JS/JSX files - zero findings. RLS suite re-run clean after every fix, sabotage-verified, zero fixture leakage confirmed via a direct post-run query. **Not yet browser-verified** - no login credentials available this session, so the merge UI's actual click-through (search → Merge → pick survivor → checkbox → confirm → catalog refetches) has only been confirmed via code reading, not by using it in the running app.
 
-## Last completed chunk (Phase 6 responsive/touch-target fixes, step-by-step with the user)
+## Last completed chunk (empty/loading/error-state fix, real browser verification)
+
+**Browser-verified the empty/loading/error-state fix (from an earlier session) via a real simulated Supabase outage - the one item from that chunk that had only ever been logic-reviewed, never observed failing live.** Walked the user through Chrome DevTools' Network request-blocking feature to make every call to the live Supabase project fail with a real network error, rather than a code change or mocking.
+
+**Two false starts before landing on the right technique**, both instructive: (1) DevTools "Offline" network throttling blocks the page's own initial document/asset load too, not just API calls - hit Chrome's native offline dinosaur page before the app ever booted, never exercising the code being tested. (2) "3G" throttling tested something unrelated entirely - Vite's dev-mode unbundled ES modules (~95+ separate file requests) just crawl under high latency, nothing to do with Supabase reachability. The actual right tool: DevTools' dedicated "Network request blocking" panel (Ctrl+Shift+P → "Show Network request blocking"), with a pattern scoped to the Supabase domain specifically (`https://<project-ref>.supabase.co/*` - the pattern needs a full URL form to parse as a `URLPattern`, a plain domain string fails silently in current Chrome) - this lets the app's own dev-server-served files load normally while every Supabase call fails.
+
+**First reproduction looked like a real regression** (stuck on "Loading..." indefinitely) but turned out to be impatience, not a bug: Supabase's client retries a failed request several times with backoff before finally giving up (~8 seconds observed here), and the user hadn't waited long enough the first time. Confirmed by retrying and waiting it out: the real `ErrorScreen` appeared ("Something went wrong / TypeError: Failed to fetch / Try Again"), and the Console showed zero uncaught errors - the `.catch()` handlers in `useSupabaseSession.js`/`useMembership.js` are working exactly as designed, propagating the failure into `error` state instead of hanging or throwing unhandled.
+
+No code changes this chunk - pure verification. `current-context.md`'s Phase 6 status line updated to reflect this fix is now genuinely browser-confirmed, not just logic-reviewed.
+
+## Earlier chunk (Phase 6 responsive/touch-target fixes, step-by-step with the user)
 
 **Walked the 5 deferred layout/responsive findings from the earlier accessibility audit with the user one at a time, live-testing each in the browser via device toolbar at multiple real viewport sizes before moving to the next.** All 3 attempted this session are fixed and browser-confirmed; 2 remain (touch targets is also now done, so really just the color-only indicator is left).
 
