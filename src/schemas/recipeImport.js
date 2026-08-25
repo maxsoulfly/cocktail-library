@@ -307,8 +307,8 @@ Return ONLY a JSON array (no markdown fences, no commentary) where each item has
 - "description": string, optional short description.
 - "glass": string, required. Must be exactly one of: ${glassNames.join(", ")}.
 - "family": string, optional. Must be exactly one of: ${familyNames.join(", ") || "(none defined yet - omit this field)"}.
-- "liquidColor": optional hex color like "#f97316" for the drink's visual fill.
-- "liquidColor2": optional second hex color, only for a genuinely layered or gradient drink (e.g. a Tequila Sunrise, a layered shot) - omit entirely for an ordinary single-color drink.
+- "liquidColor": optional hex color like "#f97316" for the drink's visual fill. If the drink has a second color (see liquidColor2), this is the base/bottom color the rest of the drink is built on.
+- "liquidColor2": optional second hex color, forming a top-to-bottom gradient with liquidColor. Set this whenever YOUR OWN steps for this recipe describe the drink ending up two distinct colors rather than one uniform color - not just for famous examples, reason about the actual technique in the steps you just wrote: a layered shot built in bands ("pour over the back of a spoon", "float", "layer"); a liqueur poured/floated on top of a shaken-and-strained drink so it sits as a separate top layer or visibly bleeds down through crushed ice (e.g. a Bramble's Crème de Mûre poured over crushed ice at the end); a drink built in the glass without stirring so two colors stay distinct (e.g. a Tequila Sunrise's grenadine sinking/showing through). Omit entirely if your steps say to shake, stir, or strain everything together into one uniform mix - the two colors only apply when the recipe's own instructions keep them visually separate.
 - "tasteTags": optional array of strings, each exactly one of: ${tagNames.join(", ") || "(none defined yet - omit this field)"}.
 - "steps": array of strings, required, one instruction per step, in order.
 - "components": array of objects, required - list EVERY ingredient the recipe uses here, including ones not in the existing list below, each with:
