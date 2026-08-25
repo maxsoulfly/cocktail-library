@@ -44,6 +44,13 @@ function mapRecipe(row) {
     family: row.family?.name,
     liquidColor: row.liquid_color ?? "#22d3ee",
     liquidColor2: row.liquid_color_2 ?? null,
+    // Cross-user popularity - a denormalized counter (20260826110000), kept
+    // in sync by a trigger whenever anyone favorites/adds to Want to Make -
+    // never a live per-request aggregate, and never exposes which users
+    // contributed to it (user_favorites/user_want_to_make stay strictly
+    // private).
+    favoriteCount: row.favorite_count ?? 0,
+    wantToMakeCount: row.want_to_make_count ?? 0,
     steps: row.steps ?? [],
     taste: (row.recipe_taste_tags ?? [])
       .map((t) => t.taste_tags?.name)
@@ -66,7 +73,7 @@ function mapRecipe(row) {
 }
 
 const RECIPE_SELECT = `
-  id, name, description, source_type, visibility, moderation_status, owner_id, original_owner_id, liquid_color, liquid_color_2, steps,
+  id, name, description, source_type, visibility, moderation_status, owner_id, original_owner_id, liquid_color, liquid_color_2, favorite_count, want_to_make_count, steps,
   glass:glasses(name, shape),
   family:cocktail_families(name),
   owner:profiles!recipes_owner_id_fkey(display_name),

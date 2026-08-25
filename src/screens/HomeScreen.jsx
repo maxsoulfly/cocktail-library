@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { useNavigate, useOutletContext } from "react-router-dom"
 import {
   IconBookmark,
@@ -11,7 +11,13 @@ import {
 import { GlassSvg } from "@/components/GlassSvg"
 import { SmallCard } from "@/components/CocktailCard"
 import { Card, SectionTitle } from "@/components/primitives"
+import { rankAlmostThere } from "@/domain/almostThere"
 import { rankPurchaseRecommendations } from "@/domain/recommendations"
+
+// Capped so a member with dozens of "almost" recipes doesn't get a Home
+// screen that's mostly one giant list - "Show more" reveals the rest on
+// demand instead.
+const ALMOST_INITIAL_LIMIT = 3
 
 export default function HomeScreen() {
   const navigate = useNavigate()
@@ -27,10 +33,19 @@ export default function HomeScreen() {
   const firstName = (profile?.display_name || email || "there").split(
     /[\s@]/,
   )[0]
+  const [showAllAlmost, setShowAllAlmost] = useState(false)
 
   const perfect = computed.filter((c) => c.avail === "perfect")
   const good = computed.filter((c) => c.avail === "good")
-  const almost = computed.filter((c) => c.avail === "almost")
+  // Ranked by real cross-user popularity (favoriteCount + wantToMakeCount) -
+  // every recipe here is already tied on "how close" by definition (avail
+  // === "almost" only ever means exactly 1 missing required ingredient, see
+  // availability.js), so popularity is the only signal that actually
+  // differentiates them.
+  const almostRanked = useMemo(() => rankAlmostThere(computed), [computed])
+  const almost = showAllAlmost
+    ? almostRanked
+    : almostRanked.slice(0, ALMOST_INITIAL_LIMIT)
 
   const buyNext = useMemo(
     () =>
@@ -127,12 +142,12 @@ export default function HomeScreen() {
           </div>
         )}
 
-        {almost.length > 0 && (
+        {almostRanked.length > 0 && (
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
               <SectionTitle>Almost There</SectionTitle>
               <span className="text-xs font-mono text-almost">
-                ◐ {almost.length}
+                ◐ {almostRanked.length}
               </span>
             </div>
             <div className="flex flex-col gap-2">
@@ -164,6 +179,14 @@ export default function HomeScreen() {
                 </Card>
               ))}
             </div>
+            {!showAllAlmost && almostRanked.length > ALMOST_INITIAL_LIMIT && (
+              <button
+                onClick={() => setShowAllAlmost(true)}
+                className="w-full mt-2 py-2.5 bg-transparent border border-bdr rounded-sm cursor-pointer text-tx2 text-[13px] font-display font-semibold"
+              >
+                Show {almostRanked.length - ALMOST_INITIAL_LIMIT} more
+              </button>
+            )}
           </div>
         )}
 
