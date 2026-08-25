@@ -95,6 +95,7 @@ export function IngredientRowsEditor({
                 {ings.length > 1 && (
                   <button
                     onClick={() => onRemove(i)}
+                    aria-label={`Remove ingredient ${i + 1}`}
                     className="bg-transparent border-none cursor-pointer text-tx3 p-1"
                   >
                     <IconX size={14} />
@@ -124,6 +125,7 @@ export function IngredientRowsEditor({
                       {altName}
                       <button
                         onClick={() => onRemoveAlternative(i, ai)}
+                        aria-label={`Remove substitute ${altName}`}
                         className="bg-transparent border-none cursor-pointer text-tx3 p-0.5 flex"
                       >
                         <IconX size={9} />

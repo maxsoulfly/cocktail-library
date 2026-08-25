@@ -118,6 +118,8 @@ export default function DetailScreen() {
           <div className="flex gap-2">
             <button
               onClick={() => toggleFav(c.id)}
+              aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
+              aria-pressed={isFav}
               className={clsx(
                 "rounded-sm w-9 h-9 cursor-pointer flex items-center justify-center border",
                 isFav
@@ -129,6 +131,10 @@ export default function DetailScreen() {
             </button>
             <button
               onClick={() => toggleWtm(c.id)}
+              aria-label={
+                isWtm ? "Remove from Want to Make" : "Add to Want to Make"
+              }
+              aria-pressed={isWtm}
               className={clsx(
                 "rounded-sm w-9 h-9 cursor-pointer flex items-center justify-center border",
                 isWtm

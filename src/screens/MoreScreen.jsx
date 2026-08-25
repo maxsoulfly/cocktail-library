@@ -19,9 +19,23 @@ function Row({ icon, label, right, onClick, danger }) {
   return (
     <div
       onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault()
+                onClick(e)
+              }
+            }
+          : undefined
+      }
       className={clsx(
         "flex items-center gap-3 py-3.5 px-4 border-b border-bdr",
-        onClick ? "cursor-pointer" : "cursor-default",
+        onClick
+          ? "cursor-pointer focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan"
+          : "cursor-default",
         danger ? "text-coral" : "text-tx",
       )}
     >

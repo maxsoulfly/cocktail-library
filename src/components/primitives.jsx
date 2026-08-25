@@ -314,11 +314,41 @@ export function ColorSwatchPicker({ value, onChange, colors }) {
   )
 }
 
+// role/tabIndex/onKeyDown only apply when onClick is passed - a plain
+// display Card stays a plain div. `e.target === e.currentTarget` guards
+// against a nested real <button> (several callers put stopPropagation'd
+// action buttons inside a clickable Card) - without it, pressing Enter/
+// Space on that inner button would both fire its own onClick AND bubble
+// the keydown up to trigger the outer Card's onClick too, since keydown
+// bubbles independently of an inner click handler's stopPropagation.
 export function Card({ children, style, className, onClick }) {
   return (
     <div
-      className={clsx("bg-surface border border-bdr rounded-lg", className)}
+      className={clsx(
+        "bg-surface border border-bdr rounded-lg",
+        // ring (box-shadow), not outline - several callers (e.g. TypeCard)
+        // set overflow-hidden, which can clip an outline but never clips an
+        // inset box-shadow.
+        onClick &&
+          "focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan",
+        className,
+      )}
       onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (
+                (e.key === "Enter" || e.key === " ") &&
+                e.target === e.currentTarget
+              ) {
+                e.preventDefault()
+                onClick(e)
+              }
+            }
+          : undefined
+      }
       style={style}
     >
       {children}

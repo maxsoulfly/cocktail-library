@@ -109,6 +109,7 @@ export function TopBar({ title, onBack, right }) {
       {onBack && (
         <button
           onClick={onBack}
+          aria-label="Back"
           className="bg-transparent border-none cursor-pointer text-tx2 p-0 flex items-center"
         >
           <IconBack size={20} />

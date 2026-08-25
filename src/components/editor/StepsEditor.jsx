@@ -30,6 +30,7 @@ export function StepsEditor({ steps, onAdd, onRemove, onUpdate }) {
             {steps.length > 1 && (
               <button
                 onClick={() => onRemove(i)}
+                aria-label={`Remove step ${i + 1}`}
                 className="bg-transparent border-none cursor-pointer text-tx3 py-2 px-1"
               >
                 <IconX size={14} />
