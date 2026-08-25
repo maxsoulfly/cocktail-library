@@ -112,12 +112,13 @@ export function CatalogTab({ catalog }) {
         singular="category"
         items={catalog.categories}
         showSortOrder
-        onCreate={async ({ name, sortOrder }) => {
-          await createIngredientCategory({ name, sortOrder })
+        shapeKind="ingredient"
+        onCreate={async ({ name, sortOrder, shape }) => {
+          await createIngredientCategory({ name, sortOrder, shape })
           await catalog.refetch()
         }}
-        onUpdate={async (id, { name, sortOrder }) => {
-          await updateIngredientCategory(id, { name, sortOrder })
+        onUpdate={async (id, { name, sortOrder, shape }) => {
+          await updateIngredientCategory(id, { name, sortOrder, shape })
           await catalog.refetch()
         }}
         onDelete={async (id) => {

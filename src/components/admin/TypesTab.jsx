@@ -29,8 +29,23 @@ export function TypesTab({ catalog, onAddNew }) {
     catalog.categories.map((c) => [c.id, c.name]),
   )
   const typeNameById = new Map(catalog.types.map((t) => [t.id, t.name]))
+  const aliasesByTypeId = new Map()
+  catalog.aliases.forEach((a) => {
+    if (!aliasesByTypeId.has(a.ingredient_type_id))
+      aliasesByTypeId.set(a.ingredient_type_id, [])
+    aliasesByTypeId.get(a.ingredient_type_id).push(a.alias)
+  })
+  // Search matches an alias too, not just the canonical name (e.g. "Wodka"
+  // -> Vodka) - same reasoning as My Bar's ingredient search.
   const filteredTypes = [...catalog.types]
-    .filter((t) => t.name.toLowerCase().includes(typeQuery.toLowerCase()))
+    .filter((t) => {
+      const q = typeQuery.toLowerCase()
+      const matchesName = t.name.toLowerCase().includes(q)
+      const matchesAlias = (aliasesByTypeId.get(t.id) ?? []).some((a) =>
+        a.toLowerCase().includes(q),
+      )
+      return matchesName || matchesAlias
+    })
     .sort(
       (a, b) =>
         (categoryNameById.get(a.category_id) ?? "").localeCompare(

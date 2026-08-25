@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabaseClient"
 export async function fetchIngredientCategories() {
   const { data, error } = await supabase
     .from("ingredient_categories")
-    .select("id, name, sort_order")
+    .select("id, name, sort_order, shape")
     .order("sort_order")
     .order("name")
   if (error) throw error
@@ -372,19 +372,19 @@ export const deleteLiquidColor = (id) => deleteNamedRow("liquid_colors", id)
 // ingredient_categories carries sort_order too (added in
 // 20260816010047_category_order_and_spirit_hierarchy.sql), so it doesn't fit
 // the plain name-only helpers above.
-export async function createIngredientCategory({ name, sortOrder }) {
+export async function createIngredientCategory({ name, sortOrder, shape }) {
   const { data, error } = await supabase
     .from("ingredient_categories")
-    .insert({ name, sort_order: sortOrder ?? 0 })
+    .insert({ name, sort_order: sortOrder ?? 0, shape })
     .select()
     .single()
   if (error) throw error
   return data
 }
-export async function updateIngredientCategory(id, { name, sortOrder }) {
+export async function updateIngredientCategory(id, { name, sortOrder, shape }) {
   const { data, error } = await supabase
     .from("ingredient_categories")
-    .update({ name, sort_order: sortOrder ?? 0 })
+    .update({ name, sort_order: sortOrder ?? 0, shape })
     .eq("id", id)
     .select()
     .single()

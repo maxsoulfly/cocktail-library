@@ -3,6 +3,7 @@ import clsx from "clsx"
 import { FamilyIcon } from "@/components/FamilyIcon"
 import { GlassSvg } from "@/components/GlassSvg"
 import { IconEdit, IconTrash } from "@/components/icons"
+import { IngredientIcon } from "@/components/IngredientIcon"
 import {
   Btn,
   Card,
@@ -22,9 +23,16 @@ import { ShapePicker } from "./ShapePicker"
 // `{name, sortOrder}` when `showSortOrder`); the caller re-fetches the
 // catalog after any successful mutation, same as every other admin write in
 // this file.
-// "glass" -> GLASS_SHAPES/GlassSvg, "family" -> FAMILY_SHAPES/FamilyIcon.
+// "glass" -> GLASS_SHAPES/GlassSvg, "family" -> FAMILY_SHAPES/FamilyIcon,
+// "ingredient" -> INGREDIENT_SHAPES/IngredientIcon (ingredient_categories,
+// which also has showSortOrder - the one table with two of these optional
+// columns at once, see the combined-payload comment in handleCreate below).
 // Undefined means this table has no shape column at all.
-const SHAPE_KIND_DEFAULTS = { glass: "martini", family: "highball" }
+const SHAPE_KIND_DEFAULTS = {
+  glass: "martini",
+  family: "highball",
+  ingredient: "spirit_bottle",
+}
 
 const DEFAULT_NEW_COLOR_HEX = "#888888"
 
@@ -67,15 +75,17 @@ export function NamedRowManager({
     setCreating(true)
     setCreateError(null)
     try {
-      if (showSortOrder) {
+      // Not a mutually-exclusive if/else chain: ingredient_categories has
+      // both showSortOrder and shapeKind at once (sort_order predates
+      // shape) - build the payload from whichever optional fields this
+      // table actually has, rather than only ever sending one.
+      if (showSortOrder || shapeKind || colorField) {
         await onCreate({
           name: newName.trim(),
-          sortOrder: Number(newSortOrder) || 0,
+          ...(showSortOrder && { sortOrder: Number(newSortOrder) || 0 }),
+          ...(shapeKind && { shape: newShape }),
+          ...(colorField && { hex: newHex.trim() }),
         })
-      } else if (shapeKind) {
-        await onCreate({ name: newName.trim(), shape: newShape })
-      } else if (colorField) {
-        await onCreate({ name: newName.trim(), hex: newHex.trim() })
       } else {
         await onCreate(newName.trim())
       }
@@ -104,17 +114,12 @@ export function NamedRowManager({
     setSaving(true)
     setEditError(null)
     try {
-      if (showSortOrder) {
+      if (showSortOrder || shapeKind || colorField) {
         await onUpdate(editingId, {
           name: editName.trim(),
-          sortOrder: Number(editSortOrder) || 0,
-        })
-      } else if (shapeKind) {
-        await onUpdate(editingId, { name: editName.trim(), shape: editShape })
-      } else if (colorField) {
-        await onUpdate(editingId, {
-          name: editName.trim(),
-          hex: editHex.trim(),
+          ...(showSortOrder && { sortOrder: Number(editSortOrder) || 0 }),
+          ...(shapeKind && { shape: editShape }),
+          ...(colorField && { hex: editHex.trim() }),
         })
       } else {
         await onUpdate(editingId, editName.trim())
@@ -229,6 +234,13 @@ export function NamedRowManager({
                   {shapeKind === "family" && (
                     <FamilyIcon
                       shape={item.shape ?? "highball"}
+                      size={22}
+                      color="var(--text2)"
+                    />
+                  )}
+                  {shapeKind === "ingredient" && (
+                    <IngredientIcon
+                      shape={item.shape ?? "spirit_bottle"}
                       size={22}
                       color="var(--text2)"
                     />

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react"
 import { useNavigate, useOutletContext } from "react-router-dom"
+import { IngredientIcon } from "@/components/IngredientIcon"
 import { IngredientTypeEditor } from "@/components/IngredientTypeEditor"
 import { EmptyState } from "@/components/myBar/EmptyState"
 import { ExpandedProducts } from "@/components/myBar/ExpandedProducts"
@@ -93,6 +94,10 @@ export default function MyBarScreen() {
     () => new Map(categories.map((c) => [c.id, c.name])),
     [categories],
   )
+  const categoryShapeByName = useMemo(
+    () => new Map(categories.map((c) => [c.name, c.shape])),
+    [categories],
+  )
   const cats = ["All", ...categories.map((c) => c.name)]
 
   // Some types are mid-level groupings for a category (e.g. "Rum", "Whiskey"
@@ -109,12 +114,35 @@ export default function MyBarScreen() {
     return map
   }, [types])
 
+  // "Wodka" -> Vodka: an alias is exactly a stand-in name for its type, so
+  // search should match it too, not just the canonical name - a member who
+  // added an alias for their own language/brand slang would otherwise never
+  // be able to find the thing they just named. Substring search against a
+  // known, explicit alias list, not fuzzy matching - AGENTS.md's "no fuzzy
+  // ingredient-name matching" rule is about availability/import resolution
+  // inferring a match on its own, not a search box filtering by literal text
+  // the user (or an admin) already typed in.
+  const aliasesByTypeId = useMemo(() => {
+    const map = new Map()
+    aliases.forEach((a) => {
+      if (!map.has(a.ingredient_type_id)) map.set(a.ingredient_type_id, [])
+      map.get(a.ingredient_type_id).push(a.alias)
+    })
+    return map
+  }, [aliases])
+
   const filtered = types.filter((t) => {
     if (ownedOnly && !isOwned(t.id)) return false
     if (cat !== "All" && categoryNameById.get(t.category_id) !== cat)
       return false
-    if (query && !t.name.toLowerCase().includes(query.toLowerCase()))
-      return false
+    if (query) {
+      const q = query.toLowerCase()
+      const matchesName = t.name.toLowerCase().includes(q)
+      const matchesAlias = (aliasesByTypeId.get(t.id) ?? []).some((a) =>
+        a.toLowerCase().includes(q),
+      )
+      if (!matchesName && !matchesAlias) return false
+    }
     return true
   })
 
@@ -250,31 +278,54 @@ export default function MyBarScreen() {
       <div className="p-4">
         {Object.entries(grouped).map(([categoryName, clusters]) => (
           <div key={categoryName} className="mb-5">
-            <div className="text-[11px] font-bold text-tx3 uppercase tracking-[0.08em] font-display mb-2">
-              {categoryName}
+            <div className="flex items-center gap-1.5 mb-2">
+              <IngredientIcon
+                shape={categoryShapeByName.get(categoryName) ?? "spirit_bottle"}
+                size={16}
+                color="var(--text3)"
+              />
+              <div className="text-[11px] font-bold text-tx3 uppercase tracking-[0.08em] font-display">
+                {categoryName}
+              </div>
             </div>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-2">
-              {clusters.map(({ parent, children }) => {
-                if (children.length === 0)
-                  return (
-                    // display:"contents" makes this wrapper invisible to the
-                    // grid, so the card and (if expanded) its full-width
-                    // product panel both participate as direct grid items
-                    // instead of being nested inside one grid cell. A
-                    // standalone card already has its own border via Card's
-                    // own base style - a childless single doesn't need
-                    // FamilyCluster's extra grouping wrapper+label, since
-                    // there's no group to indicate (and giving it one would
-                    // force it to the full row width instead of flowing
-                    // alongside other cards).
-                    <div key={parent.id} className="contents">
-                      {editingTypeId === parent.id
-                        ? renderEditForm(parent, { gridColumn: "1 / -1" })
-                        : renderCard(parent, false)}
-                      {renderExpanded(parent, { gridColumn: "1 / -1" })}
-                    </div>
-                  )
-                return (
+            {/* Singles render as one contiguous block before any family
+                cluster, not interleaved by priority/name order with them.
+                FamilyCluster is `col-span-full` (a real grid-row break, not
+                just a wider card), so a single sandwiched between two
+                clusters in sort order could never actually share a row with
+                any other single - exactly the "Tequila stranded alone,
+                Absinthe+Mezcal stranded alone" layout bug a live screenshot
+                surfaced. Splitting singles from clusters (each half keeping
+                its own priority/name order from `clusters`) fixes that
+                without changing the sort itself. */}
+            <div className="flex flex-col gap-2">
+              {clusters.some(({ children }) => children.length === 0) && (
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-2">
+                  {clusters
+                    .filter(({ children }) => children.length === 0)
+                    .map(({ parent }) => (
+                      // display:"contents" makes this wrapper invisible to
+                      // the grid, so the card and (if expanded) its
+                      // full-width product panel both participate as direct
+                      // grid items instead of being nested inside one grid
+                      // cell. A standalone card already has its own border
+                      // via Card's own base style - a childless single
+                      // doesn't need FamilyCluster's extra grouping
+                      // wrapper+label, since there's no group to indicate
+                      // (and giving it one would force it to the full row
+                      // width instead of flowing alongside other cards).
+                      <div key={parent.id} className="contents">
+                        {editingTypeId === parent.id
+                          ? renderEditForm(parent, { gridColumn: "1 / -1" })
+                          : renderCard(parent, false)}
+                        {renderExpanded(parent, { gridColumn: "1 / -1" })}
+                      </div>
+                    ))}
+                </div>
+              )}
+              {clusters
+                .filter(({ children }) => children.length > 0)
+                .map(({ parent, children }) => (
                   <FamilyCluster
                     key={parent.id}
                     parent={parent}
@@ -284,8 +335,7 @@ export default function MyBarScreen() {
                     renderEditForm={(t) => renderEditForm(t, { width: "100%" })}
                     renderExpanded={(t) => renderExpanded(t, { width: "100%" })}
                   />
-                )
-              })}
+                ))}
             </div>
           </div>
         ))}
