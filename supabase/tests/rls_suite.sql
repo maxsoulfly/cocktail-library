@@ -34,21 +34,29 @@
 -- insert (Supabase Auth owns that table), so real accounts are the only
 -- practical fixture identities without standing up a local instance.
 --
--- Coverage: all ~15 RLS-protected tables. recipes, ingredient_types,
--- memberships (the three tables that already had a real RLS bug found and
--- fixed this session) and the five simple "member read, admin write" lookup
--- tables (glasses, taste_tags, cocktail_families, liquid_colors,
--- ingredient_categories, plus ingredient_aliases which shares the identical
--- shape) via one generic pg_temp.test_lookup_table() helper. products,
--- invitations, ingredient_requests each have their own dedicated block
--- (real per-row owner/admin logic, not a flat lookup-table shape).
--- user_inventory, user_favorites, user_want_to_make are all "strictly
--- private, no admin override" - the latter two share a generic
+-- Coverage: all 19 RLS-protected tables, plus the admin_set_user_role()/
+-- admin_set_membership_revoked() SECURITY DEFINER functions. recipes,
+-- ingredient_types, memberships (the three tables that already had a real
+-- RLS bug found and fixed this session) and the five simple "member read,
+-- admin write" lookup tables (glasses, taste_tags, cocktail_families,
+-- liquid_colors, ingredient_categories, plus ingredient_aliases which
+-- shares the identical shape) via one generic pg_temp.test_lookup_table()
+-- helper. products, invitations, ingredient_requests each have their own
+-- dedicated block (real per-row owner/admin logic, not a flat lookup-table
+-- shape). user_inventory, user_favorites, user_want_to_make are all
+-- "strictly private, no admin override" - the latter two share a generic
 -- pg_temp.test_private_user_recipe_table() helper, user_inventory gets its
 -- own block for its polymorphic ingredient_type_id/product_id shape.
--- recipe_components/recipe_component_alternatives both gate through the
--- recipe_is_editable()/recipe_is_visible() helper functions rather than
--- their own ownership columns.
+-- recipe_components/recipe_component_alternatives/recipe_taste_tags all
+-- gate through the recipe_is_editable()/recipe_is_visible() helper
+-- functions rather than their own ownership columns. profiles gets its own
+-- block covering the role column-grant boundary specifically (the
+-- highest-blast-radius gap this schema could have, since profiles.role
+-- gates admin access everywhere) - admin_set_user_role()/
+-- admin_set_membership_revoked() then get a dedicated block of their own
+-- exercising the actual function calls (non-admin caller, self-targeting,
+-- invalid role, real promote/demote/block/unblock), not just confirming
+-- direct table writes are denied.
 
 begin;
 
@@ -318,6 +326,50 @@ begin
 end;
 $$;
 
+-- ── profiles ─────────────────────────────────────────────────────────────
+-- role is deliberately NOT in the client-facing column grant (see
+-- 20260815200430_initial_schema.sql's `grant update (display_name,
+-- unit_preference, theme_preference)`) - promoting to admin only ever
+-- happens through admin_set_user_role(), a SECURITY DEFINER function
+-- tested below. This confirms that boundary actually holds at the grant
+-- layer itself, not just that the app never sends that field - the
+-- highest-blast-radius gap this table could have, since profiles.role is
+-- what App.jsx's isAdmin check (and every is_admin() RLS policy) reads.
+
+do $$
+declare f record; n int; affected int;
+begin
+  select * into f from rls_fixture_ids;
+
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+  select count(*) into n from public.profiles where id = f.member_owner_id;
+  perform pg_temp.assert(n = 1, 'profiles: a member can read their own profile');
+
+  select count(*) into n from public.profiles where id = f.member_other_id;
+  perform pg_temp.assert(n = 1, 'profiles: a member can read a fellow member''s profile (display names are shared, not private, per 20260823120000)');
+
+  perform pg_temp.set_identity('anon', null);
+  select count(*) into n from public.profiles where id = f.member_owner_id;
+  perform pg_temp.assert(n = 0, 'profiles: anon cannot read any profile');
+
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+  update public.profiles set display_name = 'RLS_TEST display name' where id = f.member_owner_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 1, 'profiles: a member can update their own display_name');
+
+  update public.profiles set display_name = 'RLS_TEST hijacked' where id = f.member_other_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 0, 'profiles: a member cannot update someone else''s display_name');
+
+  begin
+    update public.profiles set role = 'admin' where id = f.member_owner_id;
+    perform pg_temp.assert(false, 'profiles: a member updating their own role should be denied');
+  exception when insufficient_privilege then
+    perform pg_temp.assert(true, 'profiles: a member cannot self-promote via a direct role update - the column grant excludes role entirely');
+  end;
+end;
+$$;
+
 -- ── memberships ──────────────────────────────────────────────────────────
 -- No write policy exists for anyone, including admin - every membership
 -- mutation goes through admin_set_membership_revoked()/create_invitation()'s
@@ -359,6 +411,75 @@ begin
   exception when insufficient_privilege then
     perform pg_temp.assert(true, 'memberships: anon cannot insert a membership row');
   end;
+end;
+$$;
+
+-- ── admin_set_user_role() / admin_set_membership_revoked() ───────────────
+-- The two SECURITY DEFINER functions that provide the only legitimate write
+-- path onto profiles.role and memberships.revoked_at (confirmed denied via
+-- direct writes just above, in the profiles and memberships blocks).
+-- Exercises the actual positive path plus each function's guard clauses:
+-- caller must be admin, caller cannot target themselves, and (role only)
+-- the value must be a real enum member. Both custom `raise exception`
+-- calls surface as plpgsql condition raise_exception (SQLSTATE P0001).
+
+do $$
+declare f record; v_role text; v_revoked timestamptz;
+begin
+  select * into f from rls_fixture_ids;
+
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+  begin
+    perform public.admin_set_user_role(f.member_other_id, 'admin');
+    perform pg_temp.assert(false, 'admin_set_user_role: a non-admin caller should be denied');
+  exception when raise_exception then
+    perform pg_temp.assert(true, 'admin_set_user_role: a non-admin caller is rejected');
+  end;
+
+  begin
+    perform public.admin_set_membership_revoked(f.member_other_id, true);
+    perform pg_temp.assert(false, 'admin_set_membership_revoked: a non-admin caller should be denied');
+  exception when raise_exception then
+    perform pg_temp.assert(true, 'admin_set_membership_revoked: a non-admin caller is rejected');
+  end;
+
+  perform pg_temp.set_identity('authenticated', f.admin_id);
+  begin
+    perform public.admin_set_user_role(f.admin_id, 'member');
+    perform pg_temp.assert(false, 'admin_set_user_role: an admin targeting their own account should be denied');
+  exception when raise_exception then
+    perform pg_temp.assert(true, 'admin_set_user_role: an admin cannot change their own role');
+  end;
+
+  begin
+    perform public.admin_set_membership_revoked(f.admin_id, true);
+    perform pg_temp.assert(false, 'admin_set_membership_revoked: an admin blocking their own account should be denied');
+  exception when raise_exception then
+    perform pg_temp.assert(true, 'admin_set_membership_revoked: an admin cannot block their own account');
+  end;
+
+  begin
+    perform public.admin_set_user_role(f.member_other_id, 'superadmin');
+    perform pg_temp.assert(false, 'admin_set_user_role: an invalid role value should be denied');
+  exception when raise_exception then
+    perform pg_temp.assert(true, 'admin_set_user_role: an invalid role value is rejected');
+  end;
+
+  perform public.admin_set_user_role(f.member_other_id, 'admin');
+  select role into v_role from public.profiles where id = f.member_other_id;
+  perform pg_temp.assert(v_role = 'admin', 'admin_set_user_role: an admin can promote another member to admin');
+
+  perform public.admin_set_user_role(f.member_other_id, 'member');
+  select role into v_role from public.profiles where id = f.member_other_id;
+  perform pg_temp.assert(v_role = 'member', 'admin_set_user_role: an admin can demote back to member');
+
+  perform public.admin_set_membership_revoked(f.member_other_id, true);
+  select revoked_at into v_revoked from public.memberships where user_id = f.member_other_id;
+  perform pg_temp.assert(v_revoked is not null, 'admin_set_membership_revoked: an admin can block another member');
+
+  perform public.admin_set_membership_revoked(f.member_other_id, false);
+  select revoked_at into v_revoked from public.memberships where user_id = f.member_other_id;
+  perform pg_temp.assert(v_revoked is null, 'admin_set_membership_revoked: an admin can unblock another member');
 end;
 $$;
 
@@ -790,6 +911,58 @@ begin
   perform pg_temp.assert(affected = 1, 'recipe_component_alternatives: the owner can delete an alternative on their own recipe');
 
   delete from public.recipe_components where id = c.comp_id;
+end;
+$$;
+
+-- ── recipe_taste_tags ─────────────────────────────────────────────────────
+-- Same shape as recipe_components/recipe_component_alternatives above: no
+-- owner column of its own, gates entirely through
+-- recipe_is_editable(recipe_id)/recipe_is_visible(recipe_id) against the
+-- parent recipe. There's no update policy - it's a pure link table, callers
+-- delete+insert to change the tag set - so this only covers read/insert/
+-- delete, matching what the migration actually grants.
+
+do $$
+declare f record; r record; v_tag_id uuid; n int; affected int;
+begin
+  select * into f from rls_fixture_ids;
+  select * into r from rls_recipe_ids;
+  select id into v_tag_id from public.taste_tags limit 1;
+  perform pg_temp.assert(v_tag_id is not null, 'fixture: a real taste_tag exists');
+
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+  insert into public.recipe_taste_tags (recipe_id, taste_tag_id) values (r.private_id, v_tag_id);
+  perform pg_temp.assert(true, 'recipe_taste_tags: the recipe owner can insert a tag');
+
+  perform pg_temp.set_identity('authenticated', f.member_other_id);
+  begin
+    insert into public.recipe_taste_tags (recipe_id, taste_tag_id)
+    select r.private_id, id from public.taste_tags offset 1 limit 1;
+    perform pg_temp.assert(false, 'recipe_taste_tags: a non-owner member inserting into someone else''s private recipe should be denied');
+  exception when insufficient_privilege then
+    perform pg_temp.assert(true, 'recipe_taste_tags: a non-owner member cannot insert into a private recipe they don''t own');
+  end;
+
+  select count(*) into n from public.recipe_taste_tags where recipe_id = r.private_id and taste_tag_id = v_tag_id;
+  perform pg_temp.assert(n = 0, 'recipe_taste_tags: a non-owner member cannot read a private recipe''s tags');
+
+  perform pg_temp.set_identity('anon', null);
+  select count(*) into n from public.recipe_taste_tags where recipe_id = r.private_id and taste_tag_id = v_tag_id;
+  perform pg_temp.assert(n = 0, 'recipe_taste_tags: anon cannot read a private recipe''s tags');
+
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+  select count(*) into n from public.recipe_taste_tags where recipe_id = r.private_id and taste_tag_id = v_tag_id;
+  perform pg_temp.assert(n = 1, 'recipe_taste_tags: the owner can read their own recipe''s tags');
+
+  perform pg_temp.set_identity('authenticated', f.member_other_id);
+  delete from public.recipe_taste_tags where recipe_id = r.private_id and taste_tag_id = v_tag_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 0, 'recipe_taste_tags: a non-owner member cannot delete a tag on a private recipe');
+
+  perform pg_temp.set_identity('authenticated', f.member_owner_id);
+  delete from public.recipe_taste_tags where recipe_id = r.private_id and taste_tag_id = v_tag_id;
+  get diagnostics affected = row_count;
+  perform pg_temp.assert(affected = 1, 'recipe_taste_tags: the owner can delete a tag on their own recipe');
 end;
 $$;
 
