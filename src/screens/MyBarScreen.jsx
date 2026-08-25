@@ -242,6 +242,7 @@ export default function MyBarScreen() {
     const allProducts = allProductsByType.get(type.id) ?? []
     return (
       <ExpandedProducts
+        typeName={type.name}
         products={allProducts}
         types={types}
         aliases={aliases}

@@ -16,6 +16,7 @@ import { deleteProduct, updateProduct } from "@/services/catalog"
 // correction (edit/delete) state is fully local here since nothing outside
 // this panel ever reads it.
 export function ExpandedProducts({
+  typeName,
   products,
   types,
   aliases,
@@ -97,6 +98,15 @@ export function ExpandedProducts({
 
   return (
     <Card className="p-0 overflow-hidden" style={style}>
+      {/* Labeled so this list is identifiable on its own - matters most
+          when a family cluster has more than one type expanded at once
+          (e.g. Dark Rum and White Rum both open), where two of these
+          panels stack right next to each other with no other way to tell
+          which products belong to which type (found from a live
+          screenshot - looked like one broken list instead of two). */}
+      <div className="py-1.5 px-3.5 bg-bg2 border-b border-bdr text-[10px] font-bold text-tx3 uppercase tracking-[0.06em] font-display">
+        {typeName}
+      </div>
       {products.map((p, pIdx) => {
         const isLastRow = pIdx === products.length - 1
         if (editingProduct?.id === p.id) {
@@ -221,7 +231,7 @@ export function ExpandedProducts({
               <button
                 onClick={() => startEditProduct(p)}
                 title="Edit product"
-                className="bg-transparent border-none cursor-pointer p-1 text-tx3 flex items-center"
+                className="bg-transparent border-none cursor-pointer w-9 h-9 text-tx3 flex items-center justify-center shrink-0"
               >
                 <IconEdit size={14} />
               </button>
@@ -230,7 +240,7 @@ export function ExpandedProducts({
               <button
                 onClick={() => setConfirmDeleteProductId(p.id)}
                 title="Delete product"
-                className="bg-transparent border-none cursor-pointer p-1 text-tx3 flex items-center"
+                className="bg-transparent border-none cursor-pointer w-9 h-9 text-tx3 flex items-center justify-center shrink-0"
               >
                 <IconTrash size={14} />
               </button>

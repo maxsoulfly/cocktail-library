@@ -23,7 +23,7 @@ export function TypeCard({
   return (
     <Card
       onClick={onToggleOwned}
-      className="relative pt-2.5 px-2 pb-2 cursor-pointer flex flex-col items-center text-center gap-1 overflow-hidden"
+      className="pt-2.5 px-2 pb-2 cursor-pointer flex flex-col items-center text-center gap-1 overflow-hidden"
       style={{
         // Border/background stay inline rather than className: Card's own
         // base classes already set both, so a conditional className here
@@ -40,32 +40,46 @@ export function TypeCard({
         background: owned ? "rgba(34,211,238,0.08)" : "var(--surface)",
       }}
     >
-      <div className="absolute top-1 right-1 flex gap-0.5">
-        {allProducts.length > 0 && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onToggleExpand()
-            }}
-            title={`${allProducts.length} product(s)`}
-            className="bg-transparent border-none cursor-pointer p-0.5 text-tx3 flex items-center"
-          >
-            {expanded ? <IconChevD size={12} /> : <IconChevR size={12} />}
-          </button>
-        )}
-        {isStaff && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onEditType()
-            }}
-            title="Edit ingredient type"
-            className="bg-transparent border-none cursor-pointer p-0.5 text-tx3 flex items-center"
-          >
-            <IconEdit size={12} />
-          </button>
-        )}
-      </div>
+      {/* In normal flow (reserving its own row) rather than absolutely
+          positioned over the icon tile below - w-8 h-8 (32px) buttons
+          (up from the old p-0.5-around-a-12px-icon, ~16px tappable area,
+          a real WCAG/mobile-ergonomics gap flagged during the Phase 6
+          accessibility audit - "place for big fingers") are tall enough to
+          visually collide with the icon tile on a child card if
+          absolutely-positioned over it instead (found from a live
+          screenshot - the chevron sat "on top of the picture"). Flow
+          layout means the buttons simply push the icon down instead,
+          with no overlap regardless of button size. Only rendered when
+          there's at least one button, so a plain member viewing a
+          no-products type doesn't get an empty reserved row. */}
+      {(allProducts.length > 0 || isStaff) && (
+        <div className="w-full flex justify-end gap-0.5">
+          {allProducts.length > 0 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggleExpand()
+              }}
+              title={`${allProducts.length} product(s)`}
+              className="bg-transparent border-none cursor-pointer w-8 h-8 text-tx3 flex items-center justify-center"
+            >
+              {expanded ? <IconChevD size={12} /> : <IconChevR size={12} />}
+            </button>
+          )}
+          {isStaff && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onEditType()
+              }}
+              title="Edit ingredient type"
+              className="bg-transparent border-none cursor-pointer w-8 h-8 text-tx3 flex items-center justify-center"
+            >
+              <IconEdit size={12} />
+            </button>
+          )}
+        </div>
+      )}
       <div
         className={clsx(
           "rounded-[10px] shrink-0 flex items-center justify-center",

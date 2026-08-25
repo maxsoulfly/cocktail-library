@@ -156,7 +156,7 @@ export default function LibraryScreen() {
           </Btn>
         </div>
       ) : (
-        <div className="p-4 grid grid-cols-2 gap-2.5">
+        <div className="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
           {filtered.map((c) => (
             <CocktailCard
               key={c.id}

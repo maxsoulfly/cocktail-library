@@ -259,13 +259,31 @@ function AppShell({ profile, session }) {
         <SideNav isStaff={isStaff} />
       </div>
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
-        {isLoading ? (
-          <LoadingScreen />
-        ) : loadError ? (
-          <ErrorScreen message={loadError} onRetry={retryFailedLoads} />
-        ) : (
-          <Outlet context={outletContext} />
-        )}
+        {/* The scroll container above stays full-width (so the scrollbar
+            sits at the true viewport edge, standard behavior) - this inner
+            wrapper is what actually caps content width and centers it. No
+            constraint at all here meant a very wide monitor stretched every
+            screen's content edge-to-edge next to the sidebar (found via a
+            live screenshot - "TV?"), while sticky headers (e.g.
+            SearchFilterHeader) still work fine since sticky positioning is
+            relative to the scrolling ancestor, not this wrapper. A flat
+            pixel cap looked fine on a regular monitor but left huge dead
+            margins on a 4K/TV-sized viewport (a live screenshot at 3840px
+            showed the content shrunk to under half the screen) - min(90%,
+            2200px) scales with the available width instead (percentage, not
+            vw - this wrapper's parent is the flex column next to the
+            sidebar, not the raw viewport, so a vw-based cap would ignore
+            the sidebar's width), only kicking in as a hard ceiling once 90%
+            of the available space would exceed 2200px. */}
+        <div className="max-w-[min(90%,2200px)] mx-auto">
+          {isLoading ? (
+            <LoadingScreen />
+          ) : loadError ? (
+            <ErrorScreen message={loadError} onRetry={retryFailedLoads} />
+          ) : (
+            <Outlet context={outletContext} />
+          )}
+        </div>
       </div>
       <BottomNav />
     </div>
