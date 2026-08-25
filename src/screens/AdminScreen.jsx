@@ -165,16 +165,20 @@ export default function AdminScreen() {
   // rather than becoming local to either tab.
   const [confirmPromote, setConfirmPromote] = useState(null)
   const [promoting, setPromoting] = useState(false)
+  const [promoteError, setPromoteError] = useState(null)
 
   const handlePromote = async (id) => {
     setPromoting(true)
+    setPromoteError(null)
     try {
       await promoteRecipeToClassic(id)
       loadCommunityRecipes()
       await refetchRecipes()
+      setConfirmPromote(null)
+    } catch (err) {
+      setPromoteError(err.message)
     } finally {
       setPromoting(false)
-      setConfirmPromote(null)
     }
   }
 
@@ -676,6 +680,7 @@ export default function AdminScreen() {
             onCommunityRecipesChanged={loadCommunityRecipes}
             confirmPromote={confirmPromote}
             promoting={promoting}
+            promoteError={promoteError}
             onSetConfirmPromote={setConfirmPromote}
             onPromote={handlePromote}
           />

@@ -96,6 +96,19 @@ export default function DetailScreen() {
     }
   }
 
+  const handleDelete = async () => {
+    setDeleting(true)
+    setActionError(null)
+    try {
+      await deleteRecipe(c.id)
+      await refetchRecipes()
+      navigate("/library")
+    } catch (err) {
+      setActionError(err.message)
+      setDeleting(false)
+    }
+  }
+
   return (
     <div className="pb-[calc(96px_+_env(safe-area-inset-bottom,0px))]">
       <TopBar
@@ -191,13 +204,9 @@ export default function DetailScreen() {
             confirmVariant="danger"
             confirmLabel="Delete"
             message={`Delete "${c.name}"? This can't be undone.`}
+            error={actionError}
             busy={deleting}
-            onConfirm={async () => {
-              setDeleting(true)
-              await deleteRecipe(c.id)
-              await refetchRecipes()
-              navigate("/library")
-            }}
+            onConfirm={handleDelete}
             onCancel={() => setConfirmDelete(false)}
           />
         )}

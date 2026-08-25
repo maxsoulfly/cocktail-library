@@ -23,12 +23,14 @@ export function ModerationTab({
   onCommunityRecipesChanged,
   confirmPromote,
   promoting,
+  promoteError,
   onSetConfirmPromote,
   onPromote,
 }) {
   const [communityQuery, setCommunityQuery] = useState("")
   const [confirmUnpublish, setConfirmUnpublish] = useState(null)
   const [unpublishing, setUnpublishing] = useState(false)
+  const [unpublishError, setUnpublishError] = useState(null)
 
   const filtered = communityRecipes.filter((c) =>
     c.name.toLowerCase().includes(communityQuery.toLowerCase()),
@@ -36,12 +38,15 @@ export function ModerationTab({
 
   const handleUnpublish = async (id) => {
     setUnpublishing(true)
+    setUnpublishError(null)
     try {
       await unpublishRecipe(id)
       onCommunityRecipesChanged()
+      setConfirmUnpublish(null)
+    } catch (err) {
+      setUnpublishError(err.message)
     } finally {
       setUnpublishing(false)
-      setConfirmUnpublish(null)
     }
   }
 
@@ -96,10 +101,9 @@ export function ModerationTab({
             {confirmPromote === c.id && (
               <div className="mt-3 p-3 bg-violet/8 rounded-sm border border-violet/25">
                 <p className="mb-2.5 text-[13px] text-tx2">
-                  Promote "{c.name}" to the classic catalog? It becomes
-                  ownerless/admin-managed, but stays credited to{" "}
-                  {c.owner?.display_name ?? "its author"} - this can be reversed
-                  from the Classic Recipes tab.
+                  {promoteError
+                    ? promoteError
+                    : `Promote "${c.name}" to the classic catalog? It becomes ownerless/admin-managed, but stays credited to ${c.owner?.display_name ?? "its author"} - this can be reversed from the Classic Recipes tab.`}
                 </p>
                 <div className="flex gap-2">
                   <Btn
@@ -123,9 +127,9 @@ export function ModerationTab({
             {confirmUnpublish === c.id && (
               <div className="mt-3 p-3 bg-coral/8 rounded-sm border border-coral/25">
                 <p className="mb-2.5 text-[13px] text-tx2">
-                  Unpublish "{c.name}"? It returns to{" "}
-                  {c.owner?.display_name ?? "the owner"}'s private list — their
-                  copy won't be deleted.
+                  {unpublishError
+                    ? unpublishError
+                    : `Unpublish "${c.name}"? It returns to ${c.owner?.display_name ?? "the owner"}'s private list — their copy won't be deleted.`}
                 </p>
                 <div className="flex gap-2">
                   <Btn
@@ -139,7 +143,10 @@ export function ModerationTab({
                   <Btn
                     variant="ghost"
                     small
-                    onClick={() => setConfirmUnpublish(null)}
+                    onClick={() => {
+                      setConfirmUnpublish(null)
+                      setUnpublishError(null)
+                    }}
                   >
                     Cancel
                   </Btn>

@@ -35,6 +35,7 @@ export function ClassicRecipesTab({
   const [classicQuery, setClassicQuery] = useState("")
   const [confirmDeleteClassicId, setConfirmDeleteClassicId] = useState(null)
   const [deletingClassic, setDeletingClassic] = useState(false)
+  const [deleteClassicError, setDeleteClassicError] = useState(null)
 
   const filtered = classicRecipes.filter((r) =>
     r.name.toLowerCase().includes(classicQuery.toLowerCase()),
@@ -42,12 +43,15 @@ export function ClassicRecipesTab({
 
   const handleDeleteClassic = async (id) => {
     setDeletingClassic(true)
+    setDeleteClassicError(null)
     try {
       await deleteRecipe(id)
       await refetchRecipes()
+      setConfirmDeleteClassicId(null)
+    } catch (err) {
+      setDeleteClassicError(err.message)
     } finally {
       setDeletingClassic(false)
-      setConfirmDeleteClassicId(null)
     }
   }
 
@@ -138,8 +142,9 @@ export function ClassicRecipesTab({
             {isAdmin && confirmDeleteClassicId === r.id && (
               <div className="mt-3 p-3 bg-coral/8 rounded-sm border border-coral/25">
                 <p className="mb-2.5 text-[13px] text-tx2">
-                  Delete "{r.name}"? This removes it from the catalog for every
-                  member and can't be undone.
+                  {deleteClassicError
+                    ? deleteClassicError
+                    : `Delete "${r.name}"? This removes it from the catalog for every member and can't be undone.`}
                 </p>
                 <div className="flex gap-2">
                   <Btn
@@ -153,7 +158,10 @@ export function ClassicRecipesTab({
                   <Btn
                     variant="ghost"
                     small
-                    onClick={() => setConfirmDeleteClassicId(null)}
+                    onClick={() => {
+                      setConfirmDeleteClassicId(null)
+                      setDeleteClassicError(null)
+                    }}
                   >
                     Cancel
                   </Btn>

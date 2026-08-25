@@ -34,6 +34,7 @@ export function ExpandedProducts({
   const [editError, setEditError] = useState(null)
   const [confirmDeleteProductId, setConfirmDeleteProductId] = useState(null)
   const [deletingProduct, setDeletingProduct] = useState(false)
+  const [deleteProductError, setDeleteProductError] = useState(null)
 
   const startEditProduct = (p) => {
     setEditError(null)
@@ -82,10 +83,13 @@ export function ExpandedProducts({
 
   const handleDeleteProduct = async (id) => {
     setDeletingProduct(true)
+    setDeleteProductError(null)
     try {
       await deleteProduct(id)
       await onProductsChanged()
       setConfirmDeleteProductId(null)
+    } catch (err) {
+      setDeleteProductError(err.message)
     } finally {
       setDeletingProduct(false)
     }
@@ -183,9 +187,13 @@ export function ExpandedProducts({
                 !isLastRow && "border-b border-bdr",
               )}
               message={`Delete "${p.name}"? This can't be undone.`}
+              error={deleteProductError}
               busy={deletingProduct}
               onConfirm={() => handleDeleteProduct(p.id)}
-              onCancel={() => setConfirmDeleteProductId(null)}
+              onCancel={() => {
+                setConfirmDeleteProductId(null)
+                setDeleteProductError(null)
+              }}
             />
           )
         }

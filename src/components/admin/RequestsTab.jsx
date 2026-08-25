@@ -23,6 +23,7 @@ export function RequestsTab({
   onAddToCatalog,
 }) {
   const [resolvingRequestId, setResolvingRequestId] = useState(null)
+  const [dismissError, setDismissError] = useState(null)
 
   // The only remaining manual resolution - "fulfilled" now only ever
   // happens as a side effect of successfully adding the ingredient, never
@@ -30,9 +31,12 @@ export function RequestsTab({
   // without actually creating the type.
   const handleDismissRequest = async (id) => {
     setResolvingRequestId(id)
+    setDismissError(null)
     try {
       await resolveIngredientRequest(id, "dismissed")
       onRequestsChanged()
+    } catch (err) {
+      setDismissError({ id, message: err.message })
     } finally {
       setResolvingRequestId(null)
     }
@@ -83,6 +87,9 @@ export function RequestsTab({
                 </button>
               </div>
             </div>
+            {dismissError?.id === r.id && (
+              <p className="mt-2 text-xs text-coral">{dismissError.message}</p>
+            )}
           </Card>
         ))
       )}

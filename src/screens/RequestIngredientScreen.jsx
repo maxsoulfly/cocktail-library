@@ -54,6 +54,7 @@ export default function RequestIngredientScreen() {
   const [myRequests, setMyRequests] = useState([])
   const [requestsLoading, setRequestsLoading] = useState(true)
   const [deletingId, setDeletingId] = useState(null)
+  const [withdrawError, setWithdrawError] = useState(null)
 
   const loadMyRequests = () => {
     if (!userId) return
@@ -108,9 +109,12 @@ export default function RequestIngredientScreen() {
 
   const handleWithdraw = async (id) => {
     setDeletingId(id)
+    setWithdrawError(null)
     try {
       await deleteMyIngredientRequest(id)
       loadMyRequests()
+    } catch (err) {
+      setWithdrawError({ id, message: err.message })
     } finally {
       setDeletingId(null)
     }
@@ -228,6 +232,11 @@ export default function RequestIngredientScreen() {
                       </button>
                     )}
                   </div>
+                  {withdrawError?.id === r.id && (
+                    <p className="mt-2 text-xs text-coral">
+                      {withdrawError.message}
+                    </p>
+                  )}
                 </Card>
               ))}
             </div>
