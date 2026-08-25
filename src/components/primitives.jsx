@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import clsx from "clsx"
 import { IconCheck, IconChevD } from "@/components/icons"
+import { IngredientIcon } from "@/components/IngredientIcon"
 
 export const AVAIL_CFG = {
   perfect: {
@@ -251,21 +252,29 @@ export function Select({ value, onChange, options, small }) {
 export function CategoryPicker({ categories, value, onChange }) {
   return (
     <div className="flex gap-2 flex-wrap">
-      {categories.map((c) => (
-        <button
-          key={c.id}
-          type="button"
-          onClick={() => onChange(c.id)}
-          className={clsx(
-            "py-2 px-3 rounded-sm border text-[13px] font-body cursor-pointer",
-            value === c.id
-              ? "border-cyan bg-cyan/12 text-cyan"
-              : "border-bdr bg-surface text-tx2",
-          )}
-        >
-          {c.name}
-        </button>
-      ))}
+      {categories.map((c) => {
+        const active = value === c.id
+        return (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => onChange(c.id)}
+            className={clsx(
+              "py-2 px-3 rounded-sm border text-[13px] font-body cursor-pointer flex items-center gap-1.5",
+              active
+                ? "border-cyan bg-cyan/12 text-cyan"
+                : "border-bdr bg-surface text-tx2",
+            )}
+          >
+            <IngredientIcon
+              shape={c.shape}
+              size={14}
+              color={active ? "var(--cyan)" : "var(--text3)"}
+            />
+            {c.name}
+          </button>
+        )
+      })}
     </div>
   )
 }

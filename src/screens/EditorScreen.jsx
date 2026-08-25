@@ -372,6 +372,7 @@ export default function EditorScreen() {
       families,
       tasteTags,
       aliases: catalog.aliases,
+      glassAliases: catalog.glassAliases,
     })
     if (!result) {
       setPasteError(

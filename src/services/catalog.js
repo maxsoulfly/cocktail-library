@@ -212,6 +212,34 @@ export async function fetchGlasses() {
   return data
 }
 
+export async function fetchGlassAliases() {
+  const { data, error } = await supabase
+    .from("glass_aliases")
+    .select("id, glass_id, alias")
+    .order("alias")
+  if (error) throw error
+  return data
+}
+
+// Admin/moderator-only via glass_aliases' "admin insert/update/delete" RLS
+// policies - same shape as createIngredientAlias() above. Uniqueness (one
+// alias string can only ever mean one glass) is enforced by a
+// case-insensitive unique index (20260825140000_glass_aliases.sql), not
+// just app-side checking.
+export async function createGlassAlias({ alias, glassId }) {
+  const { data, error } = await supabase
+    .from("glass_aliases")
+    .insert({ alias, glass_id: glassId })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+export async function deleteGlassAlias(id) {
+  const { error } = await supabase.from("glass_aliases").delete().eq("id", id)
+  if (error) throw error
+}
+
 export async function fetchTasteTags() {
   const { data, error } = await supabase
     .from("taste_tags")

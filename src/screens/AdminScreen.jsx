@@ -390,6 +390,7 @@ export default function AdminScreen() {
       families: c.families,
       tasteTags: c.tasteTags,
       aliases: c.aliases,
+      glassAliases: c.glassAliases,
       existingRecipeNames: computed.map((r) => r.name),
     })
     setRecipeImportResult(validation)

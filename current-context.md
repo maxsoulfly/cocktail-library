@@ -37,7 +37,25 @@ Each numbered step is a development chunk boundary for this file.
 
 Verified: `pnpm build`, `pnpm test` (106/106), `pnpm format` all clean; `npx --yes oxlint -D no-undef` on both changed JS/JSX files - zero findings. RLS suite re-run clean after every fix, sabotage-verified, zero fixture leakage confirmed via a direct post-run query. **Not yet browser-verified** - no login credentials available this session, so the merge UI's actual click-through (search → Merge → pick survivor → checkbox → confirm → catalog refetches) has only been confirmed via code reading, not by using it in the running app.
 
-## Last completed chunk (family cluster + filter chip icons)
+## Last completed chunk (glass aliases)
+
+**Family cluster + filter chip icons both browser-confirmed** (see chunk below).
+
+**New feature, user-driven mid-accessibility-audit: glass aliases, mirroring the existing ingredient-alias system exactly.** User remembered a real gap while walking through the responsive/accessibility checklist: recipe glass names vary ("Rocks Glass"/"Lowball Glass"/"Old Fashioned Glass" for the same physical glass), and glass resolution (batch import and paste-a-recipe) has always been exact-name-only - no alias mechanism existed for glasses at all, unlike ingredients.
+
+**Migration** (`20260825140000_glass_aliases.sql`): `glass_aliases` table built directly to `ingredient_aliases`' current final shape (not its historical incremental steps) - globally unique alias text (case-insensitive), `glass_id` FK cascade. RLS: member read, admin-or-moderator write (glasses are already one of the moderator's 7 catalog-authoring tables). Applied via `db query --linked` (not `db push` - confirmed again this session that `db push` tries to replay already-applied migrations and fails, since none of this project's migrations were ever pushed through it). `db advisors --type security` unchanged (16 findings, same baseline - plain table, no new function).
+
+**`src/domain/glassResolution.js`**: `resolveGlass(name, {glasses, aliases})`, a straight mirror of `resolveIngredientType()` - canonical name first, then alias, exact case-insensitive match only (not fuzzy). 7 new unit tests mirroring `ingredientResolution.test.js`'s cases exactly.
+
+**Wiring**: `fetchGlassAliases()`/`createGlassAlias()`/`deleteGlassAlias()` in `catalog.js` (no `updateGlassAlias` - confirmed the mirrored `updateIngredientAlias()` is actually dead code with zero callers, leftover from the removed standalone AliasManager, so the real pattern is chip-remove-and-re-add, not in-place edit). `useCatalog.js` fetches `glassAliases` alongside everything else. Both `recipeImport.js`'s `validateRecipeImport()` and `recipePaste.js`'s `parseRecipePaste()` swapped their exact-match `glasses.find()`/`glassByName.get()` for `resolveGlass()`, with `glassAliases` threaded through from `AdminScreen.jsx`'s batch-import call and `EditorScreen.jsx`'s paste-a-recipe call respectively.
+
+**UI**: `NamedRowManager.jsx` (the shared component behind glasses/taste-tags/cocktail-families/ingredient-categories admin management) gained an optional `aliases`/`onCreateAlias`/`onDeleteAlias`/`onAliasesChanged` prop bundle - only rendered when passed, so the other 3 consumers are unaffected. Same inline chip-list-plus-add-input pattern `IngredientTypeEditor.jsx` already established for ingredient aliases, including the same collision check (`resolveGlass()` before insert, distinguishing "already refers to this glass" from "already refers to a different one"). Wired in `CatalogTab.jsx`'s Glasses entry only.
+
+Verified: `pnpm build`/`pnpm test` (113/113, +7 new)/`pnpm format` clean; `oxlint -D no-undef` across every changed file - only pre-existing accepted-baseline globals in unrelated code (`navigator`/`setTimeout`/`crypto`/`URLSearchParams`/`localStorage`), zero regressions. **Not yet browser-verified** - implemented in response to a user request mid-conversation, not yet clicked through in the running app.
+
+**Seeded 14 real aliases across the 19 existing glasses**, direct SQL insert against the hosted project (verified via a join-back query, all mapped to the correct glass) - user asked for aliases to be added but wasn't sure which ones mattered, so curated only genuinely unambiguous industry-standard alternate names (Flute/Champagne Flute, Cocktail Glass/Martini Glass, Old Fashioned Glass + Lowball Glass/Rocks Glass, Moscow Mule Mug/Copper Mug, etc.) - deliberately skipped anything ambiguous (e.g. "Whiskey Glass" could mean either Rocks or Glencairn in casual usage, so no alias was assigned to either). Explained to the user where these actually matter: not the manual New Recipe glass picker (a visual click-to-select grid, no name typing involved), but batch import and paste-a-recipe, whenever incoming JSON names a glass differently than the catalog's canonical name.
+
+## Earlier chunk (family cluster + filter chip icons)
 
 **Ingredient-search-matches-aliases fix browser-confirmed, 2026-08-25.**
 

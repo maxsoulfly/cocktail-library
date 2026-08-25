@@ -12,6 +12,7 @@
 // recipe.
 
 import { NON_VOLUME_UNITS } from "@/data/constants"
+import { resolveGlass } from "@/domain/glassResolution"
 import { resolveIngredientType } from "@/domain/ingredientResolution"
 
 export const RECIPE_ROLES = ["required", "optional", "garnish"]
@@ -25,6 +26,7 @@ const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
  *   families: {id: string, name: string}[],
  *   tasteTags: {id: string, name: string}[],
  *   aliases?: {alias: string, ingredient_type_id: string}[],
+ *   glassAliases?: {alias: string, glass_id: string}[],
  *   existingRecipeNames?: string[],
  * }} catalog
  */
@@ -36,10 +38,10 @@ export function validateRecipeImport(
     families,
     tasteTags,
     aliases = [],
+    glassAliases = [],
     existingRecipeNames = [],
   },
 ) {
-  const glassByName = new Map(glasses.map((g) => [g.name.toLowerCase(), g]))
   const familyByName = new Map(families.map((f) => [f.name.toLowerCase(), f]))
   const tagByName = new Map(tasteTags.map((t) => [t.name.toLowerCase(), t]))
   const existingNames = new Set(existingRecipeNames.map((n) => n.toLowerCase()))
@@ -58,7 +60,7 @@ export function validateRecipeImport(
     if (name) seenNames.add(name.toLowerCase())
 
     const glassName = typeof raw.glass === "string" ? raw.glass.trim() : ""
-    const glass = glassByName.get(glassName.toLowerCase())
+    const glass = resolveGlass(glassName, { glasses, aliases: glassAliases })
     if (!glassName) errors.push("Missing glass")
     else if (!glass) errors.push(`Unknown glass "${glassName}"`)
 

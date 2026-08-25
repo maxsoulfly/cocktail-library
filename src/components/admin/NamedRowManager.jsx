@@ -11,6 +11,7 @@ import {
   Input,
   SectionTitle,
 } from "@/components/primitives"
+import { resolveGlass } from "@/domain/glassResolution"
 import { HexColorField } from "./HexColorField"
 import { ShapePicker } from "./ShapePicker"
 
@@ -46,6 +47,10 @@ export function NamedRowManager({
   onCreate,
   onUpdate,
   onDelete,
+  aliases,
+  onCreateAlias,
+  onDeleteAlias,
+  onAliasesChanged,
 }) {
   const [newName, setNewName] = useState("")
   const [newSortOrder, setNewSortOrder] = useState("0")
@@ -69,6 +74,17 @@ export function NamedRowManager({
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
   const [deleteError, setDeleteError] = useState(null)
   const [deleting, setDeleting] = useState(false)
+
+  // Glass-only aliases (e.g. "Rocks Glass" -> the catalog's "Lowball
+  // Glass"), same inline chip-list pattern IngredientTypeEditor uses for
+  // ingredient aliases - only rendered when the caller passes `aliases`
+  // (currently just the Glasses entry in CatalogTab.jsx), so the other
+  // three NamedRowManager consumers (taste tags, cocktail families,
+  // ingredient categories) are unaffected.
+  const [newAliasText, setNewAliasText] = useState("")
+  const [aliasSaving, setAliasSaving] = useState(false)
+  const [aliasError, setAliasError] = useState(null)
+  const [deletingAliasId, setDeletingAliasId] = useState(null)
 
   const handleCreate = async () => {
     if (!newName.trim()) return
@@ -107,6 +123,47 @@ export function NamedRowManager({
     setEditSortOrder(String(item.sort_order ?? 0))
     setEditShape(item.shape ?? SHAPE_KIND_DEFAULTS[shapeKind] ?? "martini")
     setEditHex(item.hex ?? DEFAULT_NEW_COLOR_HEX)
+    setNewAliasText("")
+    setAliasError(null)
+  }
+
+  const handleAddAlias = async (itemId) => {
+    const aliasText = newAliasText.trim()
+    if (!aliasText) return
+    setAliasSaving(true)
+    setAliasError(null)
+    const collision = resolveGlass(aliasText, { glasses: items, aliases })
+    if (collision) {
+      setAliasError(
+        collision.id === itemId
+          ? `"${aliasText}" already refers to this glass`
+          : `"${aliasText}" already refers to "${collision.name}"`,
+      )
+      setAliasSaving(false)
+      return
+    }
+    try {
+      await onCreateAlias(aliasText, itemId)
+      setNewAliasText("")
+      await onAliasesChanged()
+    } catch (err) {
+      setAliasError(err.message)
+    } finally {
+      setAliasSaving(false)
+    }
+  }
+
+  const handleDeleteAlias = async (id) => {
+    setDeletingAliasId(id)
+    setAliasError(null)
+    try {
+      await onDeleteAlias(id)
+      await onAliasesChanged()
+    } catch (err) {
+      setAliasError(err.message)
+    } finally {
+      setDeletingAliasId(null)
+    }
   }
 
   const handleSaveEdit = async () => {
@@ -187,6 +244,55 @@ export function NamedRowManager({
                       value={editShape}
                       onChange={setEditShape}
                     />
+                  )}
+                  {aliases && (
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-tx2 font-display uppercase tracking-[0.06em]">
+                        Aliases
+                      </label>
+                      {aliases.filter((a) => a.glass_id === item.id).length >
+                        0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {aliases
+                            .filter((a) => a.glass_id === item.id)
+                            .map((a) => (
+                              <span
+                                key={a.id}
+                                className="flex items-center gap-1.5 py-1 px-2 bg-surface border border-bdr rounded-sm text-[13px] text-tx"
+                              >
+                                {a.alias}
+                                <button
+                                  onClick={() => handleDeleteAlias(a.id)}
+                                  disabled={deletingAliasId === a.id}
+                                  title={`Remove alias "${a.alias}"`}
+                                  className="bg-transparent border-none cursor-pointer p-0 text-tx3 text-sm leading-none"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ))}
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <Input
+                            placeholder="Add alias (e.g. Rocks Glass)"
+                            value={newAliasText}
+                            onChange={setNewAliasText}
+                          />
+                        </div>
+                        <Btn
+                          small
+                          disabled={aliasSaving || !newAliasText.trim()}
+                          onClick={() => handleAddAlias(item.id)}
+                        >
+                          {aliasSaving ? "Adding..." : "+ Add"}
+                        </Btn>
+                      </div>
+                      {aliasError && (
+                        <p className="text-xs text-coral">{aliasError}</p>
+                      )}
+                    </div>
                   )}
                   {editError && (
                     <p className="text-xs text-coral">{editError}</p>

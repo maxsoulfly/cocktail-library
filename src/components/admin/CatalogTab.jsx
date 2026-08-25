@@ -2,11 +2,13 @@ import { NamedRowManager } from "@/components/admin/NamedRowManager"
 import {
   createCocktailFamily,
   createGlass,
+  createGlassAlias,
   createIngredientCategory,
   createLiquidColor,
   createTasteTag,
   deleteCocktailFamily,
   deleteGlass,
+  deleteGlassAlias,
   deleteIngredientCategory,
   deleteLiquidColor,
   deleteTasteTag,
@@ -53,6 +55,10 @@ export function CatalogTab({ catalog }) {
           await deleteGlass(id)
           await catalog.refetch()
         }}
+        aliases={catalog.glassAliases}
+        onCreateAlias={(alias, glassId) => createGlassAlias({ alias, glassId })}
+        onDeleteAlias={deleteGlassAlias}
+        onAliasesChanged={catalog.refetch}
       />
       <NamedRowManager
         title="Taste Tags"

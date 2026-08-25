@@ -13,6 +13,7 @@
 // no separate resolution UI to build or keep in sync.
 
 import { NON_VOLUME_UNITS } from "@/data/constants"
+import { resolveGlass } from "@/domain/glassResolution"
 import { resolveIngredientType } from "@/domain/ingredientResolution"
 import { RECIPE_ROLES } from "./recipeImport"
 
@@ -27,13 +28,14 @@ const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
  *   families: {id: string, name: string}[],
  *   tasteTags: {id: string, name: string}[],
  *   aliases?: {alias: string, ingredient_type_id: string}[],
+ *   glassAliases?: {alias: string, glass_id: string}[],
  * }} catalog
  * @returns {object | null} form-shaped fields ready for the New Recipe
  *   screen's setters, or null if `raw` isn't usable at all.
  */
 export function parseRecipePaste(
   raw,
-  { types, glasses, families, tasteTags, aliases = [] },
+  { types, glasses, families, tasteTags, aliases = [], glassAliases = [] },
 ) {
   const item = Array.isArray(raw) ? raw[0] : raw
   if (!item || typeof item !== "object") return null
@@ -43,9 +45,10 @@ export function parseRecipePaste(
     typeof item.description === "string" ? item.description.trim() : ""
 
   const glassName = typeof item.glass === "string" ? item.glass.trim() : ""
-  const matchedGlass = glasses.find(
-    (g) => g.name.toLowerCase() === glassName.toLowerCase(),
-  )
+  const matchedGlass = resolveGlass(glassName, {
+    glasses,
+    aliases: glassAliases,
+  })
 
   const familyName = item.family ? String(item.family).trim() : ""
   const matchedFamily = familyName
