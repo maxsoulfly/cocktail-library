@@ -28,7 +28,7 @@ function isNavItemActive(pathname, itemPath) {
 export function BottomNav() {
   const location = useLocation()
   return (
-    <nav className="fixed bottom-0 left-0 right-0 h-[calc(64px_+_env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)] bg-bg2 border-t border-bdr flex items-stretch z-[100] backdrop-blur-md">
+    <nav className="fixed bottom-0 left-0 right-0 h-[calc(64px_+_env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)] bg-bg2 border-t border-bdr flex items-stretch z-[100] backdrop-blur-md xl:hidden">
       {NAV_ITEMS.map(({ path, label, Icon }) => {
         const isActive = isNavItemActive(location.pathname, path)
         return (
