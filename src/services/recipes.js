@@ -43,6 +43,7 @@ function mapRecipe(row) {
     glassShape: row.glass?.shape ?? "rocks",
     family: row.family?.name,
     liquidColor: row.liquid_color ?? "#22d3ee",
+    liquidColor2: row.liquid_color_2 ?? null,
     steps: row.steps ?? [],
     taste: (row.recipe_taste_tags ?? [])
       .map((t) => t.taste_tags?.name)
@@ -65,7 +66,7 @@ function mapRecipe(row) {
 }
 
 const RECIPE_SELECT = `
-  id, name, description, source_type, visibility, moderation_status, owner_id, original_owner_id, liquid_color, steps,
+  id, name, description, source_type, visibility, moderation_status, owner_id, original_owner_id, liquid_color, liquid_color_2, steps,
   glass:glasses(name, shape),
   family:cocktail_families(name),
   owner:profiles!recipes_owner_id_fkey(display_name),
@@ -186,6 +187,7 @@ export async function createRecipe({
   glassId,
   familyId,
   liquidColor,
+  liquidColor2,
   steps,
   components,
   tasteTagIds,
@@ -199,6 +201,7 @@ export async function createRecipe({
       glass_id: glassId,
       family_id: familyId || null,
       liquid_color: liquidColor || null,
+      liquid_color_2: liquidColor2 || null,
       steps,
     },
     { components, tasteTagIds },
@@ -233,6 +236,7 @@ export async function createClassicRecipes(rows) {
           glass_id: row.glassId,
           family_id: row.familyId || null,
           liquid_color: row.liquidColor || null,
+          liquid_color_2: row.liquidColor2 || null,
           steps: row.steps,
         },
         { components: row.components, tasteTagIds: row.tasteTagIds },
@@ -260,6 +264,7 @@ export async function updateRecipe(
     glassId,
     familyId,
     liquidColor,
+    liquidColor2,
     steps,
     components,
     tasteTagIds,
@@ -273,6 +278,7 @@ export async function updateRecipe(
       glass_id: glassId,
       family_id: familyId || null,
       liquid_color: liquidColor || null,
+      liquid_color_2: liquidColor2 || null,
       steps,
     })
     .eq("id", id)

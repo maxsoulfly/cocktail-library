@@ -145,6 +145,7 @@ export default function HomeScreen() {
                   <GlassSvg
                     type={c.glassShape}
                     liquidColor={c.liquidColor}
+                    liquidColor2={c.liquidColor2}
                     size={40}
                     avail="almost"
                   />

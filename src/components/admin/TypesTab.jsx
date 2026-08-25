@@ -176,7 +176,7 @@ export function TypesTab({ catalog, onAddNew }) {
             <Card key={t.id} className="py-3.5 px-4">
               <div className="flex items-start gap-2.5">
                 <div
-                  className="w-2.5 h-2.5 rounded-full shrink-0 mt-1"
+                  className="w-2.5 h-2.5 rounded-full shrink-0 mt-1 border border-bdr"
                   style={{ background: t.color || "var(--surface3)" }}
                 />
                 <div className="flex-1">

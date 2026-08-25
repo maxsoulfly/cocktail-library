@@ -43,6 +43,7 @@ describe("validateRecipeImport", () => {
       glassId: "glass-martini",
       familyId: "fam-stirred",
       liquidColor: "#dbeafe",
+      liquidColor2: null,
       steps: ["Stir with ice.", "Strain into a chilled glass."],
       tasteTagIds: ["tag-dry"],
       components: [
@@ -172,6 +173,24 @@ describe("validateRecipeImport", () => {
     )
     expect(results[0].valid).toBe(false)
     expect(results[0].errors[0]).toMatch(/Invalid liquidColor/)
+  })
+
+  it("accepts an optional liquidColor2 for a layered/gradient drink", () => {
+    const { results } = validateRecipeImport(
+      [{ ...validItem, liquidColor2: "#f97316" }],
+      catalog,
+    )
+    expect(results[0].valid).toBe(true)
+    expect(results[0].resolved.liquidColor2).toBe("#f97316")
+  })
+
+  it("rejects an invalid liquidColor2", () => {
+    const { results } = validateRecipeImport(
+      [{ ...validItem, liquidColor2: "orange" }],
+      catalog,
+    )
+    expect(results[0].valid).toBe(false)
+    expect(results[0].errors[0]).toMatch(/Invalid liquidColor2/)
   })
 
   it("rejects missing steps", () => {

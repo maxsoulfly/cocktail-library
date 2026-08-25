@@ -7,6 +7,7 @@ export function HeroCard({ c }) {
       <GlassSvg
         type={c.glassShape}
         liquidColor={c.liquidColor}
+        liquidColor2={c.liquidColor2}
         size={96}
         avail={c.avail}
       />

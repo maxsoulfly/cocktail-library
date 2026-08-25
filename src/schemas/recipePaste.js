@@ -59,6 +59,11 @@ export function parseRecipePaste(
     typeof item.liquidColor === "string" && HEX_COLOR_RE.test(item.liquidColor)
       ? item.liquidColor
       : null
+  const liquidColor2 =
+    typeof item.liquidColor2 === "string" &&
+    HEX_COLOR_RE.test(item.liquidColor2)
+      ? item.liquidColor2
+      : null
 
   const tasteTagIds = Array.isArray(item.tasteTags)
     ? item.tasteTags
@@ -112,6 +117,7 @@ export function parseRecipePaste(
     glassName: matchedGlass?.name ?? "",
     familyId: matchedFamily?.id ?? "",
     liquidColor,
+    liquidColor2,
     tasteTagIds,
     steps: steps.length > 0 ? steps : [""],
     ings:

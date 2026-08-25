@@ -84,6 +84,21 @@ export function validateRecipeImport(
       else liquidColor = raw.liquidColor
     }
 
+    // Optional second color, for a layered/gradient drink a single flat
+    // fill can't represent - see GlassSvg's own comment for how it renders.
+    let liquidColor2 = null
+    if (
+      raw.liquidColor2 !== undefined &&
+      raw.liquidColor2 !== null &&
+      raw.liquidColor2 !== ""
+    ) {
+      if (!HEX_COLOR_RE.test(raw.liquidColor2))
+        errors.push(
+          `Invalid liquidColor2 "${raw.liquidColor2}" (expected hex like #a1b2c3)`,
+        )
+      else liquidColor2 = raw.liquidColor2
+    }
+
     const tasteTagIds = []
     if (raw.tasteTags !== undefined) {
       if (!Array.isArray(raw.tasteTags)) {
@@ -239,6 +254,7 @@ export function validateRecipeImport(
             glassId: glass.id,
             familyId: family?.id ?? null,
             liquidColor,
+            liquidColor2,
             steps,
             tasteTagIds,
             components,
@@ -292,6 +308,7 @@ Return ONLY a JSON array (no markdown fences, no commentary) where each item has
 - "glass": string, required. Must be exactly one of: ${glassNames.join(", ")}.
 - "family": string, optional. Must be exactly one of: ${familyNames.join(", ") || "(none defined yet - omit this field)"}.
 - "liquidColor": optional hex color like "#f97316" for the drink's visual fill.
+- "liquidColor2": optional second hex color, only for a genuinely layered or gradient drink (e.g. a Tequila Sunrise, a layered shot) - omit entirely for an ordinary single-color drink.
 - "tasteTags": optional array of strings, each exactly one of: ${tagNames.join(", ") || "(none defined yet - omit this field)"}.
 - "steps": array of strings, required, one instruction per step, in order.
 - "components": array of objects, required - list EVERY ingredient the recipe uses here, including ones not in the existing list below, each with:

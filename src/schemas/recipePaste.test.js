@@ -34,6 +34,7 @@ describe("parseRecipePaste", () => {
       glassName: "Martini",
       familyId: "fam-stirred",
       liquidColor: "#dbeafe",
+      liquidColor2: null,
       tasteTagIds: ["tag-dry"],
       steps: ["Stir.", "Strain."],
       ings: [
@@ -107,6 +108,22 @@ describe("parseRecipePaste", () => {
       catalog,
     )
     expect(result.liquidColor).toBeNull()
+  })
+
+  it("resolves an optional liquidColor2 for a layered/gradient drink", () => {
+    const result = parseRecipePaste(
+      { ...validItem, liquidColor2: "#f97316" },
+      catalog,
+    )
+    expect(result.liquidColor2).toBe("#f97316")
+  })
+
+  it("ignores an invalid liquidColor2 rather than failing", () => {
+    const result = parseRecipePaste(
+      { ...validItem, liquidColor2: "orange" },
+      catalog,
+    )
+    expect(result.liquidColor2).toBeNull()
   })
 
   it("ignores unknown taste tags rather than failing", () => {

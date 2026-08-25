@@ -3,14 +3,42 @@
 // One branch per shape key in GLASS_SHAPES (src/data/constants.js) - keep
 // the two lists in sync when adding a new glass shape.
 
+import { useId } from "react"
+
 export function GlassSvg({
   type,
   liquidColor,
+  liquidColor2,
   size = 64,
   avail = "unavail",
   color = "var(--text2)",
 }) {
-  const liqOp = avail === "unavail" ? 0.2 : 0.72
+  // 0.2 read as "the color is wrong" rather than "unavailable" - a user
+  // adding a real recipe couldn't tell their own color choice had actually
+  // saved correctly, since it looked identical to a broken/missing value.
+  // 0.45 keeps a real visual difference from the 0.72 available state
+  // (still an availability cue, not just decoration) while keeping the
+  // actual hue recognizable - the "○ Unavailable" text label underneath
+  // is still the primary, unambiguous signal either way.
+  const liqOp = avail === "unavail" ? 0.45 : 0.72
+
+  // Optional second color, for layered/gradient cocktails (Tequila Sunrise,
+  // a layered shot, a rainbow shot) that a single flat fill can't represent
+  // at all - a simple top-to-bottom 2-tone gradient, not a full N-layer
+  // band system (see the migration's own comment for why). `fill` swaps in
+  // for the plain liquid color used everywhere below - every shape branch
+  // already fills its liquid shape identically, so this is a single
+  // substitution point rather than touching all ~20 branches.
+  const gradId = useId()
+  const fill = liquidColor2 ? `url(#${gradId})` : liquidColor
+  const gradientDefs = liquidColor2 && (
+    <defs>
+      <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor={liquidColor} />
+        <stop offset="100%" stopColor={liquidColor2} />
+      </linearGradient>
+    </defs>
+  )
   const stk = {
     stroke: "currentColor",
     strokeWidth: 1.5,
@@ -29,13 +57,14 @@ export function GlassSvg({
   if (type === "rocks")
     return (
       <svg {...svgProps}>
+        {gradientDefs}
         <rect
           x="11"
           y="20"
           width="34"
           height="24"
           rx="2"
-          fill={liquidColor}
+          fill={fill}
           fillOpacity={liqOp}
         />
         <path d="M12 16 L11 44 L45 44 L44 16 Z" {...stk} />
@@ -66,13 +95,14 @@ export function GlassSvg({
   if (type === "highball")
     return (
       <svg {...svgProps}>
+        {gradientDefs}
         <rect
           x="15"
           y="22"
           width="26"
           height="26"
           rx="2"
-          fill={liquidColor}
+          fill={fill}
           fillOpacity={liqOp}
         />
         <path d="M17 6 L15 48 L41 48 L39 6 Z" {...stk} />
@@ -105,13 +135,14 @@ export function GlassSvg({
   if (type === "collins")
     return (
       <svg {...svgProps}>
+        {gradientDefs}
         <rect
           x="20"
           y="16"
           width="16"
           height="32"
           rx="2"
-          fill={liquidColor}
+          fill={fill}
           fillOpacity={liqOp}
         />
         <path d="M20 4 L19 50 L37 50 L36 4 Z" {...stk} />
@@ -120,9 +151,10 @@ export function GlassSvg({
   if (type === "coupe")
     return (
       <svg {...svgProps}>
+        {gradientDefs}
         <path
           d="M10 10 Q10 30 28 34 Q46 30 46 10 Z"
-          fill={liquidColor}
+          fill={fill}
           fillOpacity={liqOp}
         />
         <path d="M10 10 Q10 32 28 36 Q46 32 46 10" {...stk} />
@@ -137,9 +169,10 @@ export function GlassSvg({
   if (type === "nick_and_nora")
     return (
       <svg {...svgProps}>
+        {gradientDefs}
         <path
           d="M14 10 Q14 24 28 30 Q42 24 42 10 Z"
-          fill={liquidColor}
+          fill={fill}
           fillOpacity={liqOp}
         />
         <path d="M14 10 Q14 24 28 30 Q42 24 42 10" {...stk} />
@@ -151,11 +184,8 @@ export function GlassSvg({
   if (type === "martini")
     return (
       <svg {...svgProps}>
-        <polygon
-          points="10,10 46,10 28,34"
-          fill={liquidColor}
-          fillOpacity={liqOp}
-        />
+        {gradientDefs}
+        <polygon points="10,10 46,10 28,34" fill={fill} fillOpacity={liqOp} />
         <path d="M10 10 L28 34 L46 10" {...stk} />
         <line x1="8" y1="10" x2="48" y2="10" {...stk} />
         <line x1="28" y1="34" x2="28" y2="44" {...stk} />
@@ -165,13 +195,14 @@ export function GlassSvg({
   if (type === "copper_mug")
     return (
       <svg {...svgProps}>
+        {gradientDefs}
         <rect
           x="17"
           y="24"
           width="22"
           height="20"
           rx="1"
-          fill={liquidColor}
+          fill={fill}
           fillOpacity={liqOp}
         />
         <path d="M14 20 L16 46 L38 46 L40 20 Z" {...stk} />
@@ -183,9 +214,10 @@ export function GlassSvg({
   if (type === "hurricane")
     return (
       <svg {...svgProps}>
+        {gradientDefs}
         <path
           d="M16 6 Q13 18 20 26 Q13 34 16 48 L40 48 Q43 34 36 26 Q43 18 40 6 Z"
-          fill={liquidColor}
+          fill={fill}
           fillOpacity={liqOp}
         />
         <path
@@ -200,13 +232,14 @@ export function GlassSvg({
   if (type === "tiki_mug")
     return (
       <svg {...svgProps}>
+        {gradientDefs}
         <rect
           x="18"
           y="20"
           width="20"
           height="24"
           rx="2"
-          fill={liquidColor}
+          fill={fill}
           fillOpacity={liqOp}
         />
         <path d="M15 16 Q28 10 41 16 L38 47 L18 47 Z" {...stk} />
@@ -218,9 +251,10 @@ export function GlassSvg({
   if (type === "margarita")
     return (
       <svg {...svgProps}>
+        {gradientDefs}
         <path
           d="M6 8 Q2 24 28 36 Q54 24 50 8 Z"
-          fill={liquidColor}
+          fill={fill}
           fillOpacity={liqOp}
         />
         <path d="M6 8 Q2 24 28 36 Q54 24 50 8" {...stk} />
@@ -233,9 +267,10 @@ export function GlassSvg({
   if (type === "white_wine")
     return (
       <svg {...svgProps}>
+        {gradientDefs}
         <path
           d="M19 10 Q17 22 21 28 Q24 33 28 35 Q32 33 35 28 Q39 22 37 10 Z"
-          fill={liquidColor}
+          fill={fill}
           fillOpacity={liqOp}
         />
         <path
@@ -249,9 +284,10 @@ export function GlassSvg({
   if (type === "red_wine")
     return (
       <svg {...svgProps}>
+        {gradientDefs}
         <path
           d="M16 6 Q13 22 18 30 Q22 36 28 38 Q34 36 38 30 Q43 22 40 6 Z"
-          fill={liquidColor}
+          fill={fill}
           fillOpacity={liqOp}
         />
         <path
@@ -265,12 +301,13 @@ export function GlassSvg({
   if (type === "champagne_flute")
     return (
       <svg {...svgProps}>
+        {gradientDefs}
         <rect
           x="23"
           y="14"
           width="10"
           height="20"
-          fill={liquidColor}
+          fill={fill}
           fillOpacity={liqOp}
         />
         <path d="M23 8 L22 34 L34 34 L33 8 Z" {...stk} />
@@ -284,9 +321,10 @@ export function GlassSvg({
   if (type === "champagne_tulip")
     return (
       <svg {...svgProps}>
+        {gradientDefs}
         <path
           d="M25 6 Q20 16 22 24 Q24 30 28 31 Q32 30 34 24 Q36 16 31 6 Z"
-          fill={liquidColor}
+          fill={fill}
           fillOpacity={liqOp}
         />
         <path
@@ -301,9 +339,10 @@ export function GlassSvg({
   if (type === "pint")
     return (
       <svg {...svgProps}>
+        {gradientDefs}
         <path
           d="M15 20 L18 44 L38 44 L41 20 Z"
-          fill={liquidColor}
+          fill={fill}
           fillOpacity={liqOp}
         />
         <path d="M12 14 L16 46 L40 46 L44 14 Z" {...stk} />
@@ -313,9 +352,10 @@ export function GlassSvg({
   if (type === "pilsner")
     return (
       <svg {...svgProps}>
+        {gradientDefs}
         <path
           d="M24 14 L14 44 L42 44 L32 14 Z"
-          fill={liquidColor}
+          fill={fill}
           fillOpacity={liqOp}
         />
         <path d="M22 8 L10 46 L46 46 L34 8 Z" {...stk} />
@@ -326,13 +366,14 @@ export function GlassSvg({
   if (type === "beer_stein")
     return (
       <svg {...svgProps}>
+        {gradientDefs}
         <rect
           x="16"
           y="26"
           width="22"
           height="18"
           rx="1"
-          fill={liquidColor}
+          fill={fill}
           fillOpacity={liqOp}
         />
         <path d="M12 20 L14 46 L40 46 L42 20 Z" {...stk} />
@@ -345,9 +386,10 @@ export function GlassSvg({
   if (type === "glencairn")
     return (
       <svg {...svgProps}>
+        {gradientDefs}
         <path
           d="M18 10 Q14 24 20 34 Q24 40 28 40 Q32 40 36 34 Q42 24 38 10 Z"
-          fill={liquidColor}
+          fill={fill}
           fillOpacity={liqOp}
         />
         <path
@@ -361,9 +403,10 @@ export function GlassSvg({
   if (type === "shot")
     return (
       <svg {...svgProps}>
+        {gradientDefs}
         <path
           d="M19 24 L21 40 L35 40 L37 24 Z"
-          fill={liquidColor}
+          fill={fill}
           fillOpacity={liqOp}
         />
         <path d="M18 20 L21 42 L35 42 L38 20 Z" {...stk} />
@@ -373,11 +416,8 @@ export function GlassSvg({
   // Unmatched shape key falls back to the martini silhouette.
   return (
     <svg {...svgProps}>
-      <polygon
-        points="10,10 46,10 28,34"
-        fill={liquidColor}
-        fillOpacity={liqOp}
-      />
+      {gradientDefs}
+      <polygon points="10,10 46,10 28,34" fill={fill} fillOpacity={liqOp} />
       <path d="M10 10 L28 34 L46 10" {...stk} />
       <line x1="8" y1="10" x2="48" y2="10" {...stk} />
       <line x1="28" y1="34" x2="28" y2="44" {...stk} />

@@ -124,6 +124,19 @@ export default function EditorScreen() {
   // "Clear" (#dbeafe) - can't default from catalog.liquidColors here, that's
   // an async fetch that hasn't necessarily resolved yet at first render.
   const [liquidColor, setLiquidColor] = useState("#dbeafe")
+  // Optional second color, for a layered/gradient drink (Tequila Sunrise,
+  // a layered shot, a rainbow shot) a single flat fill can't represent -
+  // "" (not set) means a plain flat fill, matching liquidColor2 being
+  // nullable in the DB. hasSecondColor is a separate checkbox rather than
+  // just "is liquidColor2 non-empty", since most cocktails don't use this
+  // at all - showing the picker unconditionally made every ordinary
+  // single-color recipe look like it was missing a step.
+  const [hasSecondColor, setHasSecondColor] = useState(false)
+  const [liquidColor2, setLiquidColor2] = useState("")
+  const toggleSecondColor = (checked) => {
+    setHasSecondColor(checked)
+    if (!checked) setLiquidColor2("")
+  }
   const [ings, setIngs] = useState([
     { ingredientName: "", amount: "", unit: "ml", role: "required" },
   ])
@@ -224,6 +237,7 @@ export default function EditorScreen() {
         glassName,
         familyId,
         liquidColor,
+        liquidColor2,
         ings,
         steps,
         tasteTagIds,
@@ -244,6 +258,7 @@ export default function EditorScreen() {
     glassName,
     familyId,
     liquidColor,
+    liquidColor2,
     ings,
     steps,
     tasteTagIds,
@@ -256,6 +271,8 @@ export default function EditorScreen() {
     setGlassName(draftBanner.glassName ?? "")
     setFamilyId(draftBanner.familyId ?? "")
     if (draftBanner.liquidColor) setLiquidColor(draftBanner.liquidColor)
+    setHasSecondColor(Boolean(draftBanner.liquidColor2))
+    setLiquidColor2(draftBanner.liquidColor2 ?? "")
     setIngs(
       draftBanner.ings ?? [
         { ingredientName: "", amount: "", unit: "ml", role: "required" },
@@ -298,6 +315,8 @@ export default function EditorScreen() {
     setDesc(source.description ?? "")
     setGlassName(source.glass)
     setLiquidColor(source.liquidColor)
+    setHasSecondColor(Boolean(source.liquidColor2))
+    setLiquidColor2(source.liquidColor2 ?? "")
     const family = families.find((f) => f.name === source.family)
     setFamilyId(family?.id ?? "")
     setIngs(
@@ -385,6 +404,8 @@ export default function EditorScreen() {
     setGlassName(result.glassName)
     setFamilyId(result.familyId)
     if (result.liquidColor) setLiquidColor(result.liquidColor)
+    setHasSecondColor(Boolean(result.liquidColor2))
+    setLiquidColor2(result.liquidColor2 ?? "")
     setTasteTagIds(result.tasteTagIds)
     setSteps(result.steps)
     setIngs(result.ings)
@@ -522,6 +543,7 @@ export default function EditorScreen() {
         glassId: glass.id,
         familyId: familyId || null,
         liquidColor,
+        liquidColor2: liquidColor2 || null,
         steps: steps.map((s) => s.trim()).filter(Boolean),
         components,
         tasteTagIds,
@@ -659,6 +681,33 @@ export default function EditorScreen() {
                 onChange={setLiquidColor}
                 colors={catalog.liquidColors}
               />
+            </div>
+
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer mb-2">
+                <input
+                  type="checkbox"
+                  checked={hasSecondColor}
+                  onChange={(e) => toggleSecondColor(e.target.checked)}
+                />
+                <span className="text-xs font-bold text-tx2 font-display uppercase tracking-[0.06em]">
+                  Layered / gradient drink
+                </span>
+              </label>
+              {hasSecondColor && (
+                <>
+                  <p className="text-[11px] text-tx3 mb-2">
+                    For a Tequila Sunrise, a layered shot, or similar - the
+                    glass renders a top-to-bottom blend between the two colors
+                    instead of one flat fill. Most cocktails don't need this.
+                  </p>
+                  <ColorSwatchPicker
+                    value={liquidColor2}
+                    onChange={setLiquidColor2}
+                    colors={catalog.liquidColors}
+                  />
+                </>
+              )}
             </div>
 
             <IngredientRowsEditor
