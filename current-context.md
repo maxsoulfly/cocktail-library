@@ -21,7 +21,7 @@ Agreed phase plan (revised by user on 2026-08-15 — private recipe CRUD moved i
 
 Each numbered step is a development chunk boundary for this file.
 
-## Last completed chunk
+## Earlier chunk (duplicate-ingredient-type merge tool)
 
 **Duplicate-ingredient-type merge tool - now fully built (backend + UI + RLS coverage), and the stale RLS-suite fixture bug from last session fixed as a side effect.** Direct continuation of the chunk below: the backend function existed, this session added everything else per the "exact next step" it left behind.
 
@@ -37,7 +37,21 @@ Each numbered step is a development chunk boundary for this file.
 
 Verified: `pnpm build`, `pnpm test` (106/106), `pnpm format` all clean; `npx --yes oxlint -D no-undef` on both changed JS/JSX files - zero findings. RLS suite re-run clean after every fix, sabotage-verified, zero fixture leakage confirmed via a direct post-run query. **Not yet browser-verified** - no login credentials available this session, so the merge UI's actual click-through (search → Merge → pick survivor → checkbox → confirm → catalog refetches) has only been confirmed via code reading, not by using it in the running app.
 
-## Last completed chunk (ingredient search now matches aliases too)
+## Last completed chunk (family cluster + filter chip icons)
+
+**Ingredient-search-matches-aliases fix browser-confirmed, 2026-08-25.**
+
+**Two more icon placements added to My Bar, both user-driven follow-ups to the category-icon chunk below, both browser-confirmed.** User asked for "pictograms on the group name" - initially read as the family cluster headers ("Rum family", "Whiskey family"), implemented and confirmed working, but the user clarified they actually meant the category filter chips (Spirit/Wine/Liqueur/... pills at the top of My Bar, plain text until now) - built both anyway since both were real gaps once pointed out.
+
+**Family cluster header icon** (`FamilyCluster.jsx`): the parent of a family (e.g. "Rum" for Rum Family) is already a real `ingredient_types` row with its own `shape`/`color` - reused those directly via `IngredientIcon` next to the "{name} family" label, matching the parent's own card exactly, rather than inventing a neutral/generic icon. Zero schema change needed.
+
+**Category filter chip icons** (`SearchFilterHeader.jsx` + `FilterChip` primitive): `FilterChip` gained an optional `icon` node prop (backward compatible - the other 4 callers, none of which pass it, are unaffected). Each real category chip now shows its `ingredient_categories.shape` icon (from the migration in the chunk below), colored cyan when active/muted when not, matching the chip's own active-state color convention; "Owned only"/"All" get no icon (no real category to represent). Bumped from 13px to 15px after user feedback that the first size read a little small next to the chip text.
+
+**Two identical transient HMR crashes hit and self-corrected within this chunk, both same root cause**: editing a component to use a new import/prop before the import/prop actually existed yet (added in a separate follow-up edit) produced a real `ReferenceError`/`TypeError` in the dev server logs for several seconds until the next edit landed - caught in both cases by checking the dev server's own terminal output after the fact, not by the user reporting a visible crash (their first screenshot report turned out to be unrelated - a hard-refresh timing gap, not this bug). Worth remembering for future multi-file wiring: land the import/prop-consumer and its prop/import source in the same edit batch where feasible, or expect a few seconds of real breakage on file save even though the end state is correct.
+
+Verified: `pnpm build`/`pnpm test` (106/106)/`pnpm format` clean; `oxlint -D no-undef` - only the pre-existing accepted-baseline `document` global in `primitives.jsx` (unrelated `Select` component), no regression. Both browser-confirmed by the user, including the final 15px size call.
+
+## Earlier chunk (ingredient search now matches aliases too)
 
 **My Bar layout fix and category icons both browser-confirmed, 2026-08-25** - user: "My Bar looks better. I think that was partly your solution, give families their own place, not just a to z sorting."
 

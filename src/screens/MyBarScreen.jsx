@@ -273,6 +273,7 @@ export default function MyBarScreen() {
         cats={cats}
         cat={cat}
         onCatChange={setCat}
+        categoryShapeByName={categoryShapeByName}
       />
 
       <div className="p-4">

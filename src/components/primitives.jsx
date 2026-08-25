@@ -81,17 +81,18 @@ export function TasteTag({ label }) {
   )
 }
 
-export function FilterChip({ label, active, onClick }) {
+export function FilterChip({ label, icon, active, onClick }) {
   return (
     <button
       onClick={onClick}
       className={clsx(
-        "rounded-full px-3.5 py-[5px] text-[13px] font-display whitespace-nowrap transition-all duration-150 border cursor-pointer",
+        "rounded-full px-3.5 py-[5px] text-[13px] font-display whitespace-nowrap transition-all duration-150 border cursor-pointer flex items-center gap-1.5",
         active
           ? "font-semibold border-cyan bg-cyan/12 text-cyan shadow-[0_0_10px_rgba(34,211,238,0.2)]"
           : "font-normal border-bdr bg-surface text-tx2",
       )}
     >
+      {icon}
       {label}
     </button>
   )

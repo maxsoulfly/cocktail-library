@@ -1,4 +1,5 @@
 import { IconPlus, IconSearch } from "@/components/icons"
+import { IngredientIcon } from "@/components/IngredientIcon"
 import { FilterChip } from "@/components/primitives"
 
 export function SearchFilterHeader({
@@ -10,6 +11,7 @@ export function SearchFilterHeader({
   cats,
   cat,
   onCatChange,
+  categoryShapeByName,
 }) {
   return (
     <div className="pt-4 px-4 pb-0 bg-bg2 border-b border-bdr sticky top-0 z-10 backdrop-blur-md">
@@ -40,14 +42,29 @@ export function SearchFilterHeader({
           onClick={onToggleOwnedOnly}
         />
         <div className="flex-1 flex gap-1.5 overflow-x-auto">
-          {cats.map((c) => (
-            <FilterChip
-              key={c}
-              label={c}
-              active={cat === c}
-              onClick={() => onCatChange(c)}
-            />
-          ))}
+          {cats.map((c) => {
+            const shape = categoryShapeByName.get(c)
+            return (
+              <FilterChip
+                key={c}
+                label={c}
+                // "All" isn't a real category (no shape column, and no
+                // single pictogram would represent every category at
+                // once) - only real categories get an icon.
+                icon={
+                  shape && (
+                    <IngredientIcon
+                      shape={shape}
+                      size={15}
+                      color={cat === c ? "var(--cyan)" : "var(--text3)"}
+                    />
+                  )
+                }
+                active={cat === c}
+                onClick={() => onCatChange(c)}
+              />
+            )
+          })}
         </div>
       </div>
     </div>
