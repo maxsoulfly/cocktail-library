@@ -1,5 +1,5 @@
 import clsx from "clsx"
-import { IconChevD, IconChevR, IconEdit } from "@/components/icons"
+import { IconCheck, IconChevD, IconChevR, IconEdit } from "@/components/icons"
 import { IngredientIcon } from "@/components/IngredientIcon"
 import { Card } from "@/components/primitives"
 
@@ -50,34 +50,49 @@ export function TypeCard({
           screenshot - the chevron sat "on top of the picture"). Flow
           layout means the buttons simply push the icon down instead,
           with no overlap regardless of button size. Only rendered when
-          there's at least one button, so a plain member viewing a
-          no-products type doesn't get an empty reserved row. */}
-      {(allProducts.length > 0 || isStaff) && (
-        <div className="w-full flex justify-end gap-0.5">
-          {allProducts.length > 0 && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onToggleExpand()
-              }}
-              title={`${allProducts.length} product(s)`}
-              className="bg-transparent border-none cursor-pointer w-8 h-8 text-tx3 flex items-center justify-center"
-            >
-              {expanded ? <IconChevD size={12} /> : <IconChevR size={12} />}
-            </button>
-          )}
-          {isStaff && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onEditType()
-              }}
-              title="Edit ingredient type"
-              className="bg-transparent border-none cursor-pointer w-8 h-8 text-tx3 flex items-center justify-center"
-            >
-              <IconEdit size={12} />
-            </button>
-          )}
+          there's something to show (a checkmark, or a button), so a
+          plain member viewing an unowned no-products type doesn't get an
+          empty reserved row. */}
+      {(owned || allProducts.length > 0 || isStaff) && (
+        <div className="w-full flex items-center justify-between">
+          {/* Fixed-size slot (matching the button size) so the buttons on
+              the right stay put whether or not the checkmark renders -
+              owned/unowned was previously signaled by border/background
+              color alone (WCAG 1.4.1 - color-only status), same "big
+              fingers" audit pass. */}
+          <div className="w-8 h-8 flex items-center justify-center shrink-0">
+            {owned && (
+              <span className="w-4.5 h-4.5 rounded-full bg-cyan flex items-center justify-center text-[#07091a]">
+                <IconCheck size={10} />
+              </span>
+            )}
+          </div>
+          <div className="flex gap-0.5">
+            {allProducts.length > 0 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onToggleExpand()
+                }}
+                title={`${allProducts.length} product(s)`}
+                className="bg-transparent border-none cursor-pointer w-8 h-8 text-tx3 flex items-center justify-center"
+              >
+                {expanded ? <IconChevD size={12} /> : <IconChevR size={12} />}
+              </button>
+            )}
+            {isStaff && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onEditType()
+                }}
+                title="Edit ingredient type"
+                className="bg-transparent border-none cursor-pointer w-8 h-8 text-tx3 flex items-center justify-center"
+              >
+                <IconEdit size={12} />
+              </button>
+            )}
+          </div>
         </div>
       )}
       <div
