@@ -17,7 +17,10 @@ import { resolveGlass } from "@/domain/glassResolution"
 import { resolveIngredientType } from "@/domain/ingredientResolution"
 import { RECIPE_ROLES } from "./recipeImport"
 
-const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
+// Optional 8-digit #RRGGBBAA form too, not just 6 - see recipeImport.js's
+// matching HEX_COLOR_RE comment for why (the "Clear" liquid_colors swatch
+// now carries real alpha).
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/
 
 /**
  * @param {unknown} raw - parsed JSON: a single recipe object, or an array

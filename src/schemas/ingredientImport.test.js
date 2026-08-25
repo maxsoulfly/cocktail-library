@@ -127,6 +127,15 @@ describe("validateIngredientImport", () => {
     expect(results[0].resolved.color).toBe("#a1b2c3")
   })
 
+  it("accepts an 8-digit hex color with alpha (e.g. the 'Clear' swatch)", () => {
+    const { results } = validateIngredientImport(
+      [{ name: "Cachaca", category: "Spirit", color: "#dbeafe80" }],
+      catalog,
+    )
+    expect(results[0].valid).toBe(true)
+    expect(results[0].resolved.color).toBe("#dbeafe80")
+  })
+
   it("handles a non-object item without throwing", () => {
     const { results } = validateIngredientImport(["oops"], catalog)
     expect(results[0].valid).toBe(false)

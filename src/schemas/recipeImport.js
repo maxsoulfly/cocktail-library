@@ -16,7 +16,11 @@ import { resolveGlass } from "@/domain/glassResolution"
 import { resolveIngredientType } from "@/domain/ingredientResolution"
 
 export const RECIPE_ROLES = ["required", "optional", "garnish"]
-const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
+// Optional 8-digit #RRGGBBAA form too, not just 6 - the "Clear" liquid_colors
+// swatch carries real alpha (20260826100000_liquid_colors_alpha.sql) so it
+// can look genuinely transparent instead of flat pale-blue, and any picker
+// built on this catalog needs to accept it, not just create it.
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/
 
 /**
  * @param {unknown[]} rawItems - parsed JSON array, not yet validated

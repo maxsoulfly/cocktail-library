@@ -288,10 +288,17 @@ export function CategoryPicker({ categories, value, onChange }) {
 // a hard blocker either - stored recipes/ingredient types have always just
 // been a plain hex string, this table only supplies the picker's suggestions.
 export function ColorSwatchPicker({ value, onChange, colors }) {
+  // "Clear" is the most commonly reached-for swatch (most spirits are
+  // clear) - worth always leading with it rather than wherever it happens
+  // to fall alphabetically. A stable sort (guaranteed by the spec since
+  // ES2019) leaves every other swatch in its existing fetched order.
+  const sorted = [...colors].sort((a, b) =>
+    a.name === "Clear" ? -1 : b.name === "Clear" ? 1 : 0,
+  )
   return (
     <div className="flex flex-col gap-2.5">
       <div className="flex gap-2.5 flex-wrap">
-        {colors.map((c) => (
+        {sorted.map((c) => (
           <button
             key={c.id}
             type="button"

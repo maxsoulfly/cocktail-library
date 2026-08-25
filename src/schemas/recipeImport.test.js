@@ -184,6 +184,15 @@ describe("validateRecipeImport", () => {
     expect(results[0].resolved.liquidColor2).toBe("#f97316")
   })
 
+  it("accepts an 8-digit hex color with alpha (e.g. the 'Clear' swatch)", () => {
+    const { results } = validateRecipeImport(
+      [{ ...validItem, liquidColor: "#dbeafe80" }],
+      catalog,
+    )
+    expect(results[0].valid).toBe(true)
+    expect(results[0].resolved.liquidColor).toBe("#dbeafe80")
+  })
+
   it("rejects an invalid liquidColor2", () => {
     const { results } = validateRecipeImport(
       [{ ...validItem, liquidColor2: "orange" }],

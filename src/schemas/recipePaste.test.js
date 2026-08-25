@@ -126,6 +126,14 @@ describe("parseRecipePaste", () => {
     expect(result.liquidColor2).toBeNull()
   })
 
+  it("accepts an 8-digit hex color with alpha (e.g. the 'Clear' swatch)", () => {
+    const result = parseRecipePaste(
+      { ...validItem, liquidColor: "#dbeafe80" },
+      catalog,
+    )
+    expect(result.liquidColor).toBe("#dbeafe80")
+  })
+
   it("ignores unknown taste tags rather than failing", () => {
     const result = parseRecipePaste(
       { ...validItem, tasteTags: ["Dry", "Bitter"] },
