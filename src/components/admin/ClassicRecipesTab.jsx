@@ -88,6 +88,14 @@ export function ClassicRecipesTab({
                     ` · originally by ${r.author ?? "a member"}`}
                 </div>
               </div>
+              {r.originalOwnerId && (
+                <button
+                  onClick={() => onSetConfirmDemote(r.id)}
+                  className="bg-violet/10 border border-violet/25 rounded-sm py-1.5 px-3 cursor-pointer text-violet text-xs font-display font-semibold"
+                >
+                  Demote to Community
+                </button>
+              )}
               {isAdmin && (
                 <button
                   onClick={() => navigate(`/library/${r.id}/edit`)}
@@ -102,14 +110,6 @@ export function ClassicRecipesTab({
                   className="bg-coral/10 border border-coral/25 rounded-sm py-1.5 px-3 cursor-pointer text-coral text-xs font-display font-semibold flex items-center gap-1"
                 >
                   <IconTrash size={12} /> Delete
-                </button>
-              )}
-              {r.originalOwnerId && (
-                <button
-                  onClick={() => onSetConfirmDemote(r.id)}
-                  className="bg-violet/10 border border-violet/25 rounded-sm py-1.5 px-3 cursor-pointer text-violet text-xs font-display font-semibold"
-                >
-                  Demote to Community
                 </button>
               )}
             </div>
