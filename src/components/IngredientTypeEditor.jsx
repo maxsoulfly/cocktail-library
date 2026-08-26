@@ -147,14 +147,24 @@ export function IngredientTypeEditor({
   return (
     <Card className="p-3.5 flex flex-col gap-2" style={style}>
       <Input label="Name" value={name} onChange={setName} />
-      <CategoryPicker
-        categories={categories}
-        value={categoryId}
-        onChange={(v) => {
-          setCategoryId(v)
-          setParentTypeId("")
-        }}
-      />
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-bold text-tx2 font-display uppercase tracking-[0.06em]">
+          Category
+        </label>
+        {/* A bare trigger showing just the current category's name (e.g.
+            "Beer") is genuinely ambiguous without this label - confusingly
+            so whenever an ingredient type's own name happens to match its
+            category's name, as with the "Beer" type under the "Beer"
+            category. */}
+        <CategoryPicker
+          categories={categories}
+          value={categoryId}
+          onChange={(v) => {
+            setCategoryId(v)
+            setParentTypeId("")
+          }}
+        />
+      </div>
       <Select
         value={parentTypeId}
         onChange={setParentTypeId}
@@ -173,14 +183,22 @@ export function IngredientTypeEditor({
           label: p[0].toUpperCase() + p.slice(1),
         }))}
       />
-      <ColorSwatchPicker
-        value={color}
-        onChange={setColor}
-        colors={liquidColors}
-      />
+      {/* Color and Icon grouped together, right next to each other - both
+          are "how this type displays," as distinct from the
+          category/hierarchy/priority fields above. */}
       <div className="flex flex-col gap-1.5">
         <label className="text-xs font-bold text-tx2 font-display uppercase tracking-[0.06em]">
-          Pictogram
+          Color
+        </label>
+        <ColorSwatchPicker
+          value={color}
+          onChange={setColor}
+          colors={liquidColors}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-bold text-tx2 font-display uppercase tracking-[0.06em]">
+          Icon
         </label>
         <ShapePicker kind="ingredient" value={shape} onChange={setShape} />
       </div>

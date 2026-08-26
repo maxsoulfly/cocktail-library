@@ -1,6 +1,7 @@
 import { useState } from "react"
+import clsx from "clsx"
 import { useNavigate } from "react-router-dom"
-import { IconEdit, IconTrash } from "@/components/icons"
+import { IconChevD, IconEdit, IconTrash } from "@/components/icons"
 import { Btn, Card, Input } from "@/components/primitives"
 import { deleteRecipe } from "@/services/recipes"
 
@@ -88,28 +89,53 @@ export function ClassicRecipesTab({
                     ` · originally by ${r.author ?? "a member"}`}
                 </div>
               </div>
+              {/* Icon-only on mobile, label restored at md: - three full-text
+                  buttons on one row was crowding the title into multiple
+                  lines on narrow screens. */}
               {r.originalOwnerId && (
                 <button
-                  onClick={() => onSetConfirmDemote(r.id)}
-                  className="bg-violet/10 border border-violet/25 rounded-sm py-1.5 px-3 cursor-pointer text-violet text-xs font-display font-semibold"
+                  onClick={() =>
+                    onSetConfirmDemote(confirmDemoteId === r.id ? null : r.id)
+                  }
+                  title="Demote to Community"
+                  aria-label="Demote to Community"
+                  className="bg-violet/10 border border-violet/25 rounded-sm py-1.5 px-3 cursor-pointer text-violet text-xs font-display font-semibold flex items-center gap-1"
                 >
-                  Demote to Community
+                  <IconChevD
+                    size={12}
+                    className={clsx(
+                      "transition-transform duration-150",
+                      confirmDemoteId === r.id && "rotate-180",
+                    )}
+                  />
+                  <span className="hidden md:inline">Demote to Community</span>
                 </button>
               )}
               {isAdmin && (
                 <button
                   onClick={() => navigate(`/library/${r.id}/edit`)}
+                  title="Edit"
+                  aria-label="Edit"
                   className="bg-cyan/10 border border-cyan/25 rounded-sm py-1.5 px-3 cursor-pointer text-cyan text-xs font-display font-semibold flex items-center gap-1"
                 >
-                  <IconEdit size={12} /> Edit
+                  <IconEdit size={12} />
+                  <span className="hidden md:inline">Edit</span>
                 </button>
               )}
               {isAdmin && (
                 <button
-                  onClick={() => setConfirmDeleteClassicId(r.id)}
+                  onClick={() => {
+                    setConfirmDeleteClassicId(
+                      confirmDeleteClassicId === r.id ? null : r.id,
+                    )
+                    setDeleteClassicError(null)
+                  }}
+                  title="Delete"
+                  aria-label="Delete"
                   className="bg-coral/10 border border-coral/25 rounded-sm py-1.5 px-3 cursor-pointer text-coral text-xs font-display font-semibold flex items-center gap-1"
                 >
-                  <IconTrash size={12} /> Delete
+                  <IconTrash size={12} />
+                  <span className="hidden md:inline">Delete</span>
                 </button>
               )}
             </div>

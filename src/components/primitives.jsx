@@ -245,38 +245,71 @@ export function Select({ value, onChange, options, small }) {
   )
 }
 
-// Ingredient categories (~10-12 options) are chosen rarely enough per-flow
-// that a visible chip grid beats hiding them behind the Select's closed
-// button - on mobile a collapsed dropdown reads as inert label text rather
-// than something tappable, and the option list should be discoverable
-// without a second tap.
+// Ingredient categories (~10-14 options) used to render as an always-
+// expanded chip grid inline - deliberately, at the time (a collapsed
+// dropdown reads as inert label text on mobile rather than something
+// tappable). Converted to the same compact trigger + BottomSheet pattern
+// as ShapePicker/ColorSwatchPicker once that pattern existed: the trigger
+// button still looks clearly tappable (border, background, chevron), so
+// it doesn't have the "looks like inert text" problem a native collapsed
+// <select> had, while saving the same vertical space the shape/color
+// pickers did.
 export function CategoryPicker({ categories, value, onChange }) {
+  const [open, setOpen] = useState(false)
+  const triggerRef = useRef(null)
+  const current = categories.find((c) => c.id === value)
   return (
-    <div className="flex gap-2 flex-wrap">
-      {categories.map((c) => {
-        const active = value === c.id
-        return (
-          <button
-            key={c.id}
-            type="button"
-            onClick={() => onChange(c.id)}
-            className={clsx(
-              "py-2 px-3 rounded-sm border text-[13px] font-body cursor-pointer flex items-center gap-1.5",
-              active
-                ? "border-cyan bg-cyan/12 text-cyan"
-                : "border-bdr bg-surface text-tx2",
-            )}
-          >
-            <IngredientIcon
-              shape={c.shape}
-              size={14}
-              color={active ? "var(--cyan)" : "var(--text3)"}
-            />
-            {c.name}
-          </button>
-        )
-      })}
-    </div>
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-2 py-2 px-3 bg-surface border border-bdr rounded-sm cursor-pointer w-fit"
+      >
+        {current && (
+          <IngredientIcon shape={current.shape} size={14} color="var(--cyan)" />
+        )}
+        <span className="text-[13px] text-cyan">
+          {current?.name ?? "Choose a category"}
+        </span>
+        <IconChevD size={12} className="text-tx3" />
+      </button>
+      <BottomSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Choose a category"
+        anchorRef={triggerRef}
+      >
+        <div className="flex gap-2 flex-wrap">
+          {categories.map((c) => {
+            const active = value === c.id
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => {
+                  onChange(c.id)
+                  setOpen(false)
+                }}
+                className={clsx(
+                  "py-2 px-3 rounded-sm border text-[13px] font-body cursor-pointer flex items-center gap-1.5",
+                  active
+                    ? "border-cyan bg-cyan/12 text-cyan"
+                    : "border-bdr bg-surface text-tx2",
+                )}
+              >
+                <IngredientIcon
+                  shape={c.shape}
+                  size={14}
+                  color={active ? "var(--cyan)" : "var(--text3)"}
+                />
+                {c.name}
+              </button>
+            )
+          })}
+        </div>
+      </BottomSheet>
+    </>
   )
 }
 

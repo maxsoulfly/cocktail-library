@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import clsx from "clsx"
 import { useNavigate, useOutletContext } from "react-router-dom"
+import { IconChevD } from "@/components/icons"
 import { TopBar } from "@/components/Nav"
 import {
   buildIngredientImportPrompt,
@@ -69,6 +70,17 @@ export default function AdminScreen() {
   const [tab, setTab] = useState("overview")
   const [invites, setInvites] = useState([])
   const [invitesLoading, setInvitesLoading] = useState(true)
+
+  // Several tabs (Catalog especially - Glasses/Taste Tags/Cocktail
+  // Families/Ingredient Categories/Liquid Colors all stacked) run long
+  // enough to scroll well past the tab bar, with no way back to it short of
+  // scrolling all the way up by hand.
+  const [showScrollTop, setShowScrollTop] = useState(false)
+  useEffect(() => {
+    const onScroll = () => setShowScrollTop(window.scrollY > 400)
+    window.addEventListener("scroll", onScroll, { passive: true })
+    return () => window.removeEventListener("scroll", onScroll)
+  }, [])
 
   // Batch Import covers three entities: "ingredients" (with its own
   // single/batch sub-modes below), "recipes", and "products" - the latter
@@ -605,27 +617,44 @@ export default function AdminScreen() {
 
   return (
     <div className="pb-[calc(96px_+_env(safe-area-inset-bottom,0px))]">
-      <TopBar title="Admin Dashboard" onBack={() => navigate(-1)} />
+      {/* TopBar is already sticky on its own (Nav.jsx) - wrapping it and the
+          tab row together in one sticky container keeps both pinned as a
+          unit, rather than the tab row scrolling away on a long tab
+          (Catalog especially) while the title bar alone stays put. */}
+      <div className="sticky top-0 z-20 bg-bg2">
+        <TopBar title="Admin Dashboard" onBack={() => navigate(-1)} />
 
-      <div className="flex border-b border-bdr bg-bg2 overflow-x-auto">
-        {visibleTabs.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={clsx(
-              "py-3 px-4 bg-transparent border-none border-b-2 cursor-pointer text-[13px] font-display whitespace-nowrap transition-all duration-150",
-              tab === t.id
-                ? "border-violet text-violet font-bold"
-                : "border-transparent text-tx2 font-normal",
-            )}
-          >
-            {t.label}
-            {t.id === "requests" && pendingRequests.length > 0
-              ? ` (${pendingRequests.length})`
-              : ""}
-          </button>
-        ))}
+        <div className="flex border-b border-bdr bg-bg2 overflow-x-auto">
+          {visibleTabs.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={clsx(
+                "py-3 px-4 bg-transparent border-none border-b-2 cursor-pointer text-[13px] font-display whitespace-nowrap transition-all duration-150",
+                tab === t.id
+                  ? "border-violet text-violet font-bold"
+                  : "border-transparent text-tx2 font-normal",
+              )}
+            >
+              {t.label}
+              {t.id === "requests" && pendingRequests.length > 0
+                ? ` (${pendingRequests.length})`
+                : ""}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {showScrollTop && (
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          aria-label="Back to top"
+          title="Back to top"
+          className="glow-cyan fixed bottom-24 right-4 z-30 w-11 h-11 rounded-full bg-cyan border-none cursor-pointer flex items-center justify-center text-[#07091a]"
+        >
+          <IconChevD size={20} className="rotate-180" />
+        </button>
+      )}
 
       <div className="p-5">
         {tab === "overview" && (

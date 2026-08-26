@@ -49,7 +49,7 @@ export function ShapePicker({ kind, value, onChange }) {
         onClick={() => setOpen(true)}
         className="flex items-center gap-2.5 py-1.5 px-2.5 bg-surface border border-bdr rounded-sm cursor-pointer w-fit"
       >
-        <ShapeIcon kind={kind} shape={value} size={20} color="var(--cyan)" />
+        <ShapeIcon kind={kind} shape={value} size={28} color="var(--cyan)" />
         <span className="text-[13px] text-tx capitalize">
           {value.replace(/_/g, " ")}
         </span>
@@ -58,7 +58,7 @@ export function ShapePicker({ kind, value, onChange }) {
       <BottomSheet
         open={open}
         onClose={() => setOpen(false)}
-        title="Choose a pictogram"
+        title="Choose an icon"
         anchorRef={triggerRef}
       >
         <div className="flex gap-2 flex-wrap">

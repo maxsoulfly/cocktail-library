@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { IconLock } from "@/components/icons"
+import { IconLock, IconUpload } from "@/components/icons"
 import { Btn, Card, Input } from "@/components/primitives"
 import { unpublishRecipe } from "@/services/recipes"
 
@@ -84,17 +84,31 @@ export function ModerationTab({
                 </div>
               </div>
               <div className="flex gap-1.5">
+                {/* Icon-only on mobile, label restored at md: - "Promote to
+                    Classic"/"Unpublish" as full text on every row was
+                    crowding the title into 2-3 lines on narrow screens. */}
                 <button
-                  onClick={() => onSetConfirmPromote(c.id)}
-                  className="bg-violet/10 border border-violet/25 rounded-sm py-1.5 px-3 cursor-pointer text-violet text-xs font-display font-semibold"
+                  onClick={() =>
+                    onSetConfirmPromote(confirmPromote === c.id ? null : c.id)
+                  }
+                  title="Promote to Classic"
+                  aria-label="Promote to Classic"
+                  className="bg-violet/10 border border-violet/25 rounded-sm py-1.5 px-3 cursor-pointer text-violet text-xs font-display font-semibold flex items-center gap-1"
                 >
-                  Promote to Classic
+                  <IconUpload size={12} />
+                  <span className="hidden md:inline">Promote to Classic</span>
                 </button>
                 <button
-                  onClick={() => setConfirmUnpublish(c.id)}
+                  onClick={() => {
+                    setConfirmUnpublish(confirmUnpublish === c.id ? null : c.id)
+                    setUnpublishError(null)
+                  }}
+                  title="Unpublish"
+                  aria-label="Unpublish"
                   className="bg-coral/10 border border-coral/25 rounded-sm py-1.5 px-3 cursor-pointer text-coral text-xs font-display font-semibold flex items-center gap-1"
                 >
-                  <IconLock size={12} /> Unpublish
+                  <IconLock size={12} />
+                  <span className="hidden md:inline">Unpublish</span>
                 </button>
               </div>
             </div>

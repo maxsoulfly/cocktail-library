@@ -58,6 +58,7 @@ export const IconTrash = I(
 export const IconUpload = I(
   "M21 15V19C21 20.1 20.1 21 19 21H5C3.9 21 3 20.1 3 19V15M17 8L12 3L7 8M12 3V15",
 )
+export const IconMerge = I("M6 4V10L12 16M18 4V10L12 16M12 16V20")
 export const IconChevR = I("M9 18L15 12L9 6")
 export const IconChevD = I("M6 9L12 15L18 9")
 export const IconX = I("M18 6L6 18M6 6L18 18")

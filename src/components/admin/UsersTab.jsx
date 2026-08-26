@@ -1,5 +1,6 @@
 import { useState } from "react"
 import clsx from "clsx"
+import { IconCheck, IconGlobe, IconLock } from "@/components/icons"
 import { Btn, Card, Input, Select } from "@/components/primitives"
 import { setMembershipRevoked, setUserRole } from "@/services/membership"
 
@@ -104,7 +105,13 @@ export function UsersTab({
           const roleChanged = selectedRole !== u.role
           return (
             <Card key={u.id} className="py-3.5 px-4">
-              <div className="flex items-start gap-2.5">
+              {/* Stacked on mobile - the role select + Confirm + Block
+                  controls squeezed onto the same row as the name clipped
+                  the Block button right off the edge of the screen on a
+                  narrow phone. md: restores the original single row.
+                  Confirm/Block also go icon-only on mobile, same pattern as
+                  the other admin tabs' action buttons. */}
+              <div className="flex flex-col md:flex-row md:items-start gap-2.5">
                 <div className="flex-1">
                   <div className="text-[15px] font-display font-bold text-tx mb-[3px]">
                     {u.display_name ?? "Unnamed"}
@@ -133,10 +140,13 @@ export function UsersTab({
                     <Btn
                       variant="primary"
                       small
+                      title="Confirm"
+                      aria-label="Confirm"
                       disabled={!roleChanged || userActionId === u.id}
                       onClick={() => handleChangeRole(u, selectedRole)}
                     >
-                      Confirm
+                      <IconCheck size={12} />
+                      <span className="hidden md:inline">Confirm</span>
                     </Btn>
                     {u.membership && (
                       <button
@@ -146,14 +156,23 @@ export function UsersTab({
                             : setConfirmBlockId(u.id)
                         }
                         disabled={userActionId === u.id}
+                        title={isBlocked ? "Unblock" : "Block"}
+                        aria-label={isBlocked ? "Unblock" : "Block"}
                         className={clsx(
-                          "border rounded-sm py-1.5 px-3 cursor-pointer text-xs font-display font-semibold",
+                          "border rounded-sm py-1.5 px-3 cursor-pointer text-xs font-display font-semibold flex items-center gap-1",
                           isBlocked
                             ? "bg-green/10 border-green/25 text-green"
                             : "bg-coral/10 border-coral/25 text-coral",
                         )}
                       >
-                        {isBlocked ? "Unblock" : "Block"}
+                        {isBlocked ? (
+                          <IconGlobe size={12} />
+                        ) : (
+                          <IconLock size={12} />
+                        )}
+                        <span className="hidden md:inline">
+                          {isBlocked ? "Unblock" : "Block"}
+                        </span>
                       </button>
                     )}
                   </div>

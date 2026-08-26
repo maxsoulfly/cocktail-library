@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { IconEdit, IconTrash } from "@/components/icons"
+import { IconEdit, IconMerge, IconTrash } from "@/components/icons"
 import { IngredientTypeEditor } from "@/components/IngredientTypeEditor"
 import { Btn, Card, ConfirmPanel, Input } from "@/components/primitives"
 import { deleteIngredientType, mergeIngredientType } from "@/services/catalog"
@@ -208,27 +208,43 @@ export function TypesTab({ catalog, onAddNew }) {
                     {mergeSurvivorId === t.id ? "Survivor" : "Merge into this"}
                   </button>
                 ) : (
+                  // Icon-only on mobile, label restored at md: - three
+                  // full-text buttons on every row was cramped. The
+                  // merge-flow buttons below (Cancel merge/Merge into
+                  // this/Survivor) stay full text - those carry meaning
+                  // that's risky to compress into an icon mid-merge.
                   <>
                     <button
                       onClick={() => setEditingAdminTypeId(t.id)}
+                      title="Edit"
+                      aria-label="Edit"
                       className="bg-cyan/10 border border-cyan/25 rounded-sm py-1.5 px-3 cursor-pointer text-cyan text-xs font-display font-semibold flex items-center gap-1"
                     >
-                      <IconEdit size={12} /> Edit
+                      <IconEdit size={12} />
+                      <span className="hidden md:inline">Edit</span>
                     </button>
                     <button
                       onClick={() => startMerge(t.id)}
-                      className="bg-surface3 border border-bdr rounded-sm py-1.5 px-3 cursor-pointer text-tx2 text-xs font-display font-semibold"
+                      title="Merge"
+                      aria-label="Merge"
+                      className="bg-surface3 border border-bdr rounded-sm py-1.5 px-3 cursor-pointer text-tx2 text-xs font-display font-semibold flex items-center gap-1"
                     >
-                      Merge
+                      <IconMerge size={12} />
+                      <span className="hidden md:inline">Merge</span>
                     </button>
                     <button
                       onClick={() => {
                         setTypeDeleteError(null)
-                        setConfirmDeleteTypeId(t.id)
+                        setConfirmDeleteTypeId(
+                          confirmDeleteTypeId === t.id ? null : t.id,
+                        )
                       }}
+                      title="Delete"
+                      aria-label="Delete"
                       className="bg-coral/10 border border-coral/25 rounded-sm py-1.5 px-3 cursor-pointer text-coral text-xs font-display font-semibold flex items-center gap-1"
                     >
-                      <IconTrash size={12} /> Delete
+                      <IconTrash size={12} />
+                      <span className="hidden md:inline">Delete</span>
                     </button>
                   </>
                 )}
