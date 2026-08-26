@@ -313,6 +313,11 @@ export function CategoryPicker({ categories, value, onChange }) {
   )
 }
 
+// Must match the actual `w-[480px]` on the desktop dropdown below - kept as
+// one literal so the JS-side viewport-clamping math and the rendered width
+// can't drift out of sync with each other.
+const DESKTOP_SHEET_WIDTH = 480
+
 // A single shared overlay for every "tap the current value, pick from a
 // grid, it closes" picker in the app (color swatches, shape pictograms) -
 // these grids used to render fully expanded inline everywhere they appeared,
@@ -343,13 +348,31 @@ export function BottomSheet({ open, onClose, title, children, anchorRef }) {
   // flashing at the `!pos` centered fallback for one frame and then
   // jumping to the real spot (caught from a live screenshot showing
   // exactly that jump).
+  // Clamped to the actual viewport, not just anchored below-and-left of the
+  // trigger unconditionally - a trigger sitting low or far right on a long
+  // admin form (e.g. a color/shape picker deep in an "Add ingredient" panel)
+  // could otherwise position the dropdown partly or entirely off-screen,
+  // with no way to reach the rest of it (found from a live screenshot: the
+  // sheet's lower rows were cut off past the bottom edge, invisible and
+  // unscrollable, since this whole overlay is `position: fixed` - it isn't
+  // itself a scrolling container tied to page scroll). DESKTOP_SHEET_WIDTH
+  // matches the fixed `w-[480px]` on the actual dropdown below.
   useLayoutEffect(() => {
     if (!open || !anchorRef?.current) {
       setPos(null)
       return
     }
     const rect = anchorRef.current.getBoundingClientRect()
-    setPos({ top: rect.bottom + 8, left: rect.left })
+    const margin = 12
+    const sheetWidth = DESKTOP_SHEET_WIDTH
+    let left = rect.left
+    if (left + sheetWidth > window.innerWidth - margin) {
+      left = window.innerWidth - sheetWidth - margin
+    }
+    if (left < margin) left = margin
+    const top = rect.bottom + 8
+    const maxHeight = Math.max(160, window.innerHeight - top - margin)
+    setPos({ top, left, maxHeight })
   }, [open, anchorRef])
 
   if (!open) return null
@@ -406,7 +429,12 @@ export function BottomSheet({ open, onClose, title, children, anchorRef }) {
           onClick={(e) => e.stopPropagation()}
           style={
             pos
-              ? { position: "absolute", top: pos.top, left: pos.left }
+              ? {
+                  position: "absolute",
+                  top: pos.top,
+                  left: pos.left,
+                  maxHeight: pos.maxHeight,
+                }
               : undefined
           }
           // A plain border-bdr + shadow-2xl reads fine in light mode
@@ -418,7 +446,7 @@ export function BottomSheet({ open, onClose, title, children, anchorRef }) {
           // existing accent color) plus a real dark shadow gives it a
           // visible edge in both themes instead of relying on border color
           // contrast alone.
-          className="w-[340px] max-h-[70vh] overflow-y-auto bg-surface rounded-lg p-4 shadow-[0_20px_50px_rgba(0,0,0,0.45),0_0_0_1px_rgba(34,211,238,0.25)]"
+          className="w-[480px] max-h-[70vh] overflow-y-auto bg-surface rounded-lg p-4 shadow-[0_20px_50px_rgba(0,0,0,0.45),0_0_0_1px_rgba(34,211,238,0.25)]"
         >
           {header}
           {children}
