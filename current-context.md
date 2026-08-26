@@ -17,18 +17,17 @@ Agreed phase plan (revised by user on 2026-08-15 — private recipe CRUD moved i
 11. ~~Recipe publishing + admin unpublishing (Phase 5)~~ — **done, 2026-08-16 — browser-verified**
 12. ~~Admin catalog tools + JSON import preview/validation (Phase 5)~~ — **done, 2026-08-22**: ingredient-type/recipe/product batch import (AI-prompt-assisted), a member ingredient-request queue, real invitation generation/revocation, and glass/taste-tag/family/category management UI are all done.
 12b. ~~Component-size refactor (AdminScreen/EditorScreen/MyBarScreen/DetailScreen) + Tailwind utility-class conversion, both browser-verified~~ — **done, 2026-08-25**
-13. Responsive/accessibility/security/deployment QA (Phase 6) — in progress: security regression testing (RLS suite) done 2026-08-25; keyboard-access fix browser-confirmed (re-confirmed on the current build); accessible-labels fix done but still not screen-reader-verified (no screen reader available this session); empty/loading/error-state fix browser-confirmed 2026-08-25 (real Supabase-outage simulation, see below); all 5 layout/responsive/touch-target findings (tablet breakpoints, max-width, grids, touch targets, color-only indicator) fixed and browser-confirmed 2026-08-25; theme QA pass done 2026-08-26 (4 real bugs found and fixed, browser-confirmed - see chunks below); deployment/backup notes not started
+13. Responsive/accessibility/security/deployment QA (Phase 6) — in progress: security regression testing (RLS suite) done 2026-08-25; keyboard-access fix browser-confirmed (re-confirmed on the current build); accessible-labels fix now screen-reader-verified (Windows Narrator, 2026-08-26 — see below); empty/loading/error-state fix browser-confirmed 2026-08-25 (real Supabase-outage simulation, see below); all 5 layout/responsive/touch-target findings (tablet breakpoints, max-width, grids, touch targets, color-only indicator) fixed and browser-confirmed 2026-08-25; theme QA pass done 2026-08-26 (4 real bugs found and fixed, browser-confirmed - see chunks below); deployment/backup notes not started — the one remaining Phase 6 item
 
 Each numbered step is a development chunk boundary for this file.
 
 ## Exact next action (paused here, 2026-08-26 — resuming same day)
 
-Everything below this point (the merge tool through today's popularity-ranking feature) is committed and clean (`pnpm build`/`pnpm test`/`pnpm format` all passing as of the last chunk). Nothing is mid-edit. Two options left in Phase 6, neither started:
+**Accessible-labels verification is now done.** User ran Windows Narrator (`Ctrl+Win+Enter`) live against the running app (started this session via `npm run dev`, since the dev server was not actually already running despite AGENTS.md's assumption — port 8443 confirmed free before starting it) and explicitly confirmed all 5 targeted icon-only buttons announce real labels: the top-bar back arrow, the detail-screen favorite/want-to-make toggles, and the editor's remove-step/remove-ingredient/remove-substitute buttons. No code changes needed — the existing `aria-label`/`aria-pressed` attributes read correctly.
 
-1. **Accessible labels verification** — code's done (`aria-label`/`aria-pressed` added to 5 icon-only buttons a few sessions back), but needs a real screen reader (VoiceOver on Mac, or Windows' built-in Narrator — Ctrl+Win+Enter, no install needed) to actually confirm it reads correctly. Not testable via DevTools.
-2. **Deployment/backup notes** — not started at all. This needs a conversation first: how does this app actually get deployed today (if anywhere), and what's the real backup/rollback story for the hosted Supabase project? Not a click-through QA task like the others — more a "tell me the real process" conversation before anything gets written down.
+Only one item left in Phase 6, not started:
 
-Neither is urgent or blocking; pick up whichever the user wants next.
+**Deployment/backup notes** — needs a conversation first: how does this app actually get deployed today (if anywhere), and what's the real backup/rollback story for the hosted Supabase project? Not a click-through QA task like the others — more a "tell me the real process" conversation before anything gets written down.
 
 ## Earlier chunk (duplicate-ingredient-type merge tool)
 

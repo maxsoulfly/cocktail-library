@@ -181,7 +181,7 @@ export default function DetailScreen() {
             borderTone="cyan"
             confirmVariant="primary"
             confirmLabel="Publish"
-            message="Publishing makes this recipe visible to all Cocktail Library members. You can unpublish it later from your profile."
+            message="Publishing makes this recipe visible to all Rusty Pipes members. You can unpublish it later from your profile."
             error={actionError}
             busy={publishing}
             onConfirm={handlePublish}

@@ -66,7 +66,7 @@ export function SideNav({ isStaff }) {
     <aside className="w-55 shrink-0 bg-bg2 border-r border-bdr flex flex-col py-6 px-3 gap-1">
       <div className="pt-0 px-3 pb-5 mb-1 border-b border-bdr">
         <span className="font-display font-extrabold text-lg text-cyan tracking-[-0.02em]">
-          Cocktail Library
+          Rusty Pipes
         </span>
       </div>
       {NAV_ITEMS.map(({ path, label, Icon }) => {

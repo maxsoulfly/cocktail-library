@@ -40,7 +40,7 @@ export default function WelcomeScreen() {
             />
           </div>
           <h1 className="mb-2 font-display font-extrabold text-[32px] text-tx tracking-[-0.03em]">
-            Cocktail Library
+            Rusty Pipes
           </h1>
           <p className="text-tx2 text-[15px] leading-normal">
             An invite-only collection of classic recipes and your personal bar —
@@ -87,7 +87,7 @@ export default function WelcomeScreen() {
         </Card>
 
         <p className="text-center text-xs text-tx3">
-          Cocktail Library is currently invite-only. <br />
+          Rusty Pipes is currently invite-only. <br />
           Each invitation is single-use.
         </p>
       </div>

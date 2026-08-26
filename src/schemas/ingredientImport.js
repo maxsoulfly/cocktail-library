@@ -144,7 +144,7 @@ export function buildIngredientImportPrompt({
     )
     .join("\n")
 
-  return `Format a JSON array of new cocktail ingredient types for import into Cocktail Library.
+  return `Format a JSON array of new cocktail ingredient types for import into Rusty Pipes.
 
 Return ONLY a JSON array (no markdown fences, no commentary) where each item has:
 - "name": string, required. Must not duplicate an existing ingredient type or any of its known aliases below.

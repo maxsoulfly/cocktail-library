@@ -84,8 +84,8 @@ export default function SignInScreen() {
     view === "recover"
       ? "Enter your email and we'll send a reset link."
       : mode === "join"
-        ? "Set a password to finish joining Cocktail Library."
-        : "Sign in to your Cocktail Library account."
+        ? "Set a password to finish joining Rusty Pipes."
+        : "Sign in to your Rusty Pipes account."
 
   return (
     <div className="min-h-dvh bg-bg flex flex-col items-center justify-center py-8 px-6">
@@ -238,7 +238,7 @@ export default function SignInScreen() {
         </Card>
         <p className="text-center text-xs text-tx3">
           <IconLock size={12} className="inline align-middle mr-1" />
-          Cocktail Library is invite-only. No accounts without an invitation.
+          Rusty Pipes is invite-only. No accounts without an invitation.
         </p>
       </div>
     </div>

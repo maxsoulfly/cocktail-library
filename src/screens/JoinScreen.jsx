@@ -51,7 +51,7 @@ export default function JoinScreen({ onRedeemed }) {
             Invitation needed
           </h1>
           <p className="text-tx2 text-sm leading-normal">
-            You're signed in, but Cocktail Library is invite-only. Enter a valid
+            You're signed in, but Rusty Pipes is invite-only. Enter a valid
             invitation code to get access.
           </p>
         </div>

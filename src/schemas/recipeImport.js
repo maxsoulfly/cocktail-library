@@ -304,7 +304,7 @@ export function buildRecipeImportPrompt({
   const familyNames = families.map((f) => f.name).sort()
   const tagNames = tasteTags.map((t) => t.name).sort()
 
-  return `Format a JSON array of cocktail recipes for import into Cocktail Library.
+  return `Format a JSON array of cocktail recipes for import into Rusty Pipes.
 
 Return ONLY a JSON array (no markdown fences, no commentary) where each item has:
 - "name": string, required.
