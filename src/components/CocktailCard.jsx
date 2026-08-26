@@ -23,22 +23,32 @@ export function CocktailCard({ c, onClick }) {
           size={60}
           avail={c.avail}
         />
-        <div className="w-full">
-          <div className="flex items-start justify-between gap-1 mb-1">
-            <span className="font-display font-bold text-sm text-tx leading-[1.2]">
+        <div className="w-full flex flex-col items-center md:items-stretch">
+          {/* Stacked and center-aligned on mobile - a 2-column grid leaves
+              so little width per card that a long name (e.g. "Between the
+              Sheets", "Black Russian") crowds right up against the badge
+              and both become hard to read at a glance, and left-aligned
+              text under the already-centered glass icon above looked
+              lopsided. md: matches the grid's own 2->3 column breakpoint,
+              switching back to the denser left-aligned single-row layout
+              once cards have room for it. */}
+          <div className="flex flex-col items-center md:flex-row md:items-start md:justify-between md:w-full gap-1 mb-1">
+            <span className="font-display font-bold text-sm text-tx leading-[1.2] text-center md:text-left">
               {c.name}
             </span>
             <SourceBadge source={c.source} />
           </div>
           {c.author && (
-            <div className="text-[11px] text-tx3 mb-1.5">by {c.author}</div>
+            <div className="text-[11px] text-tx3 mb-1.5 text-center md:text-left md:w-full">
+              by {c.author}
+            </div>
           )}
-          <div className="flex flex-wrap gap-1 mb-2">
+          <div className="flex flex-wrap justify-center md:justify-start gap-1 mb-2">
             {c.taste.slice(0, 2).map((t) => (
               <TasteTag key={t} label={t} />
             ))}
           </div>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col items-center gap-1 md:flex-row md:items-center md:justify-between md:w-full">
             <span
               className={clsx(
                 "text-xs font-mono flex items-center gap-1",

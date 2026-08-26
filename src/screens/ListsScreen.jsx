@@ -1,9 +1,9 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import clsx from "clsx"
 import { useNavigate, useOutletContext } from "react-router-dom"
 import { CocktailCard } from "@/components/CocktailCard"
-import { IconBookmark, IconHeart } from "@/components/icons"
-import { FilterChip } from "@/components/primitives"
+import { IconBookmark, IconChevD, IconHeart } from "@/components/icons"
+import { BottomSheet, FilterChip } from "@/components/primitives"
 import { AVAIL_FILTERS } from "@/data/constants"
 
 export default function ListsScreen() {
@@ -11,6 +11,9 @@ export default function ListsScreen() {
   const { computed, favorites, wantToMake } = useOutletContext()
   const [tab, setTab] = useState("favorites") // favorites | wantToMake
   const [availFilter, setAvailFilter] = useState("all")
+  const [availPickerOpen, setAvailPickerOpen] = useState(false)
+  const availTriggerRef = useRef(null)
+  const currentAvail = AVAIL_FILTERS.find((f) => f.key === availFilter)
 
   const listIds = tab === "favorites" ? favorites : wantToMake
   const filtered = computed.filter(
@@ -47,17 +50,38 @@ export default function ListsScreen() {
             </button>
           ))}
         </div>
-        <div className="flex gap-1.5 py-2.5 px-4 overflow-x-auto">
+        <div className="py-2.5 px-4">
+          <button
+            ref={availTriggerRef}
+            type="button"
+            onClick={() => setAvailPickerOpen(true)}
+            className="flex items-center gap-2 py-2 px-3 bg-surface border border-bdr rounded-full cursor-pointer w-fit"
+          >
+            <span className="text-[13px] text-cyan">{currentAvail.label}</span>
+            <IconChevD size={14} className="text-tx3" />
+          </button>
+        </div>
+      </div>
+      <BottomSheet
+        open={availPickerOpen}
+        onClose={() => setAvailPickerOpen(false)}
+        title="Filter by availability"
+        anchorRef={availTriggerRef}
+      >
+        <div className="flex gap-2 flex-wrap">
           {AVAIL_FILTERS.map((f) => (
             <FilterChip
               key={f.key}
               label={f.label}
               active={availFilter === f.key}
-              onClick={() => setAvailFilter(f.key)}
+              onClick={() => {
+                setAvailFilter(f.key)
+                setAvailPickerOpen(false)
+              }}
             />
           ))}
         </div>
-      </div>
+      </BottomSheet>
 
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-15 px-6 gap-3 text-tx3">

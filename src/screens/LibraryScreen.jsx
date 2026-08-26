@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import clsx from "clsx"
 import {
   useNavigate,
@@ -6,8 +6,14 @@ import {
   useSearchParams,
 } from "react-router-dom"
 import { CocktailCard } from "@/components/CocktailCard"
-import { IconFilter, IconGlass, IconPlus, IconSearch } from "@/components/icons"
-import { Btn, FilterChip } from "@/components/primitives"
+import {
+  IconChevD,
+  IconFilter,
+  IconGlass,
+  IconPlus,
+  IconSearch,
+} from "@/components/icons"
+import { BottomSheet, Btn, FilterChip } from "@/components/primitives"
 import { AVAIL_FILTERS, SOURCE_FILTERS } from "@/data/constants"
 
 export default function LibraryScreen() {
@@ -21,6 +27,15 @@ export default function LibraryScreen() {
   // the URL on every click.
   const initialSource = searchParams.get("source")
   const [query, setQuery] = useState("")
+  const searchInputRef = useRef(null)
+  // Home's own search bar is just a styled button, not a real input (it
+  // can't own text entry across a route change) - it links here with
+  // ?focus=1 instead, and this is the other half: focus the real input on
+  // arrival so a search-cocktails tap doesn't cost a second tap to actually
+  // start typing.
+  useEffect(() => {
+    if (searchParams.get("focus")) searchInputRef.current?.focus()
+  }, [searchParams])
   const [availFilter, setAvailFilter] = useState("all")
   const [sourceFilters, setSourceFilters] = useState(
     initialSource && SOURCE_FILTERS.some((f) => f.key === initialSource)
@@ -29,6 +44,9 @@ export default function LibraryScreen() {
   )
   const [tasteFilters, setTasteFilters] = useState([])
   const [showFilters, setShowFilters] = useState(Boolean(sourceFilters.length))
+  const [availPickerOpen, setAvailPickerOpen] = useState(false)
+  const availTriggerRef = useRef(null)
+  const currentAvail = AVAIL_FILTERS.find((f) => f.key === availFilter)
 
   const toggleArr = (arr, val, set) =>
     set(arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val])
@@ -65,6 +83,7 @@ export default function LibraryScreen() {
               className="absolute left-3 top-1/2 -translate-y-1/2 text-tx3"
             />
             <input
+              ref={searchInputRef}
               placeholder="Search cocktails, tastes..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -92,17 +111,16 @@ export default function LibraryScreen() {
             <IconPlus size={18} />
           </button>
         </div>
-        <div className="flex gap-1.5 overflow-x-auto pb-3">
-          {AVAIL_FILTERS.map((f) => (
-            <FilterChip
-              key={f.key}
-              label={f.label}
-              active={availFilter === f.key}
-              onClick={() => setAvailFilter(f.key)}
-            />
-          ))}
-        </div>
-        <div className="flex gap-1.5 pb-3">
+        <div className="flex flex-wrap items-center gap-1.5 pb-3">
+          <button
+            ref={availTriggerRef}
+            type="button"
+            onClick={() => setAvailPickerOpen(true)}
+            className="flex items-center gap-2 py-2 px-3 bg-surface border border-bdr rounded-full cursor-pointer w-fit"
+          >
+            <span className="text-[13px] text-cyan">{currentAvail.label}</span>
+            <IconChevD size={14} className="text-tx3" />
+          </button>
           {SOURCE_FILTERS.map((f) => (
             <FilterChip
               key={f.key}
@@ -132,6 +150,26 @@ export default function LibraryScreen() {
           </div>
         )}
       </div>
+      <BottomSheet
+        open={availPickerOpen}
+        onClose={() => setAvailPickerOpen(false)}
+        title="Filter by availability"
+        anchorRef={availTriggerRef}
+      >
+        <div className="flex gap-2 flex-wrap">
+          {AVAIL_FILTERS.map((f) => (
+            <FilterChip
+              key={f.key}
+              label={f.label}
+              active={availFilter === f.key}
+              onClick={() => {
+                setAvailFilter(f.key)
+                setAvailPickerOpen(false)
+              }}
+            />
+          ))}
+        </div>
+      </BottomSheet>
 
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-15 px-6 gap-3 text-tx3">

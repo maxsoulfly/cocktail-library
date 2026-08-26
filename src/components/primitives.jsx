@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import clsx from "clsx"
-import { IconCheck, IconChevD } from "@/components/icons"
+import { IconCheck, IconChevD, IconX } from "@/components/icons"
 import { IngredientIcon } from "@/components/IngredientIcon"
 
 export const AVAIL_CFG = {
@@ -279,6 +280,122 @@ export function CategoryPicker({ categories, value, onChange }) {
   )
 }
 
+// A single shared overlay for every "tap the current value, pick from a
+// grid, it closes" picker in the app (color swatches, shape pictograms) -
+// these grids used to render fully expanded inline everywhere they appeared,
+// which ate a huge amount of vertical space once a table grew past a
+// handful of options (10+ ingredient categories, 19+ glasses). Slides up
+// from the bottom on mobile - the more familiar convention for this kind of
+// chooser (photo/icon/color pickers in most native apps). On desktop (the
+// `xl` breakpoint - the same one AppShell already switches sidebar-vs-
+// bottomnav on), a full-screen dimmed sheet reads as overkill on a screen
+// with plenty of room, so it renders instead as a small dropdown anchored
+// directly under the trigger button - pass `anchorRef` (a ref on that
+// button) so it knows where. Both variants exist in the DOM at once and
+// Tailwind's `xl:` responsive classes pick which is visible, rather than a
+// JS viewport check, so there's no resize-driven remount.
+export function BottomSheet({ open, onClose, title, children, anchorRef }) {
+  const [pos, setPos] = useState(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e) => e.key === "Escape" && onClose()
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [open, onClose])
+
+  // Layout effect, not a plain effect - runs synchronously after the DOM
+  // update but before the browser paints, so the desktop dropdown's
+  // anchored position is already known on its very first paint instead of
+  // flashing at the `!pos` centered fallback for one frame and then
+  // jumping to the real spot (caught from a live screenshot showing
+  // exactly that jump).
+  useLayoutEffect(() => {
+    if (!open || !anchorRef?.current) {
+      setPos(null)
+      return
+    }
+    const rect = anchorRef.current.getBoundingClientRect()
+    setPos({ top: rect.bottom + 8, left: rect.left })
+  }, [open, anchorRef])
+
+  if (!open) return null
+
+  const header = (
+    <div className="flex items-center justify-between mb-3">
+      <span className="text-xs font-bold text-tx2 font-display uppercase tracking-[0.06em]">
+        {title}
+      </span>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close"
+        className="bg-transparent border-none cursor-pointer p-1 text-tx3"
+      >
+        <IconX size={16} />
+      </button>
+    </div>
+  )
+
+  // Portaled straight to document.body - rendered in place, `fixed inset-0`
+  // would anchor to the nearest ancestor with a `transform`/`filter`/
+  // `backdrop-filter` instead of the real viewport (a CSS containing-block
+  // rule, not a bug in this component), and several callers (e.g.
+  // SearchFilterHeader's sticky header) use `backdrop-blur-md` for exactly
+  // that reason. Caught from a live screenshot where the sheet rendered
+  // cramped inside that header's own small box instead of covering the
+  // screen.
+  return createPortal(
+    <>
+      <div className="xl:hidden fixed inset-0 z-[200] flex items-end justify-center">
+        <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
+          className="relative w-full max-w-[520px] max-h-[80vh] overflow-y-auto bg-surface border-t border-bdr rounded-t-2xl p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]"
+        >
+          {header}
+          {children}
+        </div>
+      </div>
+      <div
+        className={clsx(
+          "hidden xl:flex fixed inset-0 z-[200]",
+          !pos && "items-center justify-center",
+        )}
+        onClick={onClose}
+      >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
+          onClick={(e) => e.stopPropagation()}
+          style={
+            pos
+              ? { position: "absolute", top: pos.top, left: pos.left }
+              : undefined
+          }
+          // A plain border-bdr + shadow-2xl reads fine in light mode
+          // (white card on a pale background), but in dark mode surface/bg
+          // are both near-black with very little contrast between them, and
+          // a drop shadow barely shows up against a dark page at all - the
+          // popover was nearly invisible with no full-screen dimming behind
+          // it to lift it off the page. A cyan-tinted ring (the app's
+          // existing accent color) plus a real dark shadow gives it a
+          // visible edge in both themes instead of relying on border color
+          // contrast alone.
+          className="w-[340px] max-h-[70vh] overflow-y-auto bg-surface rounded-lg p-4 shadow-[0_20px_50px_rgba(0,0,0,0.45),0_0_0_1px_rgba(34,211,238,0.25)]"
+        >
+          {header}
+          {children}
+        </div>
+      </div>
+    </>,
+    document.body,
+  )
+}
+
 // Shared between EditorScreen (recipe liquid_color) and the ingredient-type
 // forms (AdminScreen, IngredientTypeEditor) - same "pick a drink-appropriate
 // color, no hex knowledge required" idea in both places. `colors` is the
@@ -287,7 +404,13 @@ export function CategoryPicker({ categories, value, onChange }) {
 // input alongside them means a color missing from the curated list is never
 // a hard blocker either - stored recipes/ingredient types have always just
 // been a plain hex string, this table only supplies the picker's suggestions.
+//
+// Renders as a compact swatch+name trigger that opens the actual grid in a
+// BottomSheet - picking a swatch closes it immediately, typing a hex value
+// doesn't (so the user isn't fighting a closing sheet mid-keystroke).
 export function ColorSwatchPicker({ value, onChange, colors }) {
+  const [open, setOpen] = useState(false)
+  const triggerRef = useRef(null)
   // "Clear" is the most commonly reached-for swatch (most spirits are
   // clear) - worth always leading with it rather than wherever it happens
   // to fall alphabetically. A stable sort (guaranteed by the spec since
@@ -295,39 +418,67 @@ export function ColorSwatchPicker({ value, onChange, colors }) {
   const sorted = [...colors].sort((a, b) =>
     a.name === "Clear" ? -1 : b.name === "Clear" ? 1 : 0,
   )
+  const current = colors.find((c) => c.hex === value)
   return (
-    <div className="flex flex-col gap-2.5">
-      <div className="flex gap-2.5 flex-wrap">
-        {sorted.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            onClick={() => onChange(c.hex)}
-            title={c.name}
-            className={clsx(
-              "w-8 h-8 rounded-full cursor-pointer border-2",
-              value === c.hex
-                ? "border-tx shadow-[0_0_0_2px_var(--bg),0_0_0_3px_var(--cyan)]"
-                : "border-bdr",
-            )}
-            style={{ background: c.hex }}
-          />
-        ))}
-      </div>
-      <div className="flex items-center gap-2">
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-2.5 py-1.5 px-2.5 bg-surface border border-bdr rounded-sm cursor-pointer w-fit"
+      >
         <div
           className="w-6 h-6 rounded-full border border-bdr shrink-0"
           style={{ background: value || "transparent" }}
         />
-        <input
-          type="text"
-          value={value ?? ""}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="Or type any hex, e.g. #6b21a8"
-          className="bg-surface border border-bdr rounded-sm py-1.5 px-2.5 text-tx text-[13px] font-mono w-40"
-        />
-      </div>
-    </div>
+        <span className="text-[13px] text-tx font-mono">
+          {current?.name ?? value ?? "Choose color"}
+        </span>
+        <IconChevD size={12} className="text-tx3" />
+      </button>
+      <BottomSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Choose a color"
+        anchorRef={triggerRef}
+      >
+        <div className="flex flex-col gap-3">
+          <div className="flex gap-2.5 flex-wrap">
+            {sorted.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => {
+                  onChange(c.hex)
+                  setOpen(false)
+                }}
+                title={c.name}
+                className={clsx(
+                  "w-9 h-9 rounded-full cursor-pointer border-2",
+                  value === c.hex
+                    ? "border-tx shadow-[0_0_0_2px_var(--bg),0_0_0_3px_var(--cyan)]"
+                    : "border-bdr",
+                )}
+                style={{ background: c.hex }}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <div
+              className="w-6 h-6 rounded-full border border-bdr shrink-0"
+              style={{ background: value || "transparent" }}
+            />
+            <input
+              type="text"
+              value={value ?? ""}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder="Or type any hex, e.g. #6b21a8"
+              className="flex-1 bg-surface border border-bdr rounded-sm py-1.5 px-2.5 text-tx text-[13px] font-mono"
+            />
+          </div>
+        </div>
+      </BottomSheet>
+    </>
   )
 }
 

@@ -91,7 +91,7 @@ export default function HomeScreen() {
           </div>
         </div>
         <button
-          onClick={() => navigate("/library")}
+          onClick={() => navigate("/library?focus=1")}
           className="flex items-center gap-2.5 bg-surface border border-bdr rounded py-2.5 px-3.5 w-full cursor-text mb-4"
         >
           <IconSearch size={16} className="text-tx3" />
