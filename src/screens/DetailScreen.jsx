@@ -168,6 +168,7 @@ export default function DetailScreen() {
 
         <ActionButtons
           c={c}
+          unit={unit}
           isOwner={isOwner}
           canEdit={canEdit}
           canManage={canManage}

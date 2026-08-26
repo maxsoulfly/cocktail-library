@@ -28,6 +28,7 @@ import ListsScreen from "@/screens/ListsScreen"
 import MoreScreen from "@/screens/MoreScreen"
 import MyBarScreen from "@/screens/MyBarScreen"
 import RequestIngredientScreen from "@/screens/RequestIngredientScreen"
+import SharedRecipeScreen from "@/screens/SharedRecipeScreen"
 import SignInScreen from "@/screens/SignInScreen"
 import WelcomeScreen from "@/screens/WelcomeScreen"
 import { signOut } from "@/services/auth"
@@ -290,7 +291,21 @@ function AppShell({ profile, session }) {
   )
 }
 
+// /share/:id is the one genuinely public route - no session, no membership,
+// reachable by anyone with the link. Split out from AuthenticatedApp below
+// (rather than a branch inside it) so it never touches useSupabaseSession/
+// useMembership at all - a signed-out visitor shouldn't wait on an auth
+// check that has nothing to do with viewing a shared recipe.
 export default function App() {
+  return (
+    <Routes>
+      <Route path="/share/:id" element={<SharedRecipeScreen />} />
+      <Route path="*" element={<AuthenticatedApp />} />
+    </Routes>
+  )
+}
+
+function AuthenticatedApp() {
   const {
     loading: authLoading,
     error: authError,

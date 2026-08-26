@@ -1,5 +1,7 @@
+import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import {
+  IconCheck,
   IconCopy,
   IconEdit,
   IconGlobe,
@@ -7,9 +9,11 @@ import {
   IconTrash,
 } from "@/components/icons"
 import { Btn } from "@/components/primitives"
+import { buildRecipeShareText } from "./recipeShareText"
 
 export function ActionButtons({
   c,
+  unit,
   isOwner,
   canEdit,
   canManage,
@@ -18,9 +22,43 @@ export function ActionButtons({
   onRequestUnpublish,
 }) {
   const navigate = useNavigate()
+  const [copied, setCopied] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
+
+  const handleCopyRecipe = () => {
+    navigator.clipboard.writeText(buildRecipeShareText(c, unit)).catch(() => {})
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleCopyShareLink = () => {
+    const url = `${window.location.origin}/share/${c.id}`
+    navigator.clipboard.writeText(url).catch(() => {})
+    setLinkCopied(true)
+    setTimeout(() => setLinkCopied(false), 2000)
+  }
 
   return (
     <>
+      {/* Available on every recipe regardless of ownership - unlike Edit/
+          Clone/Publish, copying a plain-text version to paste into a
+          message or social post isn't an ownership-gated action. */}
+      <Btn variant="ghost" full onClick={handleCopyRecipe}>
+        {copied ? <IconCheck size={15} /> : <IconCopy size={15} />}
+        {copied ? "Copied!" : "Copy Recipe"}
+      </Btn>
+
+      {/* Only classic/community recipes get a public link - matches
+          get_shared_recipe()'s own "shared + active" filter exactly
+          (20260826120000), so this button never offers a link that would
+          actually come back empty for a private recipe. */}
+      {c.source !== "private" && (
+        <Btn variant="ghost" full onClick={handleCopyShareLink}>
+          {linkCopied ? <IconCheck size={15} /> : <IconGlobe size={15} />}
+          {linkCopied ? "Link copied!" : "Copy Public Link"}
+        </Btn>
+      )}
+
       {canEdit && (
         <Btn
           variant="ghost"

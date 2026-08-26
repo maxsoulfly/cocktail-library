@@ -32,14 +32,21 @@ export function FamilyCluster({
           {parent.name} family
         </div>
       </div>
+      {/* w-24/w-26 (96px/104px) was already tight for the top button row
+          alone - checkmark + chevron + pencil are three 32px touch targets
+          (a deliberate WCAG minimum from an earlier accessibility pass, not
+          something to shrink back down), which barely fit an 80px content
+          area even before the icon below them got bigger. Widened both by
+          16px so the row and the icon both have real room, rather than
+          undoing either fix. */}
       <div className="flex flex-wrap gap-2">
         {editingTypeId !== parent.id && (
-          <div className="w-26">{renderCard(parent, false)}</div>
+          <div className="w-30">{renderCard(parent, false)}</div>
         )}
         {children.map(
           (child) =>
             editingTypeId !== child.id && (
-              <div key={child.id} className="w-24">
+              <div key={child.id} className="w-28">
                 {renderCard(child, true)}
               </div>
             ),

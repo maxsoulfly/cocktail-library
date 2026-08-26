@@ -95,23 +95,18 @@ export function TypeCard({
           </div>
         </div>
       )}
-      <div
-        className={clsx(
-          "rounded-[10px] shrink-0 flex items-center justify-center",
-          isChild ? "w-7.5 h-7.5" : "w-9.5 h-9.5",
-        )}
-        style={{
-          background: `${type.color ?? "#4e6680"}25`,
-          border: `1px solid ${type.color ?? "#4e6680"}40`,
-        }}
-      >
-        <IngredientIcon
-          shape={type.shape}
-          size={isChild ? 20 : 24}
-          color={owned ? "var(--text2)" : "var(--text3)"}
-          fillColor={type.color ?? "#4e6680"}
-        />
-      </div>
+      {/* No tinted background tile - the icon's own fillColor already
+          carries the ingredient's real color (same as a "Clear" swatch,
+          which never had a visible tile either since its color is near-
+          transparent). Removing the tile for every color, not just pale
+          ones, meant the icon itself could grow instead of sharing space
+          with a box around it. */}
+      <IngredientIcon
+        shape={type.shape}
+        size={isChild ? 38 : 46}
+        color={owned ? "var(--text2)" : "var(--text3)"}
+        fillColor={type.color ?? "#4e6680"}
+      />
       <div
         className={clsx(
           "font-body w-full overflow-hidden text-ellipsis whitespace-nowrap transition-colors duration-150",
