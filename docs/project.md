@@ -19,7 +19,7 @@ Social network, cocktail school, public community.
 You might revisit this every few months, not every day.
 
 # Current Focus
-Serving-size selector + parts ratio view (in progress, 2026-09-05 — Stages 1-2 of 5 committed and browser-verified on a real iPhone (all checks passed). Stage 3 (parts ratio computation, pure domain logic) code-complete and tested, awaiting review/commit. Next after that: Stage 4, the actual parts-mode UI. Full stage plan + design rationale in current-context.md.)
+Serving-size selector + parts ratio view (in progress, 2026-09-05 — Stages 1-4 of 5 done: all browser-verified on a real iPhone, every manual check passed (including Stage 4's post-verification UX follow-up hiding the servings selector and always showing base-recipe amounts while parts mode is active). Next: Stage 5, final integration/regression/docs, awaiting go-ahead. Full stage plan + design rationale in current-context.md.)
 
 # Next
 - Improve homepage usefulness for empty My Bar

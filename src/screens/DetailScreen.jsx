@@ -44,8 +44,14 @@ export default function DetailScreen() {
   // recipe itself changes (id) so navigating from one recipe to another
   // doesn't carry a stale serving count over via this still-mounted screen.
   const [servings, setServings] = useState(1)
+  // Also local/not persisted - parts is a view toggle, not a saved unit
+  // preference like `unit` (ml/oz). Selecting it never touches `unit`, so
+  // the saved preference is preserved underneath and comes right back when
+  // parts mode is turned off. Reset alongside servings for the same reason.
+  const [partsMode, setPartsMode] = useState(false)
   useEffect(() => {
     setServings(1)
+    setPartsMode(false)
   }, [id])
 
   const c = computed.find((item) => item.id === id)
@@ -164,7 +170,9 @@ export default function DetailScreen() {
           <p className="text-sm text-tx2 leading-[1.6]">{c.description}</p>
         </div>
 
-        <ServingsSelector servings={servings} onChange={setServings} />
+        {!partsMode && (
+          <ServingsSelector servings={servings} onChange={setServings} />
+        )}
 
         <IngredientsSection
           ings={c.ings}
@@ -174,6 +182,8 @@ export default function DetailScreen() {
           unit={unit}
           setUnit={setUnit}
           servings={servings}
+          partsMode={partsMode}
+          setPartsMode={setPartsMode}
         />
 
         <StepsSection steps={c.steps} />
@@ -182,6 +192,7 @@ export default function DetailScreen() {
           c={c}
           unit={unit}
           servings={servings}
+          partsMode={partsMode}
           isOwner={isOwner}
           canEdit={canEdit}
           canManage={canManage}

@@ -18,6 +18,8 @@
 // always computed from the recipe's base (1-serving) stored amounts and
 // never needs recomputing per serving count.
 
+import { isManualPartsUnit } from "./servings"
+
 function gcd(a, b) {
   let x = a
   let y = b
@@ -79,3 +81,41 @@ export function computePartsRatio(components) {
   })
   return result
 }
+
+/**
+ * True when a recipe has both an ml-derived ratio AND at least one
+ * manually-typed "part"/"parts" component - two unrelated scales (the
+ * computed ml ratio has no defined relationship to whatever the manual
+ * "2 part" component means) that must never be displayed as if they were
+ * one shared ratio (Stage 4 decision - see current-context.md). The caller
+ * should fall back to plain ml/oz display for volume components and leave
+ * manually-typed parts exactly as authored, rather than trying to merge
+ * them onto one scale.
+ *
+ * @param {{ amount: number, unitLabel: string }[]} components
+ */
+export function hasConflictingPartsUnits(components) {
+  const hasVolumeRatio = computePartsRatio(components).some((r) => r !== null)
+  const hasManualParts = components.some(
+    (c) => c.unitLabel !== "ml" && isManualPartsUnit(c.unitLabel),
+  )
+  return hasVolumeRatio && hasManualParts
+}
+
+/**
+ * @param {number} ratio - a non-null value from computePartsRatio()
+ */
+export function formatPartsAmount(ratio) {
+  return `${ratio} ${ratio === 1 ? "part" : "parts"}`
+}
+
+// Shared verbatim between the Ingredients display and Copy Recipe so the
+// two never drift apart in what they tell the user parts mode means. Both
+// mention "base recipe" because parts mode always shows the 1-serving
+// amounts, regardless of whatever serving count was selected before
+// switching to parts (the servings selector itself is hidden while parts
+// mode is active - see Stage 4's follow-up UX decision, current-context.md).
+export const PARTS_MODE_EXPLANATION =
+  "Parts show this recipe's ratio. Other quantities here are for the base recipe (1 serving) - switch to ml or oz for amounts at your selected serving count."
+export const PARTS_MODE_CONFLICT_EXPLANATION =
+  "This recipe mixes measured amounts with manually-entered ratios, so there's no single common part size. Quantities here are for the base recipe (1 serving) - switch to ml or oz for amounts at your selected serving count."

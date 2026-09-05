@@ -15,6 +15,7 @@ export function ActionButtons({
   c,
   unit,
   servings,
+  partsMode,
   isOwner,
   canEdit,
   canManage,
@@ -28,7 +29,7 @@ export function ActionButtons({
 
   const handleCopyRecipe = () => {
     navigator.clipboard
-      .writeText(buildRecipeShareText(c, unit, servings))
+      .writeText(buildRecipeShareText(c, unit, servings, partsMode))
       .catch(() => {})
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)

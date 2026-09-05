@@ -50,6 +50,15 @@ function isRatioUnit(word) {
   return lower === "part" || lower === "parts"
 }
 
+// Exported for domain/parts.js's mixed-recipe detection: true for a
+// manually-authored ratio component like "2 part" - not an ml-stored
+// volume, and not a bare descriptive label like "top-up" (which never
+// carries a leading number to begin with, so never reaches this check).
+export function isManualPartsUnit(unitLabel) {
+  const match = unitLabel.match(LEADING_NUMBER_RE)
+  return Boolean(match && isRatioUnit(match[2]))
+}
+
 // Avoids floating-point artifacts (0.1 * 3 = 0.30000000000000004) and trims
 // to at most 2 decimal places - every realistic base amount stays clean
 // under integer serving multiplication. NOT reused by domain/parts.js's

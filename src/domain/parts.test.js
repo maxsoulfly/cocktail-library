@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest"
-import { computePartsRatio } from "./parts"
+import {
+  computePartsRatio,
+  formatPartsAmount,
+  hasConflictingPartsUnits,
+} from "./parts"
 
 function ml(amount) {
   return { amount, unitLabel: "ml" }
@@ -72,5 +76,36 @@ describe("computePartsRatio", () => {
     const base = computePartsRatio([ml(60), ml(30)])
     const scaledTo2Servings = computePartsRatio([ml(120), ml(60)])
     expect(scaledTo2Servings).toEqual(base)
+  })
+})
+
+describe("formatPartsAmount", () => {
+  it("pluralizes for anything other than exactly 1", () => {
+    expect(formatPartsAmount(1)).toBe("1 part")
+    expect(formatPartsAmount(2)).toBe("2 parts")
+  })
+})
+
+describe("hasConflictingPartsUnits", () => {
+  it("is false for a pure-volume recipe (a normal computed ratio applies)", () => {
+    expect(hasConflictingPartsUnits([ml(60), ml(30)])).toBe(false)
+  })
+
+  it("is false for a pure-manual-parts recipe (no ml at all to conflict with)", () => {
+    expect(
+      hasConflictingPartsUnits([nonVolume("2 part"), nonVolume("1 part")]),
+    ).toBe(false)
+  })
+
+  it("is false for a recipe with ml plus unrelated non-volume units (dash/top-up don't conflict)", () => {
+    expect(
+      hasConflictingPartsUnits([ml(60), ml(30), nonVolume("2 dashes")]),
+    ).toBe(false)
+  })
+
+  it("is true when a recipe mixes stored ml with a manually-typed part component", () => {
+    expect(
+      hasConflictingPartsUnits([ml(60), ml(30), nonVolume("1 part")]),
+    ).toBe(true)
   })
 })
