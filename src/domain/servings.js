@@ -52,7 +52,11 @@ function isRatioUnit(word) {
 
 // Avoids floating-point artifacts (0.1 * 3 = 0.30000000000000004) and trims
 // to at most 2 decimal places - every realistic base amount stays clean
-// under integer serving multiplication.
+// under integer serving multiplication. NOT reused by domain/parts.js's
+// ratio computation - that needs the exact stored value, not a display-
+// rounded one (this rounds 1.125 to 1.13, a different number, not merely a
+// display simplification of the same one - a real bug once it was reused
+// there for something it wasn't designed for).
 function round2(n) {
   return Math.round(n * 100) / 100
 }
