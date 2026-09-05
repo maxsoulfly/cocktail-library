@@ -21,18 +21,17 @@ import {
   FilterChip,
   SectionTitle,
 } from "@/components/primitives"
-import { AVAIL_FILTERS, SOURCE_FILTERS } from "@/data/constants"
+import { AVAIL_FILTERS, SORT_FILTERS, SOURCE_FILTERS } from "@/data/constants"
 import { findRecipesUsingIngredient } from "@/domain/ingredientRecipeMatches"
 
-// "Show my cocktails" (Build Your Bar) deep-links here with ?sort=availability
-// - prioritizes real matches without hiding anything, unlike a filter: an
-// almost-match stays visible immediately as a useful fallback the moment
-// there aren't many complete ones yet, and "Browse cocktails" (plain
-// /library, no param) stays byte-for-byte the existing unsorted experience.
-// Grouped rendering below supersedes a flat sort entirely - real section
-// breaks communicate the same "available first" priority more clearly than
-// ordering alone did (Stage 3), so there's no separate sort step to keep in
-// sync with this order.
+// Availability grouping is now the default Library view (plain /library
+// included) - grouped section breaks communicate "available first" more
+// clearly than a flat alphabetical list. "Show my cocktails" (Build Your
+// Bar) and ingredient/product "View all" both still deep-link with the
+// original ?sort=availability, which keeps working since any value other
+// than "name" means availability (see sortMode below). Name A-Z is the
+// other option, picked via the visible Sort control - not a third silent
+// default, an explicit member choice.
 const AVAIL_GROUP_ORDER = ["perfect", "good", "almost", "unavail"]
 // Matches HomeScreen.jsx's own section names exactly, for the same
 // availability tiers - AVAIL_CFG's own `label` ("Perfect", not "Ready to
@@ -49,24 +48,42 @@ export default function LibraryScreen() {
   const navigate = useNavigate()
   const { computed, catalog } = useOutletContext()
   const { tasteTags } = catalog
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   // Deep-link support (?source=classic) for the Admin dashboard's stat
   // cards - read once on mount as the initial filter state, not kept in
   // sync afterward, so a member adjusting filters here doesn't fight with
   // the URL on every click.
   const initialSource = searchParams.get("source")
-  // No interactive UI toggles this within Library itself (unlike the
-  // filters below), so it's just read directly each render rather than
-  // captured into its own state - the URL won't change mid-visit outside
-  // a manual address-bar edit.
-  const sortByAvailability = searchParams.get("sort") === "availability"
+  // Read directly from the URL each render (not captured into its own
+  // state) so it stays in sync both ways: the Sort control below writes it
+  // via setSortMode, and an external deep link (?sort=availability from
+  // "Show my cocktails", or "View all"'s ?sort=availability&ingredient=...)
+  // is picked up correctly on arrival too. Anything other than "name" means
+  // availability - plain /library (no param at all) and the pre-existing
+  // "?sort=availability" links both land here unchanged.
+  const sortMode = searchParams.get("sort") === "name" ? "name" : "availability"
+  const currentSort = SORT_FILTERS.find((f) => f.key === sortMode)
+  // Switching modes preserves every other query param (ingredient, source,
+  // focus, ...) - only "sort" itself changes. Availability is the default,
+  // so choosing it drops the param entirely rather than writing back the
+  // canonical "?sort=availability" - keeps the URL at its simplest form
+  // without changing behavior (any missing/non-"name" value already means
+  // availability).
+  const setSortMode = (mode) => {
+    const next = new URLSearchParams(searchParams)
+    if (mode === "name") {
+      next.set("sort", "name")
+    } else {
+      next.delete("sort")
+    }
+    setSearchParams(next, { replace: true })
+  }
   // "View all" (the ingredient/bottle detail page, Stage 3) deep-links here
   // with ?ingredient=<typeId> - matching always runs against the resolved
   // type, per the approved requirement, regardless of whether the origin
-  // page was viewing a generic type or a specific product. Same "no
-  // interactive UI toggles this" reasoning as sortByAvailability above -
-  // read directly, not captured into removable filter-chip state, matching
-  // this file's existing precedent for a deep-link-only filter.
+  // page was viewing a generic type or a specific product. Read directly,
+  // not captured into removable filter-chip state, matching this file's
+  // existing precedent for a deep-link-only filter.
   const ingredientId = searchParams.get("ingredient")
   const ingredientMatchIds = useMemo(() => {
     if (!ingredientId) return null
@@ -98,6 +115,8 @@ export default function LibraryScreen() {
   const [availPickerOpen, setAvailPickerOpen] = useState(false)
   const availTriggerRef = useRef(null)
   const currentAvail = AVAIL_FILTERS.find((f) => f.key === availFilter)
+  const [sortPickerOpen, setSortPickerOpen] = useState(false)
+  const sortTriggerRef = useRef(null)
 
   const toggleArr = (arr, val, set) =>
     set(arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val])
@@ -134,19 +153,28 @@ export default function LibraryScreen() {
 
   // Grouped rendering only ever applies on top of the already-filtered set
   // above - search/availFilter/sourceFilters/tasteFilters all still run
-  // first, exactly as they do for plain Browse. Empty tiers are dropped
+  // first, exactly as they do for the flat view. Empty tiers are dropped
   // entirely (not rendered as an empty heading) rather than filtered out of
   // `filtered` itself, so the "No cocktails found" empty state below still
   // only fires when there's truly nothing to show, grouped or not.
   const groups = useMemo(() => {
-    if (!sortByAvailability) return null
+    if (sortMode !== "availability") return null
     const byTier = { perfect: [], good: [], almost: [], unavail: [] }
     filtered.forEach((c) => byTier[c.avail]?.push(c))
     return AVAIL_GROUP_ORDER.map((tier) => ({
       tier,
       items: byTier[tier],
     })).filter((g) => g.items.length > 0)
-  }, [filtered, sortByAvailability])
+  }, [filtered, sortMode])
+
+  // Name A-Z: the same already-filtered set, just alphabetically ordered
+  // instead of grouped. Only actually used when sortMode is "name" (the
+  // grouped branch takes over otherwise), computed unconditionally since
+  // hooks can't be called conditionally.
+  const sortedFlat = useMemo(
+    () => [...filtered].sort((a, b) => a.name.localeCompare(b.name)),
+    [filtered],
+  )
 
   return (
     <div className="pb-[calc(96px_+_env(safe-area-inset-bottom,0px))]">
@@ -196,6 +224,17 @@ export default function LibraryScreen() {
             <span className="text-[13px] text-cyan">{currentAvail.label}</span>
             <IconChevD size={14} className="text-tx3" />
           </button>
+          <button
+            ref={sortTriggerRef}
+            type="button"
+            onClick={() => setSortPickerOpen(true)}
+            className="flex items-center gap-2 py-2 px-3 bg-surface border border-bdr rounded-full cursor-pointer w-fit"
+          >
+            <span className="text-[13px] text-tx3">
+              Sort <span className="text-cyan">{currentSort.label}</span>
+            </span>
+            <IconChevD size={14} className="text-tx3" />
+          </button>
           {SOURCE_FILTERS.map((f) => (
             <FilterChip
               key={f.key}
@@ -240,6 +279,26 @@ export default function LibraryScreen() {
               onClick={() => {
                 setAvailFilter(f.key)
                 setAvailPickerOpen(false)
+              }}
+            />
+          ))}
+        </div>
+      </BottomSheet>
+      <BottomSheet
+        open={sortPickerOpen}
+        onClose={() => setSortPickerOpen(false)}
+        title="Sort by"
+        anchorRef={sortTriggerRef}
+      >
+        <div className="flex gap-2 flex-wrap">
+          {SORT_FILTERS.map((f) => (
+            <FilterChip
+              key={f.key}
+              label={f.label}
+              active={sortMode === f.key}
+              onClick={() => {
+                setSortMode(f.key)
+                setSortPickerOpen(false)
               }}
             />
           ))}
@@ -297,7 +356,7 @@ export default function LibraryScreen() {
         </div>
       ) : (
         <div className="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
-          {filtered.map((c) => (
+          {sortedFlat.map((c) => (
             <CocktailCard
               key={c.id}
               c={c}

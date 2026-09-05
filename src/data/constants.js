@@ -15,6 +15,14 @@ export const SOURCE_FILTERS = [
   { key: "private", label: "Private" },
 ]
 
+// Library's Sort control. "availability" is the default (plain /library, or
+// any ?sort value other than "name" - keeps the original ?sort=availability
+// deep link working unchanged); "name" is the flat alphabetical view.
+export const SORT_FILTERS = [
+  { key: "availability", label: "Availability" },
+  { key: "name", label: "Name A-Z" },
+]
+
 // "part" isn't in the spec's explicit semantic-unit list (§9: dash,
 // barspoon, piece, slice, wedge, top-up) but is a very common real cocktail
 // unit for ratio-based recipes ("1 part gin, 1 part vermouth") - added per
