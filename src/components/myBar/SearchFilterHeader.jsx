@@ -1,4 +1,5 @@
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { useSearchParams } from "react-router-dom"
 import { IconChevD, IconPlus, IconSearch } from "@/components/icons"
 import { IngredientIcon } from "@/components/IngredientIcon"
 import { BottomSheet, FilterChip } from "@/components/primitives"
@@ -26,6 +27,16 @@ export function SearchFilterHeader({
   const [catPickerOpen, setCatPickerOpen] = useState(false)
   const catTriggerRef = useRef(null)
   const currentShape = categoryShapeByName.get(cat)
+
+  // Same ?focus=1 -> autofocus convention LibraryScreen already uses for
+  // Home's "Search cocktails..." button - "Find more ingredients" links here
+  // as /bar?focus=1 (Build Your Bar, later stage) so a tap doesn't cost a
+  // second tap to actually start typing.
+  const [searchParams] = useSearchParams()
+  const searchInputRef = useRef(null)
+  useEffect(() => {
+    if (searchParams.get("focus")) searchInputRef.current?.focus()
+  }, [searchParams])
   return (
     <div className="pt-4 px-4 pb-0 bg-bg2 border-b border-bdr sticky top-0 z-10 backdrop-blur-md">
       <div className="flex gap-2 mb-3">
@@ -35,6 +46,7 @@ export function SearchFilterHeader({
             className="absolute left-3 top-1/2 -translate-y-1/2 text-tx3"
           />
           <input
+            ref={searchInputRef}
             placeholder="Search ingredients..."
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
