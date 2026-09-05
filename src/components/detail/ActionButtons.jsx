@@ -14,6 +14,7 @@ import { buildRecipeShareText } from "./recipeShareText"
 export function ActionButtons({
   c,
   unit,
+  servings,
   isOwner,
   canEdit,
   canManage,
@@ -26,7 +27,9 @@ export function ActionButtons({
   const [linkCopied, setLinkCopied] = useState(false)
 
   const handleCopyRecipe = () => {
-    navigator.clipboard.writeText(buildRecipeShareText(c, unit)).catch(() => {})
+    navigator.clipboard
+      .writeText(buildRecipeShareText(c, unit, servings))
+      .catch(() => {})
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }

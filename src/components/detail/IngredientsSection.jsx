@@ -1,6 +1,7 @@
 import clsx from "clsx"
 import { SectionTitle } from "@/components/primitives"
 import { formatAmount } from "@/domain/availability"
+import { scaleIngredientAmount } from "@/domain/servings"
 
 export function IngredientsSection({
   ings,
@@ -9,6 +10,7 @@ export function IngredientsSection({
   owned,
   unit,
   setUnit,
+  servings,
 }) {
   return (
     <div>
@@ -68,7 +70,7 @@ export function IngredientsSection({
                     )}
                   </span>
                   <span className="text-[13px] font-mono text-tx2 whitespace-nowrap">
-                    {formatAmount(ri, unit)}
+                    {formatAmount(scaleIngredientAmount(ri, servings), unit)}
                   </span>
                 </div>
               )

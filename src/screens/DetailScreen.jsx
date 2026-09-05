@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import clsx from "clsx"
 import { useNavigate, useOutletContext, useParams } from "react-router-dom"
 import { IconBookmark, IconHeart } from "@/components/icons"
@@ -6,6 +6,7 @@ import { TopBar } from "@/components/Nav"
 import { ActionButtons } from "@/components/detail/ActionButtons"
 import { HeroCard } from "@/components/detail/HeroCard"
 import { IngredientsSection } from "@/components/detail/IngredientsSection"
+import { ServingsSelector } from "@/components/detail/ServingsSelector"
 import { StepsSection } from "@/components/detail/StepsSection"
 import { Btn, ConfirmPanel } from "@/components/primitives"
 import {
@@ -38,6 +39,14 @@ export default function DetailScreen() {
   const [publishing, setPublishing] = useState(false)
   const [unpublishing, setUnpublishing] = useState(false)
   const [actionError, setActionError] = useState(null)
+  // Local, not persisted like the ml/oz unit preference - "how many am I
+  // making right now" is per-visit, not a saved setting. Reset whenever the
+  // recipe itself changes (id) so navigating from one recipe to another
+  // doesn't carry a stale serving count over via this still-mounted screen.
+  const [servings, setServings] = useState(1)
+  useEffect(() => {
+    setServings(1)
+  }, [id])
 
   const c = computed.find((item) => item.id === id)
 
@@ -155,6 +164,8 @@ export default function DetailScreen() {
           <p className="text-sm text-tx2 leading-[1.6]">{c.description}</p>
         </div>
 
+        <ServingsSelector servings={servings} onChange={setServings} />
+
         <IngredientsSection
           ings={c.ings}
           substitutions={c.substitutions}
@@ -162,6 +173,7 @@ export default function DetailScreen() {
           owned={owned}
           unit={unit}
           setUnit={setUnit}
+          servings={servings}
         />
 
         <StepsSection steps={c.steps} />
@@ -169,6 +181,7 @@ export default function DetailScreen() {
         <ActionButtons
           c={c}
           unit={unit}
+          servings={servings}
           isOwner={isOwner}
           canEdit={canEdit}
           canManage={canManage}
