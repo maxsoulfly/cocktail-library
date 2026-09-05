@@ -22,6 +22,7 @@ import {
   SectionTitle,
 } from "@/components/primitives"
 import { AVAIL_FILTERS, SOURCE_FILTERS } from "@/data/constants"
+import { findRecipesUsingIngredient } from "@/domain/ingredientRecipeMatches"
 
 // "Show my cocktails" (Build Your Bar) deep-links here with ?sort=availability
 // - prioritizes real matches without hiding anything, unlike a filter: an
@@ -59,6 +60,23 @@ export default function LibraryScreen() {
   // captured into its own state - the URL won't change mid-visit outside
   // a manual address-bar edit.
   const sortByAvailability = searchParams.get("sort") === "availability"
+  // "View all" (the ingredient/bottle detail page, Stage 3) deep-links here
+  // with ?ingredient=<typeId> - matching always runs against the resolved
+  // type, per the approved requirement, regardless of whether the origin
+  // page was viewing a generic type or a specific product. Same "no
+  // interactive UI toggles this" reasoning as sortByAvailability above -
+  // read directly, not captured into removable filter-chip state, matching
+  // this file's existing precedent for a deep-link-only filter.
+  const ingredientId = searchParams.get("ingredient")
+  const ingredientMatchIds = useMemo(() => {
+    if (!ingredientId) return null
+    const matches = findRecipesUsingIngredient(
+      computed,
+      { typeId: ingredientId },
+      { types: catalog.types, products: catalog.products },
+    )
+    return new Set(matches.map((m) => m.id))
+  }, [computed, ingredientId, catalog.types, catalog.products])
   const [query, setQuery] = useState("")
   const searchInputRef = useRef(null)
   // Home's own search bar is just a styled button, not a real input (it
@@ -87,6 +105,7 @@ export default function LibraryScreen() {
   const filtered = useMemo(
     () =>
       computed.filter((c) => {
+        if (ingredientMatchIds && !ingredientMatchIds.has(c.id)) return false
         if (
           query &&
           !c.name.toLowerCase().includes(query.toLowerCase()) &&
@@ -103,7 +122,14 @@ export default function LibraryScreen() {
           return false
         return true
       }),
-    [computed, query, availFilter, sourceFilters, tasteFilters],
+    [
+      computed,
+      ingredientMatchIds,
+      query,
+      availFilter,
+      sourceFilters,
+      tasteFilters,
+    ],
   )
 
   // Grouped rendering only ever applies on top of the already-filtered set

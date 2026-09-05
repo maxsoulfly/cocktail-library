@@ -22,6 +22,7 @@ import AdminScreen from "@/screens/AdminScreen"
 import DetailScreen from "@/screens/DetailScreen"
 import EditorScreen from "@/screens/EditorScreen"
 import HomeScreen from "@/screens/HomeScreen"
+import IngredientDetailScreen from "@/screens/IngredientDetailScreen"
 import JoinScreen from "@/screens/JoinScreen"
 import LibraryScreen from "@/screens/LibraryScreen"
 import ListsScreen from "@/screens/ListsScreen"
@@ -370,6 +371,20 @@ function AuthenticatedApp() {
         <Route path="/library/:id/edit" element={<EditorScreen />} />
         <Route path="/bar" element={<MyBarScreen />} />
         <Route path="/bar/add" element={<AddProductScreen />} />
+        {/* Two routes, one screen - `kind` tells IngredientDetailScreen
+            which id flavor it received rather than sniffing the path.
+            Not yet linked from anywhere (Stage 4 wires My Bar's tap-to-view
+            behavior) - reachable by direct URL only for now, same "ship
+            inert, wire later" pattern as every other multi-stage feature
+            in this app. */}
+        <Route
+          path="/bar/type/:id"
+          element={<IngredientDetailScreen kind="type" />}
+        />
+        <Route
+          path="/bar/product/:id"
+          element={<IngredientDetailScreen kind="product" />}
+        />
         <Route
           path="/request-ingredient"
           element={<RequestIngredientScreen />}
