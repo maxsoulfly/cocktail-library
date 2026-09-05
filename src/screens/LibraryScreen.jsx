@@ -16,6 +16,13 @@ import {
 import { BottomSheet, Btn, FilterChip } from "@/components/primitives"
 import { AVAIL_FILTERS, SOURCE_FILTERS } from "@/data/constants"
 
+// "Show my cocktails" (Build Your Bar) deep-links here with ?sort=availability
+// - prioritizes real matches without hiding anything, unlike a filter: an
+// almost-match stays visible immediately as a useful fallback the moment
+// there aren't many complete ones yet, and "Browse cocktails" (plain
+// /library, no param) stays byte-for-byte the existing unsorted experience.
+const AVAIL_SORT_RANK = { perfect: 0, good: 1, almost: 2, unavail: 3 }
+
 export default function LibraryScreen() {
   const navigate = useNavigate()
   const { computed, catalog } = useOutletContext()
@@ -26,6 +33,11 @@ export default function LibraryScreen() {
   // sync afterward, so a member adjusting filters here doesn't fight with
   // the URL on every click.
   const initialSource = searchParams.get("source")
+  // No interactive UI toggles this within Library itself (unlike the
+  // filters below), so it's just read directly each render rather than
+  // captured into its own state - the URL won't change mid-visit outside
+  // a manual address-bar edit.
+  const sortByAvailability = searchParams.get("sort") === "availability"
   const [query, setQuery] = useState("")
   const searchInputRef = useRef(null)
   // Home's own search bar is just a styled button, not a real input (it
@@ -51,27 +63,37 @@ export default function LibraryScreen() {
   const toggleArr = (arr, val, set) =>
     set(arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val])
 
-  const filtered = useMemo(
-    () =>
-      computed.filter((c) => {
-        if (
-          query &&
-          !c.name.toLowerCase().includes(query.toLowerCase()) &&
-          !c.taste.some((t) => t.toLowerCase().includes(query.toLowerCase()))
-        )
-          return false
-        if (availFilter !== "all" && c.avail !== availFilter) return false
-        if (sourceFilters.length && !sourceFilters.includes(c.source))
-          return false
-        if (
-          tasteFilters.length &&
-          !tasteFilters.some((t) => c.taste.includes(t))
-        )
-          return false
-        return true
-      }),
-    [computed, query, availFilter, sourceFilters, tasteFilters],
-  )
+  const filtered = useMemo(() => {
+    const matches = computed.filter((c) => {
+      if (
+        query &&
+        !c.name.toLowerCase().includes(query.toLowerCase()) &&
+        !c.taste.some((t) => t.toLowerCase().includes(query.toLowerCase()))
+      )
+        return false
+      if (availFilter !== "all" && c.avail !== availFilter) return false
+      if (sourceFilters.length && !sourceFilters.includes(c.source))
+        return false
+      if (tasteFilters.length && !tasteFilters.some((t) => c.taste.includes(t)))
+        return false
+      return true
+    })
+    if (!sortByAvailability) return matches
+    // .filter() always returns a fresh array, so sorting it in place here
+    // is safe - nothing else holds a reference to `matches`. Array.sort is
+    // spec-guaranteed stable, so cocktails within the same tier keep their
+    // original relative order.
+    return matches.sort(
+      (a, b) => AVAIL_SORT_RANK[a.avail] - AVAIL_SORT_RANK[b.avail],
+    )
+  }, [
+    computed,
+    query,
+    availFilter,
+    sourceFilters,
+    tasteFilters,
+    sortByAvailability,
+  ])
 
   return (
     <div className="pb-[calc(96px_+_env(safe-area-inset-bottom,0px))]">

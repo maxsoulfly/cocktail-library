@@ -58,6 +58,14 @@ export function BuildYourBar({ catalog, inventory, computed }) {
     (c) => c.avail === "perfect" || c.avail === "good",
   ).length
 
+  // This section only ever renders when the bar started empty this visit
+  // (see HomeScreen.jsx's per-visit snapshot), so any ownership present now
+  // can only have come from a tap made during this same visit - "contains a
+  // selection" reduces to a plain non-empty check, no separate "did the
+  // user pick something" flag needed.
+  const hasSelection =
+    inventory.ownedTypeIds.size > 0 || inventory.ownedProductIds.size > 0
+
   const renderTile = (type) => (
     <TypeCard
       key={type.id}
@@ -126,9 +134,25 @@ export function BuildYourBar({ catalog, inventory, computed }) {
         now. Includes substitutions.
       </p>
 
-      <Btn variant="ghost" full onClick={() => navigate("/bar?focus=1")}>
-        Find more ingredients
-      </Btn>
+      <div className="flex flex-col gap-2">
+        {/* Only rendered once there's something to show for - avoids a
+            dead/disabled button on the first paint of an empty-bar
+            homepage. Primary (not ghost) styling: once a selection exists
+            this is the natural next action, and needs to read as clearly
+            visible/tappable on a phone, not a secondary afterthought. */}
+        {hasSelection && (
+          <Btn
+            variant="primary"
+            full
+            onClick={() => navigate("/library?sort=availability")}
+          >
+            Show my cocktails
+          </Btn>
+        )}
+        <Btn variant="ghost" full onClick={() => navigate("/bar?focus=1")}>
+          Find more ingredients
+        </Btn>
+      </div>
     </div>
   )
 }
