@@ -13,7 +13,14 @@ import {
   IconPlus,
   IconSearch,
 } from "@/components/icons"
-import { BottomSheet, Btn, FilterChip } from "@/components/primitives"
+import {
+  AVAIL_CFG,
+  AVAIL_TONE,
+  BottomSheet,
+  Btn,
+  FilterChip,
+  SectionTitle,
+} from "@/components/primitives"
 import { AVAIL_FILTERS, SOURCE_FILTERS } from "@/data/constants"
 
 // "Show my cocktails" (Build Your Bar) deep-links here with ?sort=availability
@@ -21,7 +28,21 @@ import { AVAIL_FILTERS, SOURCE_FILTERS } from "@/data/constants"
 // almost-match stays visible immediately as a useful fallback the moment
 // there aren't many complete ones yet, and "Browse cocktails" (plain
 // /library, no param) stays byte-for-byte the existing unsorted experience.
-const AVAIL_SORT_RANK = { perfect: 0, good: 1, almost: 2, unavail: 3 }
+// Grouped rendering below supersedes a flat sort entirely - real section
+// breaks communicate the same "available first" priority more clearly than
+// ordering alone did (Stage 3), so there's no separate sort step to keep in
+// sync with this order.
+const AVAIL_GROUP_ORDER = ["perfect", "good", "almost", "unavail"]
+// Matches HomeScreen.jsx's own section names exactly, for the same
+// availability tiers - AVAIL_CFG's own `label` ("Perfect", not "Ready to
+// Pour") is a different, shorter string used on the per-card badge, kept
+// as-is; these are the group headings specifically.
+const AVAIL_GROUP_LABEL = {
+  perfect: "Ready to Pour",
+  good: "Good Enough",
+  almost: "Almost There",
+  unavail: "Unavailable",
+}
 
 export default function LibraryScreen() {
   const navigate = useNavigate()
@@ -63,37 +84,43 @@ export default function LibraryScreen() {
   const toggleArr = (arr, val, set) =>
     set(arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val])
 
-  const filtered = useMemo(() => {
-    const matches = computed.filter((c) => {
-      if (
-        query &&
-        !c.name.toLowerCase().includes(query.toLowerCase()) &&
-        !c.taste.some((t) => t.toLowerCase().includes(query.toLowerCase()))
-      )
-        return false
-      if (availFilter !== "all" && c.avail !== availFilter) return false
-      if (sourceFilters.length && !sourceFilters.includes(c.source))
-        return false
-      if (tasteFilters.length && !tasteFilters.some((t) => c.taste.includes(t)))
-        return false
-      return true
-    })
-    if (!sortByAvailability) return matches
-    // .filter() always returns a fresh array, so sorting it in place here
-    // is safe - nothing else holds a reference to `matches`. Array.sort is
-    // spec-guaranteed stable, so cocktails within the same tier keep their
-    // original relative order.
-    return matches.sort(
-      (a, b) => AVAIL_SORT_RANK[a.avail] - AVAIL_SORT_RANK[b.avail],
-    )
-  }, [
-    computed,
-    query,
-    availFilter,
-    sourceFilters,
-    tasteFilters,
-    sortByAvailability,
-  ])
+  const filtered = useMemo(
+    () =>
+      computed.filter((c) => {
+        if (
+          query &&
+          !c.name.toLowerCase().includes(query.toLowerCase()) &&
+          !c.taste.some((t) => t.toLowerCase().includes(query.toLowerCase()))
+        )
+          return false
+        if (availFilter !== "all" && c.avail !== availFilter) return false
+        if (sourceFilters.length && !sourceFilters.includes(c.source))
+          return false
+        if (
+          tasteFilters.length &&
+          !tasteFilters.some((t) => c.taste.includes(t))
+        )
+          return false
+        return true
+      }),
+    [computed, query, availFilter, sourceFilters, tasteFilters],
+  )
+
+  // Grouped rendering only ever applies on top of the already-filtered set
+  // above - search/availFilter/sourceFilters/tasteFilters all still run
+  // first, exactly as they do for plain Browse. Empty tiers are dropped
+  // entirely (not rendered as an empty heading) rather than filtered out of
+  // `filtered` itself, so the "No cocktails found" empty state below still
+  // only fires when there's truly nothing to show, grouped or not.
+  const groups = useMemo(() => {
+    if (!sortByAvailability) return null
+    const byTier = { perfect: [], good: [], almost: [], unavail: [] }
+    filtered.forEach((c) => byTier[c.avail]?.push(c))
+    return AVAIL_GROUP_ORDER.map((tier) => ({
+      tier,
+      items: byTier[tier],
+    })).filter((g) => g.items.length > 0)
+  }, [filtered, sortByAvailability])
 
   return (
     <div className="pb-[calc(96px_+_env(safe-area-inset-bottom,0px))]">
@@ -214,6 +241,33 @@ export default function LibraryScreen() {
           >
             Clear filters
           </Btn>
+        </div>
+      ) : groups ? (
+        <div className="p-4 flex flex-col gap-6">
+          {groups.map(({ tier, items }) => (
+            <div key={tier}>
+              <div className="flex items-center justify-between mb-3">
+                <SectionTitle>{AVAIL_GROUP_LABEL[tier]}</SectionTitle>
+                <span
+                  className={clsx(
+                    "text-xs font-mono flex items-center gap-1",
+                    AVAIL_TONE[tier],
+                  )}
+                >
+                  {AVAIL_CFG[tier].icon} {items.length}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                {items.map((c) => (
+                  <CocktailCard
+                    key={c.id}
+                    c={c}
+                    onClick={() => navigate(`/library/${c.id}`)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
         <div className="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
