@@ -53,7 +53,7 @@ Otherwise unrelated, still open from Phase 6, none blocking:
 
 **Stage 3's own test/build/format results, run 2026-09-06 and reported in chat but not yet recorded in this file until now**: `pnpm test` — 182/182 passing (no new domain logic - pure UI composition around Stage 1's already-tested `findRecipesUsingIngredient`). `pnpm build` clean. `pnpm format` clean.
 
-**Verified 2026-09-06 (Stage 4)**: `pnpm test` — 182/182 passing (unchanged - no domain logic touched this stage either, pure prop-wiring across three UI files). `pnpm build` clean. `pnpm format` clean (one purely cosmetic multi-line reformat of `TypeCard.jsx`'s `aria-label` ternary, no logic change). `git status --short`/`git diff --stat` confirmed exactly the 4 intended files changed (`TypeCard.jsx`, `BuildYourBar.jsx`, `MyBarScreen.jsx`, `ExpandedProducts.jsx`) - no drift into unrelated files.
+**Verified 2026-09-06 (Stage 4)**: `pnpm test` — 182/182 passing (unchanged - no domain logic touched this stage either, pure prop-wiring across three UI files). `pnpm build` clean. `pnpm format` clean (one purely cosmetic multi-line reformat of `TypeCard.jsx`'s `aria-label` ternary, no logic change). `git status --short`/`git diff --stat` confirmed exactly the 4 intended files changed (`TypeCard.jsx`, `BuildYourBar.jsx`, `MyBarScreen.jsx`, `ExpandedProducts.jsx`) - no drift into unrelated files. Committed as `7dc95c8`.
 
 **Manual mobile checklist (combined Stage 3 + Stage 4 - Stage 3's entry points didn't exist until this stage, so both are verified together):**
 
