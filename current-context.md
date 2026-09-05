@@ -54,7 +54,7 @@ Otherwise unrelated, still open from Phase 6, none blocking:
 - **No other UX decision layered in** - no alphabetical toggle beyond the one requested, no new filter chip, no change to the existing availability-filter picker or source/taste chips.
 - Mobile Cocktails tab (`Nav.jsx` → plain `/library`), Home's "Browse cocktails", "Show my cocktails", and ingredient/product "View all" all now consistently land on the grouped view - confirmed by reading each entry point's actual `navigate()` call rather than assumed, and by the fact `sortMode`'s default covers plain `/library` with zero per-entry-point changes needed.
 
-**Verified 2026-09-06**: `pnpm test` — 182/182 passing (unchanged - no domain logic touched, this is a plain `Array.prototype.sort` by name plus URL-param wiring, the same category of change as Build Your Bar's own availability sort). `pnpm build` clean. `pnpm format` clean (one trivial single-line import reformat). `git status --short`/`git diff --stat` confirmed exactly the 2 intended files changed (`LibraryScreen.jsx`, `src/data/constants.js`).
+**Verified 2026-09-06**: `pnpm test` — 182/182 passing (unchanged - no domain logic touched, this is a plain `Array.prototype.sort` by name plus URL-param wiring, the same category of change as Build Your Bar's own availability sort). `pnpm build` clean. `pnpm format` clean (one trivial single-line import reformat). `git status --short`/`git diff --stat` confirmed exactly the 2 intended files changed (`LibraryScreen.jsx`, `src/data/constants.js`). Committed as `792afac`.
 
 **Manual mobile checklist (Library default view + Sort control - covers all four entry points plus the new control itself):**
 
