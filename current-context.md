@@ -22,13 +22,12 @@ Agreed phase plan (revised by user on 2026-08-15 — private recipe CRUD moved i
 
 Each numbered step is a development chunk boundary for this file.
 
-## Exact next action (paused here, 2026-09-05 — Stage 2 committed, awaiting the user's manual mobile verification before Stage 3)
+## Exact next action (paused here, 2026-09-05 — Stage 2 done and browser-verified, awaiting approval for Stage 3)
 
-**Serving-size selector + parts: Stage 2 is code-complete, tested, built, and committed - but not yet browser/mobile-verified.** Attempted an automated headless-Chromium check (installed a local Playwright/Chromium for this, cached at `C:\Users\Max\AppData\Local\ms-playwright` - harmless to leave, no project dependency added) but hit a real blocker: this app is invite-only, so there's no way to reach an authenticated screen without either real credentials (which weren't available and shouldn't be guessed/found by the agent) or a fresh invitation code the user would need to generate. The user opted to check it manually themselves (on an iPhone) rather than hand over a login. A manual checklist was written out in this conversation (not duplicated into this file - see the transcript, or ask the user to re-share their findings) covering: 44x44px touch-target sizing, ml/dash/legacy-unit scaling correctness on the real "Old Fashioned" recipe, oz-toggle-while-scaled correctness, servings resetting to 1 when navigating to a different recipe, and Copy Recipe including a "Servings: N" line with scaled amounts. **Resume here**: get the user's manual verification results; fix anything they find; only then start Stage 3.
+**Serving-size selector + parts: Stage 2 is code-complete, tested, built, committed, and now browser/mobile-verified by the user on a real iPhone, 2026-09-05.** Automated headless-Chromium verification wasn't possible (invite-only app, no credentials available to the agent, see the earlier chunk below for the full story) - the user ran the manual checklist themselves instead. **All checks passed**: 44x44px touch targets, ml/dash/legacy-unit scaling correctness (Old Fashioned: bourbon/dashes/cube all scaled right), oz-toggle-while-scaled, servings resetting to 1 when navigating between recipes, Copy Recipe matching on-screen quantities and including the new "Servings: N" line, descriptive (non-scaling) quantities staying put, and the public share page correctly showing no servings control. No bugs found - nothing to fix before Stage 3. **Resume here**: get the user's explicit go-ahead, then start Stage 3 (parts ratio computation, pure domain logic - no UI yet).
 
-Three requirements the user attached to *later* stages, not yet due but must not be dropped:
+Two requirements the user attached to *later* stages, not yet due but must not be dropped:
 
-- ~~Serving-control touch targets must be at least 44×44px~~ - implemented in Stage 2 (`ServingsSelector.jsx`, `w-11 h-11` = 44px at this app's 4px Tailwind spacing scale), not yet independently browser-confirmed against the real rendered box model (part of the pending manual check above).
 - **Before Stage 4 (parts display mode UI), define an explicit fallback for a recipe that mixes stored-ml components with manually-entered `"part"`-unit components.** The user was explicit: never imply they share one common part size - the computed ratio (from ml) and any manually-typed "2 part" component are not on the same scale and must not be silently merged onto one. Needs its own short design note before Stage 4 starts, not just an implementation detail decided in the moment.
 - **Copy Recipe text in parts mode must explain the numbers are a ratio, not an absolute amount** - a bare "2 servings" label on its own isn't enough context once the recipe is pasted somewhere without the app's UI around it (Stage 4).
 
@@ -53,7 +52,15 @@ Otherwise unrelated, still open from Phase 6, none blocking:
 
 **Verified 2026-09-05**: `pnpm test` — 138/138 passing (unchanged - no domain logic touched this stage, all new logic is UI wiring around Stage 1's already-tested function). `pnpm build` clean. `pnpm format` clean.
 
-**Not yet browser/mobile-verified.** Tried to verify this myself with a headless Chromium (installed locally for this, see "Exact next action" above) but hit a real wall: the app is invite-only and I don't have (and won't guess or search for) real login credentials, and self-signup can't reach a working membership without a real invitation code. The user chose to verify manually on their own iPhone instead of sharing a login. A manual checklist was handed to the user in this conversation (44x44px sizing, ml/dash/legacy-unit scaling on the real "Old Fashioned" recipe, oz-toggle-while-scaled, servings-resets-on-navigation, Copy Recipe's new Servings line) - **results pending**, must come back clean (or be fixed) before Stage 3 starts.
+**Browser/mobile-verified by the user on a real iPhone, 2026-09-05 - all checks passed, no bugs found.** Automated verification wasn't possible: tried a headless Chromium first (installed locally for this) but hit a real wall - the app is invite-only and I don't have (and won't guess or search for) real login credentials, and self-signup can't reach a working membership without a real invitation code. The user verified manually instead, against a written checklist covering:
+
+- 44x44px touch targets on the `−`/`+` buttons - confirmed.
+- Scaling correctness on the real "Old Fashioned" recipe (bourbon 60ml, Angostura Bitters "2 dashes", White Sugar "1 cube") across 1/2/3 servings and back down to 1 - confirmed, including the known "2 cube" (not "cubes") legacy-word quirk behaving exactly as documented, not as a surprise.
+- ml/oz toggle while scaled (confirms the ml amount is scaled *then* converted, not converted-then-stuck-at-base) - confirmed.
+- Servings resets to 1 when navigating from one recipe to another (`DetailScreen`'s `useEffect` keyed on `id`) - confirmed.
+- Copy Recipe includes the new `Servings: N` line and matches on-screen scaled quantities - confirmed.
+- Descriptive/non-scaling quantities stay unchanged at any serving count - confirmed.
+- Public `/share/:id` page has no servings control and always shows the base recipe - confirmed.
 
 ## Earlier chunk (Serving-size selector + parts, Stage 1: shared scaling logic)
 
@@ -990,7 +997,7 @@ Sixteen migrations total across this session's work (thirteen prior to today, th
 
 ## Tests / build checks last run
 
-2026-09-05 (serving-size Stage 2 - selector UI wired into DetailScreen): `pnpm test` — 138/138 passing (unchanged, no domain logic touched). `pnpm build` clean. `pnpm format` clean. Browser/mobile verification handed to the user (manual checklist) - not yet confirmed, see "Exact next action".
+2026-09-05 (serving-size Stage 2 - selector UI wired into DetailScreen): `pnpm test` — 138/138 passing (unchanged, no domain logic touched). `pnpm build` clean. `pnpm format` clean. **Browser/mobile-verified by the user on a real iPhone, 2026-09-05 - full manual checklist passed, no bugs found** (see "Last completed chunk" for the full checklist).
 
 2026-09-05 (serving-size Stage 1 - shared scaling logic, splash/to-taste units): `pnpm test` — 138/138 passing (125 prior + 13 new in `servings.test.js`, 2 new in `recipeImport.test.js`). `pnpm build` clean. `pnpm format` clean. No browser verification applicable - pure domain logic, nothing wired to a screen yet.
 
