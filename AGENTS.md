@@ -44,6 +44,7 @@ If a subdirectory later needs its own `AGENTS.md`, document its scope here and k
 - Default-export components.
 - Format with `oxfmt` (`pnpm format`) before considering a chunk done.
 - No fuzzy/name-similarity matching anywhere in availability or import logic — always resolve through explicit IDs, ancestry, or substitution-group relationships.
+- **Mobile-first is a primary acceptance criterion, not a nice-to-have, for every UI change** (2026-09-06). Design for narrow screens first: comfortable touch targets (44×44px minimum for anything tappable — steppers, toggles, links doubling as buttons, not just the specific controls that have needed it before), readable text without zooming, easy scrolling, primary actions reachable without hunting. Never rely on hover-only affordances or on a keyboard opening automatically on tap — a focused input on mobile does not imply the keyboard appears (confirmed live, iOS Safari, 2026-09-06), so don't build UI that assumes it does. Desktop behavior is real but supplementary — verify phone usability specifically, don't infer it from a desktop pass.
 
 ## Database & Row Level Security
 

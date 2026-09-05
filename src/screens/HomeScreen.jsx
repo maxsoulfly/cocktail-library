@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useOutletContext } from "react-router-dom"
 import {
   IconBookmark,
@@ -8,6 +8,7 @@ import {
   IconHeart,
   IconSearch,
 } from "@/components/icons"
+import { BuildYourBar } from "@/components/home/BuildYourBar"
 import { GlassSvg } from "@/components/GlassSvg"
 import { SmallCard } from "@/components/CocktailCard"
 import { Card, SectionTitle } from "@/components/primitives"
@@ -29,11 +30,49 @@ export default function HomeScreen() {
     email,
     ingredientTypesById,
     inventory,
+    catalog,
+    userId,
   } = useOutletContext()
   const firstName = (profile?.display_name || email || "there").split(
     /[\s@]/,
   )[0]
   const [showAllAlmost, setShowAllAlmost] = useState(false)
+
+  // Build Your Bar's visibility is an explicit per-visit snapshot ("was the
+  // bar empty when I arrived here"), not a live check against current
+  // ownership - a live check would hide the section the instant the first
+  // optimistic tap landed, mid-selection. null = not yet decided for the
+  // current user; decided exactly once, after the real inventory fetch
+  // resolves, and never re-evaluated for the rest of this mount regardless
+  // of how many items get toggled.
+  const [showBuildYourBar, setShowBuildYourBar] = useState(null)
+  // Resets the snapshot whenever the signed-in user changes, so a previous
+  // account's "already saw it" decision can never leak into a freshly-
+  // signed-in different one on the same device. In practice a sign-out
+  // already unmounts the whole authenticated route tree (session -> no
+  // session -> AppShell itself unmounts), which would reset this state on
+  // its own anyway - this is a defensive backstop in case that ever
+  // changes (e.g. a future admin "view as" feature that doesn't fully
+  // unmount), not evidence a live leak has been observed.
+  const lastUserIdRef = useRef(userId)
+  useEffect(() => {
+    if (lastUserIdRef.current !== userId) {
+      lastUserIdRef.current = userId
+      setShowBuildYourBar(null)
+    }
+  }, [userId])
+  useEffect(() => {
+    if (showBuildYourBar !== null) return
+    if (!inventory.loaded) return
+    setShowBuildYourBar(
+      inventory.ownedTypeIds.size === 0 && inventory.ownedProductIds.size === 0,
+    )
+  }, [
+    showBuildYourBar,
+    inventory.loaded,
+    inventory.ownedTypeIds,
+    inventory.ownedProductIds,
+  ])
 
   const perfect = computed.filter((c) => c.avail === "perfect")
   const good = computed.filter((c) => c.avail === "good")
@@ -102,6 +141,14 @@ export default function HomeScreen() {
       </div>
 
       <div className="pt-5 px-5 pb-0">
+        {showBuildYourBar && (
+          <BuildYourBar
+            catalog={catalog}
+            inventory={inventory}
+            computed={computed}
+          />
+        )}
+
         {perfect.length > 0 && (
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
