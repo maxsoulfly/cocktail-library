@@ -24,6 +24,7 @@ export function ExpandedProducts({
   isAdmin,
   onToggleProduct,
   onProductsChanged,
+  onViewProduct,
   style,
 }) {
   // Admin-only product correction - a miscategorized/typo'd product (from
@@ -215,8 +216,19 @@ export function ExpandedProducts({
               !isLastRow && "border-b border-bdr",
             )}
           >
-            <div className="flex-1 min-w-0">
-              <div
+            {/* A real button, not a div - tapping the name views this
+                product's recipe page (preserving its bottle name, per
+                current-context.md's Stage 4 chunk), same
+                view-never-mutates-ownership split as TypeCard's own card
+                body vs. checkmark. Row height stays this list's existing
+                compact size rather than an independent 44px bump - that
+                minimum was the explicit requirement for TypeCard's
+                checkmark specifically, not restated for this row. */}
+            <button
+              onClick={() => onViewProduct(p.id)}
+              className="flex-1 min-w-0 text-left bg-transparent border-none cursor-pointer py-1"
+            >
+              <span
                 className={clsx(
                   "text-xs",
                   ownedProductIds.has(p.id) ? "text-tx" : "text-tx3",
@@ -225,8 +237,8 @@ export function ExpandedProducts({
                 {p.name}
                 {p.brand && p.brand !== p.name ? ` · ${p.brand}` : ""}
                 {p.is_homemade ? " · homemade" : ""}
-              </div>
-            </div>
+              </span>
+            </button>
             {isAdmin && (
               <button
                 onClick={() => startEditProduct(p)}

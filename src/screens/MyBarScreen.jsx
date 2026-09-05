@@ -215,6 +215,11 @@ export default function MyBarScreen() {
         coveringChildren={coveringChildren}
         isStaff={isStaff}
         onEditType={() => setEditingTypeId(type.id)}
+        // Tap-to-view, not tap-to-select - the one deliberate difference
+        // from Build Your Bar's own use of this same shared card (see
+        // current-context.md's Stage 4 chunk). Only the dedicated
+        // checkmark button changes ownership here.
+        onCardClick={() => navigate(`/bar/type/${type.id}`)}
         onToggleOwned={() => toggleType(type.id)}
       />
     )
@@ -250,6 +255,7 @@ export default function MyBarScreen() {
         isAdmin={isAdmin}
         onToggleProduct={toggleProduct}
         onProductsChanged={catalog.refetch}
+        onViewProduct={(productId) => navigate(`/bar/product/${productId}`)}
         style={style}
       />
     )

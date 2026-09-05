@@ -66,22 +66,30 @@ export function BuildYourBar({ catalog, inventory, computed }) {
   const hasSelection =
     inventory.ownedTypeIds.size > 0 || inventory.ownedProductIds.size > 0
 
-  const renderTile = (type) => (
-    <TypeCard
-      key={type.id}
-      type={type}
-      isChild={false}
-      owned={inventory.ownedTypeIds.has(type.id)}
-      ownedProducts={[]}
-      allProducts={[]}
-      expanded={false}
-      onToggleExpand={NOOP}
-      coveringChildren={[]}
-      isStaff={false}
-      onEditType={NOOP}
-      onToggleOwned={() => inventory.toggleType(type.id)}
-    />
-  )
+  const renderTile = (type) => {
+    // Tap-to-select, preserved exactly - both the card body and the
+    // dedicated checkmark button toggle the same thing here, unlike My
+    // Bar (see current-context.md's Stage 4 chunk for why the two screens
+    // deliberately differ on what a card tap does).
+    const toggle = () => inventory.toggleType(type.id)
+    return (
+      <TypeCard
+        key={type.id}
+        type={type}
+        isChild={false}
+        owned={inventory.ownedTypeIds.has(type.id)}
+        ownedProducts={[]}
+        allProducts={[]}
+        expanded={false}
+        onToggleExpand={NOOP}
+        coveringChildren={[]}
+        isStaff={false}
+        onEditType={NOOP}
+        onCardClick={toggle}
+        onToggleOwned={toggle}
+      />
+    )
+  }
 
   return (
     <div className="mb-6 bg-surface2 border border-bdr rounded-lg p-4">
