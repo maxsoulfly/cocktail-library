@@ -20,16 +20,22 @@ import { Btn, ColorSwatchPicker, Input } from "@/components/primitives"
 import { NON_VOLUME_UNITS } from "@/data/constants"
 import { ozToMl } from "@/domain/availability"
 import { resolveIngredientType } from "@/domain/ingredientResolution"
+import { parseUnitLabel } from "@/domain/servings"
 import { buildRecipeImportPrompt } from "@/schemas/recipeImport"
 import { parseRecipePaste } from "@/schemas/recipePaste"
 import { createRecipe, updateRecipe } from "@/services/recipes"
 
 // Reverses createRecipe's amount/unitLabel encoding (see services/recipes.js)
-// so an existing component can prefill the amount+unit inputs.
+// so an existing component can prefill the amount+unit inputs. Uses
+// domain/servings.js's parseUnitLabel() rather than a naive
+// split(" ") - a bare label with no leading number (e.g. "top-up") is
+// entirely the unit, not an "amount" of its first word; the old version
+// got this wrong and corrupted "top-up" into "top-up part" on a re-save
+// (see parseUnitLabel's own comment for the full story).
 function unitLabelToForm(ri) {
   if (ri.unitLabel === "ml") return { amount: String(ri.amount), unit: "ml" }
-  const [amount, ...rest] = ri.unitLabel.split(" ")
-  return { amount: amount ?? "", unit: rest.join(" ") || NON_VOLUME_UNITS[0] }
+  const { amount, unit } = parseUnitLabel(ri.unitLabel)
+  return { amount, unit: unit || NON_VOLUME_UNITS[0] }
 }
 
 // New-recipe drafts (see the isDraftable block in the component below) used
