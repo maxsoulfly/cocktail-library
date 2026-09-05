@@ -25,6 +25,11 @@ export const SOURCE_FILTERS = [
 // validator/prompt so both accept exactly the same unit vocabulary - if they
 // drifted, an AI-imported recipe could use a unit the manual editor doesn't
 // support, or vice versa.
+// "splash" and "to taste" added for the serving-size-scaling feature
+// (docs/plans - see current-context.md): "splash" is a countable measure
+// like "dash" (scales with servings), "to taste" is a bare descriptive
+// label like "top-up" (never has a leading number, so src/domain/servings.js
+// leaves it untouched automatically - no special-casing needed).
 export const NON_VOLUME_UNITS = [
   "part",
   "dash",
@@ -33,6 +38,8 @@ export const NON_VOLUME_UNITS = [
   "slice",
   "wedge",
   "top-up",
+  "to taste",
+  "splash",
   "g",
 ]
 

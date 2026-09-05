@@ -92,6 +92,59 @@ describe("validateRecipeImport", () => {
     })
   })
 
+  it("accepts a countable splash component", () => {
+    const { results } = validateRecipeImport(
+      [
+        {
+          name: "Splashy",
+          glass: "Rocks",
+          steps: ["Build over ice."],
+          components: [
+            { ingredient: "Gin", amount: 60, unit: "ml" },
+            {
+              ingredient: "Olive",
+              amount: 2,
+              unit: "splash",
+              role: "optional",
+            },
+          ],
+        },
+      ],
+      catalog,
+    )
+    expect(results[0].valid).toBe(true)
+    expect(results[0].resolved.components[1]).toEqual({
+      ingredientTypeId: "type-olive",
+      amount: 0,
+      unitLabel: "2 splash",
+      role: "optional",
+    })
+  })
+
+  it("accepts a bare, no-count 'to taste' component", () => {
+    const { results } = validateRecipeImport(
+      [
+        {
+          name: "Seasoned",
+          glass: "Rocks",
+          steps: ["Build over ice."],
+          components: [
+            { ingredient: "Gin", amount: 60, unit: "ml" },
+            { ingredient: "Olive", unit: "to taste", role: "optional" },
+          ],
+        },
+      ],
+      catalog,
+    )
+    expect(results[0].valid).toBe(true)
+    expect(results[0].resolved.components[1]).toEqual({
+      ingredientTypeId: "type-olive",
+      amount: 0,
+      unitLabel: "to taste",
+      role: "optional",
+    })
+  })
+
   it("accepts a minimal valid recipe with no family/color/tags", () => {
     const { results } = validateRecipeImport(
       [
@@ -357,7 +410,7 @@ describe("buildRecipeImportPrompt", () => {
   it("names the allowed non-volume units, calling out grams separately", () => {
     const prompt = buildRecipeImportPrompt(catalog)
     expect(prompt).toContain(
-      "part, dash, barspoon, piece, slice, wedge, top-up",
+      "part, dash, barspoon, piece, slice, wedge, top-up, to taste, splash",
     )
     expect(prompt).toContain('"g" (grams, for weight-based solids)')
   })
